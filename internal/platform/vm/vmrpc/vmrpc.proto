@@ -1,0 +1,399 @@
+syntax = "proto3";
+
+package vmrpc;
+
+option go_package = "github.com/nora/sandbox-vm/internal/platform/vm/vmrpc";
+
+// HostService is implemented by the Host and called by vmd.
+// This allows guest-local runtime bridge requests to call back into the host.
+service HostService {
+  rpc CallRuntimeTool(RuntimeToolRequest) returns (RuntimeToolResponse);
+  rpc CallRuntimeHTTP(RuntimeHTTPRequest) returns (RuntimeHTTPResponse);
+}
+
+// VMService is implemented by vmd and called by the Host.
+// This is for sandbox operations inside the VM.
+service VMService {
+  // Health checks if the service is healthy.
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Exec executes a command inside a sandbox.
+  rpc Exec(ExecRequest) returns (ExecResponse);
+
+  // ExecStream executes a command and streams output.
+  rpc ExecStream(ExecRequest) returns (stream ExecOutput);
+
+  // Sandbox management
+  rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
+  rpc DeleteSandbox(DeleteSandboxRequest) returns (DeleteSandboxResponse);
+  rpc SandboxExists(SandboxExistsRequest) returns (SandboxExistsResponse);
+  rpc MountSandbox(MountSandboxRequest) returns (MountSandboxResponse);
+  rpc UnmountSandbox(UnmountSandboxRequest) returns (UnmountSandboxResponse);
+
+  // File operations
+  rpc GetSandboxFile(GetSandboxFileRequest) returns (GetSandboxFileResponse);
+  rpc StreamSandboxFile(StreamSandboxFileRequest) returns (stream StreamSandboxFileChunk);
+  rpc UploadSandboxFile(stream UploadSandboxFileChunk) returns (UploadSandboxFileResponse);
+  rpc WriteSandboxFile(WriteSandboxFileRequest) returns (WriteSandboxFileResponse);
+  rpc DeleteSandboxFile(DeleteSandboxFileRequest) returns (DeleteSandboxFileResponse);
+  rpc SandboxFileExists(SandboxFileExistsRequest) returns (SandboxFileExistsResponse);
+
+  // Sandbox state operations
+  rpc SetupWorkspaces(SetupWorkspacesRequest) returns (SetupWorkspacesResponse);
+  rpc GetSandboxState(GetSandboxStateRequest) returns (GetSandboxStateResponse);
+  rpc ExportSandboxDiff(ExportSandboxDiffRequest) returns (stream ExportSandboxDiffResponse);
+  rpc DiscardSandboxAllChanges(DiscardSandboxAllChangesRequest) returns (DiscardSandboxAllChangesResponse);
+  rpc RunSandboxHousekeeper(RunSandboxHousekeeperRequest) returns (RunSandboxHousekeeperResponse);
+
+  // Environment
+  rpc SetProxyEnv(SetProxyEnvRequest) returns (SetProxyEnvResponse);
+  rpc ResetSharedEnv(ResetSharedEnvRequest) returns (ResetSharedEnvResponse);
+
+  // Python execution
+  rpc ExecutePython(ExecutePythonRequest) returns (ExecutePythonResponse);
+  rpc ExecutePythonStream(ExecutePythonRequest) returns (stream ExecOutput);
+
+  // Remote VM auth provisioning
+  rpc ProvisionAuthCredentials(ProvisionAuthCredentialsRequest) returns (ProvisionAuthCredentialsResponse);
+
+  // Runtime bridge configuration for guest-local proxying.
+  rpc SetRuntimeBridgeConfig(SetRuntimeBridgeConfigRequest) returns (SetRuntimeBridgeConfigResponse);
+
+  // SyncWorkspace streams a tar archive of workspace files to the remote VM.
+  // Used in remote mode to upload initial workspace content.
+  rpc SyncWorkspace(stream SyncWorkspaceChunk) returns (SyncWorkspaceResponse);
+}
+
+// TelemetryService is implemented by the Host and called by vmd.
+// It allows the Guest to export OTLP payloads over the existing vmrpc channel.
+service TelemetryService {
+  rpc ExportOTLP(OtlpEnvelope) returns (ExportAck);
+}
+
+// ===== HostService messages =====
+
+message Header {
+  string key = 1;
+  repeated string values = 2;
+}
+
+message ProtocolErrorDetail {
+  string code = 1;
+  string message = 2;
+}
+
+message RuntimeToolRequest {
+  string capability_token = 1;
+  string tool = 2;
+  bytes input_json = 3;
+  repeated Header headers = 4;
+}
+
+message RuntimeToolResponse {
+  bytes result_json = 1;
+  ProtocolErrorDetail error = 2;
+}
+
+message RuntimeHTTPRequest {
+  string capability_token = 1;
+  string method = 2;
+  string path = 3;
+  string query = 4;
+  repeated Header headers = 5;
+  bytes body = 6;
+}
+
+message RuntimeHTTPResponse {
+  int32 status_code = 1;
+  repeated Header headers = 2;
+  bytes body = 3;
+  ProtocolErrorDetail error = 4;
+}
+
+// ===== VMService messages =====
+
+message HealthRequest {}
+message HealthResponse {
+  string status = 1;
+}
+
+message ExecRequest {
+  string sandbox_id = 1;
+  repeated string command = 2;
+  string working_dir = 3;
+  map<string, string> env = 4;
+}
+
+message ExecResponse {
+  bytes stdout = 1;
+  bytes stderr = 2;
+  int32 exit_code = 3;
+}
+
+message ExecOutput {
+  enum OutputType {
+    STDOUT = 0;
+    STDERR = 1;
+    EXIT = 2;
+  }
+  OutputType type = 1;
+  bytes data = 2;
+  int32 exit_code = 3;
+}
+
+message CreateSandboxRequest {}
+message CreateSandboxResponse {
+  string sandbox_id = 1;
+  string sandbox_root = 2;
+}
+
+message DeleteSandboxRequest {
+  string sandbox_id = 1;
+}
+message DeleteSandboxResponse {}
+
+message SandboxExistsRequest {
+  string sandbox_id = 1;
+}
+message SandboxExistsResponse {
+  bool exists = 1;
+}
+
+message MountSandboxRequest {
+  string sandbox_id = 1;
+}
+message MountSandboxResponse {}
+
+message UnmountSandboxRequest {
+  string sandbox_id = 1;
+}
+message UnmountSandboxResponse {}
+
+message GetSandboxFileRequest {
+  string sandbox_id = 1;
+  string path = 2;
+}
+message GetSandboxFileResponse {
+  bytes content = 1;
+}
+
+message StreamSandboxFileRequest {
+  string sandbox_id = 1;
+  string path = 2;
+}
+
+message StreamSandboxFileChunk {
+  oneof payload {
+    FileStreamInfo info = 1;
+    bytes data = 2;
+    FileStreamDone done = 3;
+  }
+}
+
+message FileStreamInfo {
+  string file_name = 1;
+  string mime_type = 2;
+  int64 total_size = 3;
+  uint32 mode = 4;
+}
+
+message FileStreamDone {
+  int64 bytes_sent = 1;
+  string sha256 = 2;
+}
+
+message WriteSandboxFileRequest {
+  string sandbox_id = 1;
+  string path = 2;
+  bytes content = 3;
+  bool append = 4;
+}
+message WriteSandboxFileResponse {}
+
+message UploadSandboxFileChunk {
+  oneof payload {
+    UploadSandboxFileInfo info = 1;
+    bytes data = 2;
+    FileStreamDone done = 3;
+  }
+}
+
+message UploadSandboxFileInfo {
+  string sandbox_id = 1;
+  string path = 2;
+  bool overwrite = 3;
+  uint32 mode = 4;
+  string mime_type = 5;
+  int64 total_size_hint = 6;
+}
+
+message UploadSandboxFileResponse {
+  int64 bytes_written = 1;
+  string sha256 = 2;
+  bool created = 3;
+  bool overwritten = 4;
+}
+
+message DeleteSandboxFileRequest {
+  string sandbox_id = 1;
+  string path = 2;
+}
+message DeleteSandboxFileResponse {}
+
+message SandboxFileExistsRequest {
+  string sandbox_id = 1;
+  string path = 2;
+}
+message SandboxFileExistsResponse {
+  bool exists = 1;
+}
+
+// MountInfo describes a single mount configuration.
+message MountInfo {
+  string virtio_tag = 1;      // VirtioFS tag (e.g., "mount-0", "mount-1")
+  string mount_path = 2;      // Final merged mount path (e.g., "/Users/john")
+  bool read_only = 3;         // If true, skip overlay (read-only mount)
+  bool passthrough = 4;       // If true, direct write-through to host, no overlay
+}
+
+// SetupWorkspacesRequest requests multiple workspace overlays to be mounted.
+message SetupWorkspacesRequest {
+  repeated MountInfo mounts = 1;
+}
+
+// WorkspaceResult describes the result of mounting a single workspace.
+message WorkspaceResult {
+  string mounted_path = 1;     // The mounted merged path
+}
+
+// SetupWorkspacesResponse contains results for all mounted workspaces.
+message SetupWorkspacesResponse {
+  repeated WorkspaceResult results = 1;
+}
+
+message DataChunk {
+  bytes data = 1;
+}
+
+message GetSandboxStateRequest {
+  string sandbox_id = 1;
+}
+message GetSandboxStateResponse {
+  string sandbox_id = 1;
+  repeated FileDiff changes = 2;
+}
+
+message FileDiff {
+  string path = 1;
+  uint32 mode = 2;
+  bool is_dir = 3;
+  bool is_updated = 4;
+  bool is_deleted = 5;
+  string moved_from = 6;
+  int64 timestamp = 7;
+  int64 size = 8;
+}
+
+message ExportSandboxDiffRequest {
+  string sandbox_id = 1;
+  repeated string paths = 2;
+}
+
+message ExportSandboxDiffResponse {
+  oneof payload {
+    DiffMetadata metadata = 1;
+    DataChunk data = 2;
+  }
+}
+
+message DiffMetadata {
+  repeated FileDiff changes = 1;
+  repeated string paths = 2;
+  int64 tar_size_hint = 3;
+}
+
+message DiscardSandboxAllChangesRequest {
+  string sandbox_id = 1;
+}
+message DiscardSandboxAllChangesResponse {}
+
+message RunSandboxHousekeeperRequest {
+  string sandbox_id = 1;
+}
+message RunSandboxHousekeeperResponse {}
+
+message SetProxyEnvRequest {
+  string http_proxy = 1;
+  string https_proxy = 2;
+  string no_proxy = 3;
+}
+message SetProxyEnvResponse {}
+
+message ResetSharedEnvRequest {}
+message ResetSharedEnvResponse {}
+
+message ExecutePythonRequest {
+  string sandbox_id = 1;
+  string code = 2;
+  string working_dir = 3;
+  map<string, string> env = 4;
+}
+message ExecutePythonResponse {
+  string stdout = 1;
+  string stderr = 2;
+  int32 exit_code = 3;
+}
+
+// ===== TelemetryService messages =====
+
+enum TelemetrySignal {
+  TELEMETRY_SIGNAL_UNSPECIFIED = 0;
+  TELEMETRY_SIGNAL_TRACES = 1;
+  TELEMETRY_SIGNAL_METRICS = 2;
+  TELEMETRY_SIGNAL_LOGS = 3;
+  TELEMETRY_SIGNAL_PROFILE_ARTIFACT = 4;
+}
+
+enum TelemetryCompression {
+  TELEMETRY_COMPRESSION_UNSPECIFIED = 0;
+  TELEMETRY_COMPRESSION_NONE = 1;
+  TELEMETRY_COMPRESSION_GZIP = 2;
+}
+
+message OtlpEnvelope {
+  bytes payload = 1;
+  TelemetrySignal signal = 2;
+  TelemetryCompression compression = 3;
+  map<string, string> attributes = 4;
+}
+
+message ExportAck {
+  uint32 status_code = 1;
+  string error = 2;
+}
+message ProvisionAuthCredentialsRequest {
+  string jwt = 1;
+  string backend_url = 2;
+  map<string, string> headers = 3;
+}
+message ProvisionAuthCredentialsResponse {}
+
+message SetRuntimeBridgeConfigRequest {
+  string capability_token = 1;
+  string session_id = 2;
+  string caller_agent_id = 3;
+  string backend_url = 4;
+  string backend_api_key = 5;
+}
+
+message SetRuntimeBridgeConfigResponse {}
+
+// SyncWorkspace messages for VM workspace upload.
+message SyncWorkspaceChunk {
+  string target_path = 1;  // Destination path on remote (first message only)
+  bytes data = 2;          // Tar data chunk
+}
+message SyncWorkspaceResponse {
+  int64 files_extracted = 1;
+  string error = 2;
+}

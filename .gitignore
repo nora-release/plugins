@@ -1,0 +1,45 @@
+# Build output directory
+dist/
+
+# Configuration with sensitive data
+config.yaml
+
+# task metadata directory
+.tasks/
+
+# Go build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# VM resources
+resources/vm/*.bin
+resources/vm/*.img
+resources/vm/*.tar.gz
+resources/vm/*.tmp
+
+*.tar.gz
+
+/toolchain/
+
+# Test temp directory (created by docs/http-api-test-guide.md)
+.test-tmp/
+
+# CLI build artifacts
+/test-meet

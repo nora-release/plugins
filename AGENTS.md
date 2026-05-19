@@ -1,8 +1,6 @@
 # Sandbox VM
 
-This file provides guidance to coding agents working in `sandbox-vm/`, nora's pure sandbox VM control library.
-
-> Read repo-wide rules first: [`/AGENTS.md`](../AGENTS.md)
+This file provides guidance to coding agents working in `packages/sandbox/`, Nora's pure sandbox VM control library.
 
 ## What This Component Is
 
@@ -31,7 +29,7 @@ macos (SwiftUI)
 ## Directory Map
 
 ```text
-sandbox-vm/
+packages/sandbox/
 ├── cmd/
 │   └── vmd/
 ├── sdk/apple/               gomobile-facing runtime API

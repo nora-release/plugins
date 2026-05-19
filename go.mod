@@ -16,6 +16,12 @@ require (
 )
 
 require (
+	golang.org/x/mobile v0.0.0-20251021151156-188f512ec823
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/tools v0.38.0 // indirect
+)
+
+require (
 	github.com/Code-Hex/go-infinity-channel v1.0.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

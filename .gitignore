@@ -36,6 +36,8 @@ resources/vm/*.tmp
 
 *.tar.gz
 
+/.gopath/
+/.toolchain/
 /toolchain/
 
 # Test temp directory (created by docs/http-api-test-guide.md)

@@ -6,10 +6,15 @@ cd "$(dirname $0)/.."
 
 # go 1.25.5-nora
 GO_REVISION="5eb78c98996e90574f1abd8454e76dd97407a520"
+TOOLCHAIN_DIR="$PWD/.toolchain"
 
-if [ ! -f ./toolchain/bin/go ] || [ "$(cat ./toolchain/.git/FETCH_HEAD | awk '{print $1}')" != "$GO_REVISION" ]; then
-  mkdir -p toolchain
-  cd toolchain
+if [ ! -d "$TOOLCHAIN_DIR" ] && [ -d "$PWD/toolchain" ]; then
+  mv "$PWD/toolchain" "$TOOLCHAIN_DIR"
+fi
+
+if [ ! -f "$TOOLCHAIN_DIR/bin/go" ] || [ "$(cat "$TOOLCHAIN_DIR/.git/FETCH_HEAD" 2>/dev/null | awk '{print $1}')" != "$GO_REVISION" ]; then
+  mkdir -p "$TOOLCHAIN_DIR"
+  cd "$TOOLCHAIN_DIR"
   git init
   git remote remove origin || true
   go_toolchain_repo="${NORA_GO_TOOLCHAIN_REPO:-https://github.com/nora-release/go-toolchain}"
@@ -23,10 +28,12 @@ if [ ! -f ./toolchain/bin/go ] || [ "$(cat ./toolchain/.git/FETCH_HEAD | awk '{p
   cd ../..
 fi
 
-export PATH="$PWD/toolchain/bin:$PATH"
-export GOPATH="$PWD/toolchain"
+export GOPATH="$PWD/.gopath"
+export GOBIN="$GOPATH/bin"
+mkdir -p "$GOBIN"
+export PATH="$GOBIN:$TOOLCHAIN_DIR/bin:$PATH"
 
-if [ ! -f ./toolchain/bin/gomobile ] || [ ! -f ./toolchain/bin/gobind ]; then
+if [ ! -f "$GOBIN/gomobile" ] || [ ! -f "$GOBIN/gobind" ]; then
   go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20251021151156-188f512ec823
   go install golang.org/x/mobile/cmd/gobind@v0.0.0-20251021151156-188f512ec823
 fi
@@ -35,7 +42,7 @@ mkdir -p dist
 export MACOSX_DEPLOYMENT_TARGET=14.0
 export CGO_CFLAGS="-mmacosx-version-min=14.0"
 export CGO_LDFLAGS="-mmacosx-version-min=14.0"
-gomobile bind -target=macos -trimpath -ldflags="-s -w" -o dist/SandboxVM.xcframework ./sdk/apple
+"$GOBIN/gomobile" bind -target=macos -trimpath -ldflags="-s -w" -o dist/SandboxVM.xcframework ./sdk/apple
 
 macos_framework_dir="${NORA_MACOS_FRAMEWORK_DIR:-../macos}"
 if [ -d "$macos_framework_dir" ]; then

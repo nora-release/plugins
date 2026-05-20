@@ -42,6 +42,14 @@ packages/sandbox/
 
 ## Build and Test
 
+Prefer root Makefile targets:
+
+- `make install-go` download Go module dependencies
+- `make build-go` build the sandbox framework target
+- `make test-go` run Go tests
+
+Use component targets when working directly inside `packages/sandbox`:
+
 - `make framework` build the local-vm runtime artifact (current filename: `dist/SandboxVM.xcframework`)
 - `make vm` build VM kernel/rootfs assets
 - `make proto` regenerate `internal/platform/vm/vmrpc/*.pb.go`
@@ -71,4 +79,4 @@ packages/sandbox/
 - Keep source-of-truth in current Go code; docs here must track implementation
 - Do not reintroduce `agent-cli`, `slack-agentd`, `meetd`, `gcal-auth`, meeting joiner, prompt/history agent types, or old framework client/server paths
 - Prefer product-facing runtime ownership in `localconnector`, `envhost`, `runtimebridge`, and `platform/vm`
-- Avoid adding new tool/loop/LLM logic to `sandbox-vm`; the product agent now lives in the macOS app through vendored `nora`
+- Avoid adding new tool/loop/LLM logic to `sandbox-vm`; the product agent now lives in `packages/agents` and the macOS app bridge

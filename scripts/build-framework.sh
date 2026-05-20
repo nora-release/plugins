@@ -32,6 +32,7 @@ export GOPATH="$PWD/.gopath"
 export GOBIN="$GOPATH/bin"
 mkdir -p "$GOBIN"
 export PATH="$GOBIN:$TOOLCHAIN_DIR/bin:$PATH"
+export GOFLAGS="${GOFLAGS:-} -p=${GO_BUILD_PARALLELISM:-2}"
 
 if [ ! -f "$GOBIN/gomobile" ] || [ ! -f "$GOBIN/gobind" ]; then
   go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20251021151156-188f512ec823
@@ -44,7 +45,14 @@ export CGO_CFLAGS="-mmacosx-version-min=14.0"
 export CGO_LDFLAGS="-mmacosx-version-min=14.0"
 "$GOBIN/gomobile" bind -target=macos -trimpath -ldflags="-s -w" -o dist/SandboxVM.xcframework ./sdk/apple
 
-macos_framework_dir="${NORA_MACOS_FRAMEWORK_DIR:-../macos}"
+if [ -n "${NORA_MACOS_FRAMEWORK_DIR:-}" ]; then
+  macos_framework_dir="$NORA_MACOS_FRAMEWORK_DIR"
+elif [ -d "../../macos" ]; then
+  macos_framework_dir="../../macos"
+else
+  macos_framework_dir="../macos"
+fi
+
 if [ -d "$macos_framework_dir" ]; then
   rm -rf "$macos_framework_dir/SandboxVM.xcframework"
   cp -a ./dist/SandboxVM.xcframework "$macos_framework_dir/"

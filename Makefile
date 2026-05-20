@@ -1,3 +1,5 @@
+GO_BUILD_PARALLELISM ?= 1
+
 .PHONY: all framework vm proto go-test
 
 all: proto vm framework
@@ -13,7 +15,7 @@ proto:
 		internal/platform/vm/vmrpc/vmrpc.proto
 
 go-test:
-	go test ./cmd/vmd/... ./sdk/apple/... ./internal/... ./pkg/...
+	go test -p $(GO_BUILD_PARALLELISM) ./cmd/vmd/... ./sdk/apple/... ./internal/... ./pkg/...
 
 vm:
 	./scripts/kbuild.sh

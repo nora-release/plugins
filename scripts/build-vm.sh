@@ -5,6 +5,32 @@ set -e
 SCRIPT_DIR="$(dirname $0)"
 cd "$SCRIPT_DIR/.."
 
+docker_build_cached() {
+  local cache_name="$1"
+  shift
+
+  if [ -z "${SANDBOXVM_DOCKER_CACHE_DIR:-}" ] || ! docker buildx version >/dev/null 2>&1; then
+    docker build "$@"
+    return
+  fi
+
+  local cache_dir="${SANDBOXVM_DOCKER_CACHE_DIR}/${cache_name}"
+  local next_cache_dir="${SANDBOXVM_DOCKER_CACHE_DIR}/${cache_name}-next"
+  local cache_args=()
+
+  mkdir -p "$cache_dir"
+  rm -rf "$next_cache_dir"
+
+  if [ -f "$cache_dir/index.json" ]; then
+    cache_args+=(--cache-from "type=local,src=${cache_dir}")
+  fi
+  cache_args+=(--cache-to "type=local,dest=${next_cache_dir},mode=max")
+
+  docker buildx build --load "${cache_args[@]}" "$@"
+  rm -rf "$cache_dir"
+  mv "$next_cache_dir" "$cache_dir"
+}
+
 mkdir -p resources/vm
 
 if [ ! -f "resources/vm/kernel.bin" ]; then
@@ -15,7 +41,7 @@ fi
 
 image_tag="$(date -u +%s)-$(openssl rand -hex 4)"
 # Build using multi-stage Dockerfile (compiles vmd inside container)
-docker build --platform linux/arm64 -f vmbuild/Dockerfile -t "sandbox-vm-vm:$image_tag" .
+docker_build_cached rootfs --platform linux/arm64 -f vmbuild/Dockerfile -t "sandbox-vm-vm:$image_tag" .
 container_id="$(docker create "sandbox-vm-vm:$image_tag")"
 rm -f resources/vm/rootfs.img.tmp
 docker export "$container_id" > resources/vm/rootfs.tar.tmp

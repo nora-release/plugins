@@ -45,9 +45,9 @@ docker_build_cached rootfs --platform linux/arm64 -f vmbuild/Dockerfile -t "sand
 container_id="$(docker create "sandbox-vm-vm:$image_tag")"
 rm -f resources/vm/rootfs.img.tmp
 docker export "$container_id" > resources/vm/rootfs.tar.tmp
-erofs_compression_args=(-zzstd,15)
-if [ "$(uname -s)" = "Darwin" ]; then
-  erofs_compression_args=()
+erofs_compression_args=()
+if [ "${SANDBOXVM_EROFS_COMPRESSION:-}" = "zstd" ]; then
+  erofs_compression_args=(-zzstd,15)
 fi
 mkfs.erofs -b 4096 -C 65536 "${erofs_compression_args[@]}" --tar=f resources/vm/rootfs.img.tmp resources/vm/rootfs.tar.tmp
 rm -f resources/vm/rootfs.tar.tmp

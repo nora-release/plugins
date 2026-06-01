@@ -17,7 +17,7 @@ if [ ! -f "$TOOLCHAIN_DIR/bin/go" ] || [ "$(cat "$TOOLCHAIN_DIR/.git/FETCH_HEAD"
   cd "$TOOLCHAIN_DIR"
   git init
   git remote remove origin || true
-  go_toolchain_repo="${NORA_GO_TOOLCHAIN_REPO:-https://github.com/nora-release/go-toolchain}"
+  go_toolchain_repo="${NORA_GO_TOOLCHAIN_REPO:-https://github.com/golang/go}"
   git remote add origin "$go_toolchain_repo" || true
   git fetch --depth 1 origin "$GO_REVISION"
   git checkout FETCH_HEAD

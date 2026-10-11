@@ -1,0 +1,45 @@
+name: Validate marketplace
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout trusted validator
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: validator
+          persist-credentials: false
+      - name: Checkout proposed catalog
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: registry
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Validate catalog and release archives without running plugins
+        env:
+          IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline=()
+          if [[ "$IS_PULL_REQUEST" == true ]]; then
+            baseline=(--baseline "$GITHUB_WORKSPACE/validator/registry.json")
+          fi
+          node "$GITHUB_WORKSPACE/validator/scripts/plugin-marketplace.ts" validate \
+            --registry "$GITHUB_WORKSPACE/registry/registry.json" \
+            --catalog "$GITHUB_WORKSPACE/registry/marketplace.json" \
+            --verify-downloads "${baseline[@]}"

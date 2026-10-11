@@ -30,6 +30,8 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
+      - name: Install pnpm
+        run: npm install --global pnpm@11.5.3 --ignore-scripts --no-audit --no-fund
       - name: Validate catalog and release archives without running plugins
         env:
           IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
@@ -37,6 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          pnpm --dir "$GITHUB_WORKSPACE/validator" install --frozen-lockfile --ignore-scripts
           baseline=()
           if [[ "$IS_PULL_REQUEST" == true ]]; then
             baseline=(--baseline "$GITHUB_WORKSPACE/validator/registry.json")
@@ -44,7 +47,7 @@ jobs:
             git -C "$GITHUB_WORKSPACE/validator" show "$PREVIOUS_COMMIT:registry.json" > "$RUNNER_TEMP/previous-registry.json"
             baseline=(--baseline "$RUNNER_TEMP/previous-registry.json")
           fi
-          node "$GITHUB_WORKSPACE/validator/scripts/plugin-marketplace.ts" validate \
+          node "$GITHUB_WORKSPACE/validator/node_modules/@nora/plugin-kit/scripts/plugin-marketplace.mjs" validate \
             --registry "$GITHUB_WORKSPACE/registry/registry.json" \
             --catalog "$GITHUB_WORKSPACE/registry/marketplace.json" \
             --verify-downloads "${baseline[@]}"

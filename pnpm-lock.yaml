@@ -1,0 +1,25 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    devDependencies:
+      '@nora/plugin-kit':
+        specifier: github:nora-release/plugin-kit#v0.2.0
+        version: https://codeload.github.com/nora-release/plugin-kit/tar.gz/d014a0895763ad3092159838103043d6061f557a
+
+packages:
+
+  '@nora/plugin-kit@https://codeload.github.com/nora-release/plugin-kit/tar.gz/d014a0895763ad3092159838103043d6061f557a':
+    resolution: {gitHosted: true, integrity: sha512-C06ZSsjDE8PzeWpYwVhPmWJsEtT8RDcIXTvbEL52iwSYxVuP8PZtoRAnBbqG2pT5J7dEqE7CIAxKzK+p+/rSqA==, tarball: https://codeload.github.com/nora-release/plugin-kit/tar.gz/d014a0895763ad3092159838103043d6061f557a}
+    version: 0.2.0
+    engines: {node: '>=24'}
+    hasBin: true
+
+snapshots:
+
+  '@nora/plugin-kit@https://codeload.github.com/nora-release/plugin-kit/tar.gz/d014a0895763ad3092159838103043d6061f557a': {}

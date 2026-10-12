@@ -3,9 +3,11 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.5.3",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "devDependencies": {
-    "@nora/plugin-kit": "github:nora-release/plugin-kit#v0.2.0"
+    "@nora/plugin-kit": "github:nora-release/plugin-kit#v0.3.0"
   },
   "scripts": {
     "generate": "node node_modules/@nora/plugin-kit/scripts/plugin-marketplace.mjs generate --registry registry.json --output marketplace.json",

@@ -10,7 +10,7 @@
         "id": "com.nora.github",
         "name": "GitHub",
         "iconPath": "assets/github.svg",
-        "version": "0.2.2",
+        "version": "0.2.3",
         "summary": "Connect your GitHub account and browse your repositories, issues, and pull requests in a native Nora panel.",
         "publisher": "Nora",
         "apiVersion": 1,
@@ -57,9 +57,9 @@
         ]
       },
       "repositoryURL": "https://github.com/nora-release/github-plugin",
-      "releaseTag": "v0.2.2",
-      "downloadURL": "https://github.com/nora-release/github-plugin/releases/download/v0.2.2/com.nora.github-0.2.2.zip",
-      "sha256": "73cfd52bc001d312ce0646b9181d8df816874914591d2aae8d964bbda054660d"
+      "releaseTag": "v0.2.3",
+      "downloadURL": "https://github.com/nora-release/github-plugin/releases/download/v0.2.3/com.nora.github-0.2.3.zip",
+      "sha256": "f7050066e653398ab23766a8e42e4b4aa1b384e246ffe1e5f7fd6dcea4283bc9"
     }
   ]
 }

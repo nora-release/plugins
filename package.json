@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "devDependencies": {
-    "@nora/plugin-kit": "github:nora-release/plugin-kit#v0.8.0"
+    "@nora/plugin-kit": "github:nora-release/plugin-kit#v0.9.0"
   },
   "scripts": {
     "generate": "node node_modules/@nora/plugin-kit/scripts/plugin-marketplace.mjs generate --registry registry.json --output marketplace.json",

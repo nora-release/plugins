@@ -10,7 +10,7 @@
         "id": "com.nora.github",
         "name": "GitHub",
         "iconPath": "assets/github.svg",
-        "version": "0.10.22",
+        "version": "0.10.23",
         "summary": "Connect GitHub to view PR discussions, reviews, CI/CD checks, commits, and changes; comment and merge from native Nora views.",
         "publisher": "Nora",
         "apiVersion": 1,
@@ -57,9 +57,9 @@
         ]
       },
       "repositoryURL": "https://github.com/nora-release/github-plugin",
-      "releaseTag": "v0.10.22",
-      "downloadURL": "https://github.com/nora-release/github-plugin/releases/download/v0.10.22/com.nora.github-0.10.22.zip",
-      "sha256": "63e6100193668a4a10d4fb25fc4dd71cdbc30e2141537b3c227fb6bbc6571457"
+      "releaseTag": "v0.10.23",
+      "downloadURL": "https://github.com/nora-release/github-plugin/releases/download/v0.10.23/com.nora.github-0.10.23.zip",
+      "sha256": "6e54544679274de5f64e6e56b649d82c3057c6a7af2d8d594f6ee5521e5e4a3c"
     }
   ]
 }

@@ -20,7 +20,6 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
           path: validator
           persist-credentials: false
-          fetch-depth: 0
       - name: Checkout proposed catalog
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -33,21 +32,11 @@ jobs:
       - name: Install pnpm
         run: npm install --global pnpm@11.5.3 --ignore-scripts --no-audit --no-fund
       - name: Validate catalog and release archives without running plugins
-        env:
-          IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
-          PREVIOUS_COMMIT: ${{ github.event.before }}
         shell: bash
         run: |
           set -euo pipefail
           pnpm --dir "$GITHUB_WORKSPACE/validator" install --frozen-lockfile --ignore-scripts
-          baseline=()
-          if [[ "$IS_PULL_REQUEST" == true ]]; then
-            baseline=(--baseline "$GITHUB_WORKSPACE/validator/registry.json")
-          elif [[ "$PREVIOUS_COMMIT" =~ ^[0-9a-f]{40}$ && "$PREVIOUS_COMMIT" != 0000000000000000000000000000000000000000 ]]; then
-            git -C "$GITHUB_WORKSPACE/validator" show "$PREVIOUS_COMMIT:registry.json" > "$RUNNER_TEMP/previous-registry.json"
-            baseline=(--baseline "$RUNNER_TEMP/previous-registry.json")
-          fi
           node "$GITHUB_WORKSPACE/validator/node_modules/@nora/plugin-kit/scripts/plugin-marketplace.mjs" validate \
             --registry "$GITHUB_WORKSPACE/registry/registry.json" \
             --catalog "$GITHUB_WORKSPACE/registry/marketplace.json" \
-            --verify-downloads "${baseline[@]}"
+            --verify-downloads

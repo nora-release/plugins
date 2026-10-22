@@ -1,0 +1,20 @@
+[workspace]
+members = [
+    "packages/auth",
+    "packages/runtime",
+    "packages/openai",
+    "packages/xai",
+    "packages/anthropic",
+    "packages/github-copilot",
+]
+resolver = "2"
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[workspace.dependencies]
+nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "6ad24c81a68c55ddc506d9f0df969c399a8ea33d" }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "6ad24c81a68c55ddc506d9f0df969c399a8ea33d" }

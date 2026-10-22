@@ -1,0 +1,44 @@
+{
+  "apiVersion": 1,
+  "id": "amazon-bedrock",
+  "name": "Amazon Bedrock",
+  "version": "1.0.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "bedrock-converse-stream",
+  "baseURL": "us-east-1",
+  "aliases": [],
+  "authMethods": [
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "API key",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "catalog": "amazon-bedrock",
+    "keyProvider": "amazon-bedrock",
+    "legacy": {
+      "providerID": "amazon-bedrock",
+      "keyProvider": "amazon-bedrock",
+      "oauthProvider": null,
+      "credentialProvider": "apiKey"
+    },
+    "endpointKind": "region",
+    "modelDiscovery": {
+      "noList": true
+    }
+  }
+}

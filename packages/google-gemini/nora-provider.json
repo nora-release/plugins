@@ -1,0 +1,42 @@
+{
+  "apiVersion": 1,
+  "id": "google-gemini",
+  "name": "Google Gemini",
+  "version": "1.0.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "google-generative-ai",
+  "baseURL": "https://generativelanguage.googleapis.com",
+  "aliases": [
+    "google"
+  ],
+  "authMethods": [
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "API key",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "catalog": "google",
+    "keyProvider": "google-api-key",
+    "legacy": {
+      "providerID": "google-gemini",
+      "keyProvider": "google-api-key",
+      "oauthProvider": null,
+      "credentialProvider": "apiKey"
+    }
+  }
+}

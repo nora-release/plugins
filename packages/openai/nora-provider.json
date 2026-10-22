@@ -1,0 +1,62 @@
+{
+  "apiVersion": 1,
+  "id": "openai",
+  "name": "OpenAI",
+  "version": "1.0.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-responses",
+  "baseURL": "https://api.openai.com",
+  "aliases": [
+    "openai-codex",
+    "chatgpt-codex"
+  ],
+  "authMethods": [
+    {
+      "id": "oauth",
+      "type": "oauth",
+      "label": "Sign in"
+    },
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "API key",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "catalog": "openai",
+    "keyProvider": "openai-api-key",
+    "oauthProvider": "openai-codex",
+    "legacy": {
+      "providerID": "openai",
+      "keyProvider": "openai-api-key",
+      "oauthProvider": "openai-codex",
+      "credentialProvider": "openAICodex"
+    },
+    "customTemplate": true,
+    "customRuntime": {
+      "entry": "bin/nora-provider-compatible"
+    },
+    "modelDiscovery": {
+      "defaultBaseURL": "https://api.openai.com",
+      "bases": [
+        {
+          "api": "openai-responses",
+          "baseURL": "https://api.openai.com/v1"
+        }
+      ]
+    }
+  }
+}

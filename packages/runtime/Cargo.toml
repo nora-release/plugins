@@ -1,0 +1,19 @@
+[package]
+name = "nora-provider"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+nora-provider-auth = { path = "../auth" }
+async-trait = "0.1"
+base64 = "0.22"
+chrono = "0.4"
+futures = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util"] }
+url = "2"

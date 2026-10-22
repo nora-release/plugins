@@ -1,0 +1,58 @@
+{
+  "apiVersion": 1,
+  "id": "zai",
+  "name": "Z.ai",
+  "version": "1.0.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "anthropic-messages",
+  "baseURL": "https://api.z.ai/api/coding/paas/v4",
+  "aliases": [],
+  "authMethods": [
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "API key",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "catalog": "zai",
+    "keyProvider": "zai",
+    "legacy": {
+      "providerID": "zai",
+      "keyProvider": "zai",
+      "oauthProvider": null,
+      "credentialProvider": "apiKey"
+    },
+    "apiKeyAuth": "bearer",
+    "modelDiscovery": {
+      "defaultBaseURL": "https://api.z.ai/api/coding/paas/v4",
+      "bases": [
+        {
+          "api": "openai-completions",
+          "baseURL": "https://api.z.ai/api/coding/paas/v4"
+        },
+        {
+          "api": "openai-responses",
+          "baseURL": "https://api.z.ai/api/v1"
+        },
+        {
+          "api": "anthropic-messages",
+          "baseURL": "https://api.z.ai/api/anthropic"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+name: Check Rust providers
+
+on:
+  pull_request:
+    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', '.github/workflows/check-providers.yml']
+  push:
+    branches: [main, agent/router]
+    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', '.github/workflows/check-providers.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    env:
+      RUST_TEST_THREADS: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Check toolchain
+        run: rustup update stable --no-self-update && rustup component add rustfmt
+      - name: Check and test providers
+        run: make check

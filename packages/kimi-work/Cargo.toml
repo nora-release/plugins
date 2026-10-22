@@ -1,0 +1,20 @@
+[package]
+name = "nora-provider-kimi-work"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider = { path = "../runtime" }
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+async-trait = "0.1"
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros"] }
+url = "2"
+
+[dev-dependencies]
+futures = "0.3"
+base64 = "0.22"

@@ -1,0 +1,42 @@
+{
+  "apiVersion": 1,
+  "id": "siliconflow",
+  "name": "SiliconFlow (China)",
+  "version": "1.1.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-completions",
+  "baseURL": "https://api.siliconflow.cn/v1",
+  "authMethods": [
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "API key",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "catalog": "siliconflow",
+    "keyProvider": "siliconflow",
+    "modelDiscovery": {
+      "defaultBaseURL": "https://api.siliconflow.cn/v1",
+      "bases": [
+        {
+          "api": "openai-completions",
+          "baseURL": "https://api.siliconflow.cn/v1"
+        }
+      ]
+    }
+  }
+}

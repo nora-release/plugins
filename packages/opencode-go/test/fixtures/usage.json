@@ -1,0 +1,17 @@
+{
+  "usage": {
+    "rolling": {
+      "percent": 50,
+      "resetsAt": "2026-10-23T00:00:00Z"
+    },
+    "weekly": {
+      "percent": 75,
+      "resetsAt": "2026-11-01T00:00:00Z"
+    },
+    "monthly": {
+      "percent": 0,
+      "resetsAt": "2026-11-01T00:00:00Z"
+    }
+  },
+  "unknownPrivateField": "unexposed-private-field"
+}

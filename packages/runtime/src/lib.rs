@@ -1,13 +1,17 @@
+mod pricing;
 extern crate self as nora_provider;
 
 pub mod adapter;
 pub mod auth;
+pub mod catalog;
 pub mod definition;
 pub mod discovery;
+pub mod media_upload;
 mod model_catalog;
 pub mod models;
 mod plugin;
 pub mod transport;
+mod transport_file;
 pub mod usage;
 
 pub use adapter::{GenericProvider, ProviderAdapter};
@@ -21,25 +25,9 @@ pub async fn run(adapter: impl ProviderAdapter) {
 }
 
 #[cfg(test)]
-#[path = "../../anthropic/src/provider.rs"]
-pub(crate) mod anthropic_provider;
+#[path = "../test/fixtures.rs"]
+mod fixtures;
 #[cfg(test)]
-#[path = "../../github-copilot/src/provider.rs"]
-pub(crate) mod copilot_provider;
-#[cfg(test)]
-#[path = "../../openai/src/provider.rs"]
-pub(crate) mod openai_provider;
-#[cfg(test)]
-#[path = "../../xai/src/provider.rs"]
-pub(crate) mod xai_provider;
-
-#[cfg(test)]
-pub(crate) fn test_adapter(id: &str) -> std::sync::Arc<dyn ProviderAdapter> {
-    match id {
-        "openai" | "openai-codex" => std::sync::Arc::new(openai_provider::OpenAI),
-        "xai" => std::sync::Arc::new(xai_provider::Xai),
-        "anthropic" => std::sync::Arc::new(anthropic_provider::Anthropic),
-        "github-copilot" => std::sync::Arc::new(copilot_provider::Copilot),
-        _ => adapter::generic(),
-    }
-}
+pub(crate) use fixtures::{
+    anthropic_provider, copilot_provider, openai_provider, test_adapter, xai_provider,
+};

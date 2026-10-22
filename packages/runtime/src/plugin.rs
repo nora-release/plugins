@@ -5,8 +5,8 @@ use nora_ai::{
 };
 use nora_provider_auth::OAuthLoginCallbacks;
 use nora_provider_plugin_sdk::{
-    CallContext, FetchRequest, FetchResponse, InitializeParams, PluginError, PluginResult,
-    ProviderPlugin, API_VERSION,
+    CallContext, FetchRequest, FetchResponse, InitializeParams, NetworkProxy, PluginError,
+    PluginResult, ProviderPlugin, API_VERSION,
 };
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -33,6 +33,7 @@ pub struct BundledProvider {
     adapter: Option<Arc<dyn ProviderAdapter>>,
     definition: RwLock<Option<Definition>>,
     data_directory: RwLock<PathBuf>,
+    network_proxy: RwLock<Option<NetworkProxy>>,
     logins: Mutex<BTreeMap<String, PendingLogin>>,
 }
 
@@ -52,7 +53,39 @@ impl BundledProvider {
             .ok_or_else(|| PluginError::invalid("Initialize the provider before using it."))
     }
 
-    async fn start_login(&self, definition: &Definition) -> PluginResult<Value> {
+    fn effective_proxy(&self, proxy: Option<&NetworkProxy>) -> PluginResult<Option<NetworkProxy>> {
+        let default = self
+            .network_proxy
+            .read()
+            .map_err(|_| PluginError::invalid("The network proxy configuration is unavailable."))?;
+        let proxy = proxy.or(default.as_ref()).cloned();
+        if let Some(proxy) = &proxy {
+            proxy.validate()?;
+        }
+        Ok(proxy)
+    }
+
+    fn client(&self, proxy: Option<&NetworkProxy>) -> PluginResult<ReqwestHttpClient> {
+        let proxy = self.effective_proxy(proxy)?;
+        nora_provider_plugin_sdk::http_client(proxy.as_ref()).map(ReqwestHttpClient::with_client)
+    }
+
+    fn params_proxy(&self, params: &Value) -> PluginResult<Option<NetworkProxy>> {
+        let proxy: Option<NetworkProxy> =
+            serde_json::from_value(params.get("networkProxy").cloned().unwrap_or(Value::Null))
+                .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
+        self.effective_proxy(proxy.as_ref())
+    }
+
+    fn params_client(&self, params: &Value) -> PluginResult<ReqwestHttpClient> {
+        self.client(self.params_proxy(params)?.as_ref())
+    }
+
+    async fn start_login(
+        &self,
+        definition: &Definition,
+        client: ReqwestHttpClient,
+    ) -> PluginResult<Value> {
         if definition.config.oauth_provider.is_none() {
             return Err(PluginError::unsupported("oauth"));
         }
@@ -75,7 +108,6 @@ impl BundledProvider {
             })
         });
         let mut pending = PendingLogin(tokio::spawn(async move {
-            let client = ReqwestHttpClient::new();
             adapter.login(callbacks, &client).await
         }));
         let mut instructions = Vec::new();
@@ -124,6 +156,20 @@ impl ProviderPlugin for BundledProvider {
                 "Unsupported provider plugin API version.",
             ));
         }
+        let proxy: Option<NetworkProxy> = serde_json::from_value(
+            params
+                .manifest
+                .pointer("/config/networkProxy")
+                .cloned()
+                .unwrap_or(Value::Null),
+        )
+        .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
+        if let Some(proxy) = &proxy {
+            proxy.validate()?;
+        }
+        *self.network_proxy.write().map_err(|_| {
+            PluginError::invalid("The network proxy configuration is unavailable.")
+        })? = proxy;
         let mut definition = Definition::parse(params.manifest)?;
         if let Some(adapter) = &self.adapter {
             if adapter.id().is_some_and(|id| id != definition.id) {
@@ -157,11 +203,14 @@ impl ProviderPlugin for BundledProvider {
             .read()
             .map_err(|_| PluginError::invalid("The provider data directory is unavailable."))?
             .clone();
-        discovery::discover(
+        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
+        let client = self.client(proxy.as_ref())?;
+        discovery::discover_with_network(
             &definition,
             context.credentials.as_ref(),
             &data_directory,
-            &ReqwestHttpClient::new(),
+            &client,
+            proxy.as_ref(),
         )
         .await
     }
@@ -178,6 +227,8 @@ impl ProviderPlugin for BundledProvider {
 
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let definition = self.definition()?;
+        let proxy = self.params_proxy(&params)?;
+        let client = self.client(proxy.as_ref())?;
         let method = params
             .get("authMethodID")
             .or_else(|| params.get("method"))
@@ -189,13 +240,16 @@ impl ProviderPlugin for BundledProvider {
             .iter()
             .any(|source| source.get("id").and_then(Value::as_str) == Some(method))
         {
-            let credentials = definition.adapter.authorize_source(method).await?;
+            let credentials = definition
+                .adapter
+                .authorize_source(method, &client, proxy.as_ref())
+                .await?;
             return Ok(
                 json!({"ok":true,"credentials":auth::encode(&credentials,definition.config.oauth_provider.as_deref().unwrap_or(""),true)}),
             );
         }
         if method == "oauth" {
-            return self.start_login(&definition).await;
+            return self.start_login(&definition, client).await;
         }
         if method != "apiKey" {
             return Err(PluginError::unsupported(method));
@@ -213,6 +267,9 @@ impl ProviderPlugin for BundledProvider {
             .filter(|value| !value.is_empty() && !value.contains(['\r', '\n']))
             .ok_or_else(|| PluginError::authentication("Enter an API key for this provider."))?;
         let mut credentials = OAuthCredentials::api_key(OAuthProviderId::ApiKey, key);
+        definition
+            .adapter
+            .configure_api_credentials(inputs, &mut credentials)?;
         credentials
             .extras
             .insert("baseUrl".into(), JsonValue::string(&definition.base_url));
@@ -248,6 +305,8 @@ impl ProviderPlugin for BundledProvider {
 
     async fn refresh(&self, params: Value) -> PluginResult<Value> {
         let definition = self.definition()?;
+        let proxy = self.params_proxy(&params)?;
+        let client = self.client(proxy.as_ref())?;
         let value = params
             .get("credentials")
             .ok_or_else(|| PluginError::authentication("Connect a provider account."))?;
@@ -258,6 +317,7 @@ impl ProviderPlugin for BundledProvider {
                 .refresh_source(
                     &credentials,
                     params.get("force").and_then(Value::as_bool) == Some(true),
+                    proxy.as_ref(),
                 )
                 .await?;
             return Ok(
@@ -268,20 +328,20 @@ impl ProviderPlugin for BundledProvider {
             return Ok(json!({"changed":false}));
         }
         let provider_id = auth::provider_id(&definition, value);
-        let credentials = definition
-            .adapter
-            .refresh(&credentials, &ReqwestHttpClient::new())
-            .await?;
+        let credentials = definition.adapter.refresh(&credentials, &client).await?;
         Ok(json!({"credentials":auth::encode(&credentials,provider_id,false)}))
     }
 
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
         let definition = self.definition()?;
+        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
+        let client = self.client(proxy.as_ref())?;
         let value = context
             .credentials
             .as_ref()
             .ok_or_else(|| PluginError::authentication("Connect a provider account."))?;
-        let (credentials, resolved) = auth::resolve(&definition, value).await?;
+        let (credentials, resolved) =
+            auth::resolve_with_network(&definition, value, proxy.as_ref()).await?;
         let account = credentials
             .extras
             .get("accountId")
@@ -289,9 +349,7 @@ impl ProviderPlugin for BundledProvider {
             .and_then(|value| value.as_str());
         let mut usage = tokio::time::timeout(
             Duration::from_secs(30),
-            definition
-                .adapter
-                .usage(&resolved, account, &ReqwestHttpClient::new()),
+            definition.adapter.usage(&resolved, account, &client),
         )
         .await
         .map_err(|_| PluginError::transport("The provider did not return its usage in time"))?
@@ -319,18 +377,37 @@ impl ProviderPlugin for BundledProvider {
         Ok(usage)
     }
 
-    async fn fetch(&self, request: FetchRequest) -> PluginResult<FetchResponse> {
+    async fn fetch(&self, mut request: FetchRequest) -> PluginResult<FetchResponse> {
         let definition = self.definition()?;
+        request.network_proxy = self.effective_proxy(request.network_proxy.as_ref())?;
+        let client = self.client(request.network_proxy.as_ref())?;
+        if let Some(response) = definition
+            .adapter
+            .fetch_override(&definition, &request, &client)
+            .await?
+        {
+            return Ok(response);
+        }
+        if request.body_file.is_some()
+            && request.headers.iter().any(|(key, value)| {
+                key.eq_ignore_ascii_case("content-type")
+                    && value
+                        .to_ascii_lowercase()
+                        .starts_with("multipart/form-data")
+            })
+        {
+            return crate::transport_file::fetch(&definition, request).await;
+        }
         let request = transport::build_request(&definition, request).await?;
         let secrets = transport::request_secrets(&request);
-        let response = ReqwestHttpClient::new()
+        let response = client
             .stream(request)
             .await
             .map_err(|_| PluginError::transport("The provider endpoint could not be reached."))?;
         transport::finish_response(response, secrets).await
     }
 
-    async fn call(&self, method: &str, _params: Value) -> PluginResult<Value> {
+    async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
         if method != "maintain" {
             return Err(PluginError::unsupported(method));
         }
@@ -344,144 +421,17 @@ impl ProviderPlugin for BundledProvider {
                 "The provider data directory is unavailable.",
             ));
         }
+        let client = self.params_client(&params)?;
         let before = crate::model_catalog::cached(&directory).ok();
-        let after = crate::model_catalog::load(&ReqwestHttpClient::new(), &directory).await?;
+        let after = crate::model_catalog::load(&client, &directory).await?;
         Ok(json!({"ok":true,"modelsChanged":before.as_ref()!=Some(&after)}))
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+#[path = "../test/plugin.test.rs"]
+mod tests;
 
-    async fn provider() -> BundledProvider {
-        let provider = BundledProvider::new(crate::openai_provider::OpenAI);
-        provider
-            .initialize(InitializeParams {
-                api_version: API_VERSION,
-                plugin_id: "openai".into(),
-                plugin_directory: std::path::PathBuf::new(),
-                data_directory: std::path::PathBuf::new(),
-                manifest: serde_json::from_slice(
-                    &std::fs::read(
-                        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                            .parent()
-                            .unwrap()
-                            .join("openai/nora-provider.json"),
-                    )
-                    .unwrap(),
-                )
-                .unwrap(),
-            })
-            .await
-            .unwrap();
-        provider
-    }
-
-    #[tokio::test]
-    async fn native_provider_rejects_a_different_providers_manifest() {
-        let provider = BundledProvider::new(crate::xai_provider::Xai);
-        let result = provider
-            .initialize(InitializeParams {
-                api_version: API_VERSION,
-                plugin_id: "openai".into(),
-                plugin_directory: PathBuf::new(),
-                data_directory: PathBuf::new(),
-                manifest: serde_json::from_str(include_str!("../../openai/nora-provider.json"))
-                    .unwrap(),
-            })
-            .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn maintenance_finishes_against_a_valid_local_catalog_without_account_credentials() {
-        let provider = provider().await;
-        let directory =
-            std::env::temp_dir().join(format!("nora-provider-maintain-{}", std::process::id()));
-        std::fs::create_dir_all(&directory).unwrap();
-        std::fs::write(directory.join("models.json"),serde_json::to_vec(&json!({"vendor":{"id":"vendor","models":{"fresh-model":{"id":"fresh-model","modalities":{"output":["text"]},"limit":{"context":100000,"output":10000}}}}})).unwrap()).unwrap();
-        *provider.data_directory.write().unwrap() = directory.clone();
-        let result = provider
-            .call(
-                "maintain",
-                json!({"credentials":{"access":"invalid-value-must-not-be-used"}}),
-            )
-            .await
-            .unwrap();
-        assert_eq!(result, json!({"ok":true,"modelsChanged":false}));
-        assert!(provider.call("unknown", json!({})).await.is_err());
-        std::fs::remove_dir_all(directory).unwrap();
-    }
-
-    #[tokio::test]
-    async fn api_authorization_returns_a_readable_separate_account_value() {
-        let provider = provider().await;
-        let first = provider
-            .authorize(json!({"method":"apiKey","inputs":{"apiKey":"first-private"}}))
-            .await
-            .unwrap();
-        let second = provider
-            .authorize(json!({"method":"apiKey","label":"Work","fields":{"key":"second-private"}}))
-            .await
-            .unwrap();
-        assert_eq!(first["credentials"]["label"], "API key");
-        assert_eq!(second["credentials"]["label"], "Work");
-        assert_eq!(first["credentials"]["access"], "first-private");
-        assert_eq!(second["credentials"]["access"], "second-private");
-        assert_eq!(second["credentials"]["type"], "apiKey");
-        assert!(provider
-            .authorize(json!({"method":"apiKey","inputs":{"apiKey":"bad\nkey"}}))
-            .await
-            .is_err());
-    }
-
-    #[tokio::test]
-    async fn api_account_refresh_does_not_attempt_an_oauth_login() {
-        let provider = provider().await;
-        let value = provider
-            .authorize(json!({"method":"apiKey","apiKey":"private-key"}))
-            .await
-            .unwrap();
-        let refreshed = provider
-            .refresh(json!({"credentials":value["credentials"],"force":true}))
-            .await
-            .unwrap();
-        assert_eq!(refreshed["changed"], false);
-    }
-    #[tokio::test]
-    async fn saved_codex_accounts_derive_a_safe_profile_without_signing_in_again() {
-        use base64::Engine;
-        let provider = provider().await;
-        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(br#"{"https://api.openai.com/auth":{"chatgpt_account_id":"workspace-id","chatgpt_plan_type":"plus"},"https://api.openai.com/profile":{"email":"historic@example.com","name":"Historic Name"}}"#);
-        let credentials = json!({"type":"oauth","credentialProvider":"openAICodex","access":format!("header.{payload}.signature"),"refresh":"private-refresh"});
-        let accounts = provider
-            .accounts(CallContext {
-                account: "work".into(),
-                credentials: Some(credentials),
-            })
-            .await
-            .unwrap();
-        assert_eq!(
-            accounts[0],
-            json!({"id":"work","email":"historic@example.com","name":"Historic Name","plan":"plus"})
-        );
-        let visible = accounts.to_string();
-        assert!(!visible.contains("private-refresh"));
-        assert!(!visible.contains("signature"));
-        assert!(!visible.contains("workspace-id"));
-    }
-
-    #[tokio::test]
-    async fn api_account_usage_exposes_its_profile_without_requiring_a_usage_endpoint() {
-        let provider = provider().await;
-        let usage = provider.usage(CallContext {
-            account:"personal".into(),
-            credentials:Some(json!({"type":"apiKey","access":"private-api-secret","extras":{"email":"api@example.com","name":"API Member","plan":"team"}})),
-        }).await.unwrap();
-        assert_eq!(usage["account"]["email"], "api@example.com");
-        assert_eq!(usage["account"]["id"], "personal");
-        assert_eq!(usage["account"]["plan"], "team");
-        assert!(!usage.to_string().contains("private-api-secret"));
-    }
-}
+#[cfg(test)]
+#[path = "../test/plugin_network.test.rs"]
+mod network_tests;

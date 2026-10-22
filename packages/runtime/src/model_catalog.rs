@@ -277,6 +277,7 @@ fn model_from_row(provider_id: &str, provider: &Value, key: &str, row: &Value) -
         cache_read: cost(row, "cache_read"),
         cache_write: cost(row, "cache_write"),
     };
+    crate::pricing::apply(row, &mut model);
     Some(model)
 }
 
@@ -405,5 +406,5 @@ fn is_chat_model(id: &str, row: &Value) -> bool {
 }
 
 #[cfg(test)]
-#[path = "model_catalog_tests.rs"]
+#[path = "../test/model_catalog.test.rs"]
 mod tests;

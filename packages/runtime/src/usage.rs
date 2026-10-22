@@ -40,24 +40,5 @@ pub fn header<'a>(auth: &'a ResolvedProviderAuth, name: &str) -> Option<&'a str>
 }
 
 #[cfg(test)]
-use crate::openai_provider::usage::resets;
-#[cfg(test)]
-use nora_ai::HttpMethod;
-#[cfg(test)]
-async fn fetch_usage(
-    plugin: &str,
-    auth: &ResolvedProviderAuth,
-    account_id: Option<&str>,
-    client: &dyn HttpClient,
-) -> Result<Value, String> {
-    match plugin {
-        "openai" => crate::openai_provider::usage::fetch(auth, account_id, client).await,
-        "xai" => crate::xai_provider::usage::fetch(auth, account_id, client).await,
-        "anthropic" => crate::anthropic_provider::usage::fetch(auth, account_id, client).await,
-        "github-copilot" => crate::copilot_provider::usage::fetch(auth, account_id, client).await,
-        _ => Ok(unavailable("This provider does not expose a supported subscription usage endpoint for this account.")),
-    }
-}
-#[cfg(test)]
-#[path = "usage_tests.rs"]
+#[path = "../test/usage.test.rs"]
 mod tests;

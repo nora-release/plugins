@@ -4,7 +4,9 @@ use nora_ai::{
     HttpClient, Model, ModelsCatalog, OAuthCredentials, OAuthError, ResolvedProviderAuth,
 };
 use nora_provider_auth::OAuthLoginCallbacks;
-use nora_provider_plugin_sdk::{PluginError, PluginResult};
+use nora_provider_plugin_sdk::{
+    FetchRequest, FetchResponse, NetworkProxy, PluginError, PluginResult,
+};
 use serde_json::Value;
 use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
 use url::Url;
@@ -31,22 +33,36 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
         Err(PluginError::unsupported("refresh"))
     }
     fn enrich_credentials(&self, _value: &Value, _credentials: &mut OAuthCredentials) {}
+    fn configure_api_credentials(
+        &self,
+        _inputs: &Value,
+        _credentials: &mut OAuthCredentials,
+    ) -> PluginResult<()> {
+        Ok(())
+    }
     fn is_source(&self, _credentials: &OAuthCredentials) -> bool {
         false
     }
-    async fn authorize_source(&self, method: &str) -> PluginResult<OAuthCredentials> {
+    async fn authorize_source(
+        &self,
+        method: &str,
+        _client: &dyn HttpClient,
+        _proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<OAuthCredentials> {
         Err(PluginError::unsupported(method))
     }
     async fn refresh_source(
         &self,
         _credentials: &OAuthCredentials,
         _force: bool,
+        _proxy: Option<&NetworkProxy>,
     ) -> PluginResult<()> {
         Err(PluginError::unsupported("refresh"))
     }
     async fn resolve_source(
         &self,
         _credentials: &OAuthCredentials,
+        _proxy: Option<&NetworkProxy>,
     ) -> PluginResult<ResolvedProviderAuth> {
         Err(PluginError::unsupported("source"))
     }
@@ -73,6 +89,13 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
         _catalog: &ModelsCatalog,
     ) -> Option<Vec<Model>> {
         None
+    }
+    fn supplemental_models(
+        &self,
+        _definition: &Definition,
+        _credentials: Option<&Value>,
+    ) -> Vec<Model> {
+        Vec::new()
     }
     async fn model_urls(
         &self,
@@ -106,6 +129,14 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
     }
     fn preserve_model_api(&self, _credentials: &Value) -> bool {
         false
+    }
+    async fn fetch_override(
+        &self,
+        _definition: &Definition,
+        _request: &FetchRequest,
+        _client: &dyn HttpClient,
+    ) -> PluginResult<Option<FetchResponse>> {
+        Ok(None)
     }
     async fn prepare_fetch(
         &self,

@@ -1,6 +1,7 @@
 use crate::xai_grok_client_version;
 use base64::Engine;
 use nora_ai::{HttpClient, JsonValue, OAuthCredentials, OAuthProviderId};
+use nora_provider_plugin_sdk::NetworkProxy;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -43,6 +44,7 @@ pub enum SourceError {
     RefreshFailed,
     Expired,
     TimedOut,
+    InvalidNetworkProxy,
 }
 
 pub fn is_bound(credentials: &OAuthCredentials) -> bool {
@@ -74,19 +76,39 @@ fn semver(version: &str) -> Option<(u64, u64, u64)> {
 }
 
 pub async fn bind_current_account() -> Result<OAuthCredentials, String> {
+    let client = nora_provider_plugin_sdk::http_client(None)
+        .map(nora_ai::ReqwestHttpClient::with_client)
+        .map_err(|_| "The Grok Build HTTP client could not be initialized.".to_string())?;
+    bind_current_account_with_client(&client).await
+}
+
+pub async fn bind_current_account_with_client(
+    client: &dyn HttpClient,
+) -> Result<OAuthCredentials, String> {
+    bind_current_account_with_network(client, None).await
+}
+
+pub async fn bind_current_account_with_network(
+    client: &dyn HttpClient,
+    proxy: Option<&NetworkProxy>,
+) -> Result<OAuthCredentials, String> {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
         .ok_or("The current user's home directory is unavailable")?;
     let source = Source::current(&home, &std::env::vars().collect());
-    bind_source(source, &nora_ai::ReqwestHttpClient::new()).await
+    bind_source(source, client, proxy).await
 }
 
-async fn bind_source(source: Source, client: &dyn HttpClient) -> Result<OAuthCredentials, String> {
+async fn bind_source(
+    source: Source,
+    client: &dyn HttpClient,
+    proxy: Option<&NetworkProxy>,
+) -> Result<OAuthCredentials, String> {
     let mut credentials = source.bound_credentials().map_err(|_| {
         "No valid Grok Build account was found. Sign in with Grok Build and try again.".to_string()
     })?;
-    let transient = resolve_credentials(&credentials, false)
+    let transient = resolve_credentials_with_network(&credentials, false, proxy)
         .await
         .map_err(|_| {
             "The Grok Build account could not be renewed. Sign in with Grok Build again."
@@ -121,6 +143,19 @@ pub async fn resolve_credentials(
     credentials: &OAuthCredentials,
     force: bool,
 ) -> Result<OAuthCredentials, SourceError> {
+    resolve_credentials_with_network(credentials, force, None).await
+}
+
+pub async fn resolve_credentials_with_network(
+    credentials: &OAuthCredentials,
+    force: bool,
+    proxy: Option<&NetworkProxy>,
+) -> Result<OAuthCredentials, SourceError> {
+    if let Some(proxy) = proxy {
+        proxy
+            .validate()
+            .map_err(|_| SourceError::InvalidNetworkProxy)?;
+    }
     let source: Source = credentials
         .extras
         .get(METADATA_KEY)
@@ -152,7 +187,7 @@ pub async fn resolve_credentials(
             .is_some_and(|expires| expires <= now_millis().saturating_add(300_000))
     {
         source
-            .command(&["models"], Duration::from_secs(30), false)
+            .command(&["models"], Duration::from_secs(30), false, proxy)
             .await?;
         session = source.read(user_id)?;
     }
@@ -162,7 +197,7 @@ pub async fn resolve_credentials(
     {
         return Err(SourceError::Expired);
     }
-    let version = source.version().await;
+    let version = source.version(proxy).await;
     let mut transient = credentials.clone();
     transient.access_token = session.token;
     transient.refresh_token = None;
@@ -357,7 +392,13 @@ impl Source {
         arguments: &[&str],
         timeout: Duration,
         capture: bool,
+        proxy: Option<&NetworkProxy>,
     ) -> Result<String, SourceError> {
+        if let Some(proxy) = proxy {
+            proxy
+                .validate()
+                .map_err(|_| SourceError::InvalidNetworkProxy)?;
+        }
         let executable = self
             .executable_path
             .as_ref()
@@ -366,7 +407,7 @@ impl Source {
         command
             .args(arguments)
             .env_clear()
-            .envs(command_environment(self, std::env::vars_os()))
+            .envs(command_environment(self, std::env::vars_os(), proxy))
             .stdin(Stdio::null())
             .stderr(Stdio::null())
             .stdout(if capture {
@@ -398,7 +439,7 @@ impl Source {
         .map_err(|_| SourceError::TimedOut)?
     }
 
-    async fn version(&self) -> String {
+    async fn version(&self, proxy: Option<&NetworkProxy>) -> String {
         type Cache = Mutex<BTreeMap<PathBuf, (Instant, String)>>;
         static CACHE: OnceLock<Cache> = OnceLock::new();
         let Some(executable) = self.executable_path.as_ref() else {
@@ -411,7 +452,7 @@ impl Source {
             }
         }
         let version = self
-            .command(&["--version"], Duration::from_secs(5), true)
+            .command(&["--version"], Duration::from_secs(5), true, proxy)
             .await
             .ok()
             .and_then(|output| {
@@ -432,6 +473,7 @@ impl Source {
 fn command_environment(
     source: &Source,
     inherited: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+    proxy: Option<&NetworkProxy>,
 ) -> BTreeMap<std::ffi::OsString, std::ffi::OsString> {
     let mut environment = inherited
         .into_iter()
@@ -445,6 +487,11 @@ fn command_environment(
                     | "GROK_AUTH_PROVIDER_REFRESH_TOKEN"
                     | "GROK_API_KEY"
                     | "XAI_API_KEY"
+                    | "HTTP_PROXY"
+                    | "HTTPS_PROXY"
+                    | "ALL_PROXY"
+                    | "NO_PROXY"
+                    | "FTP_PROXY"
             )
         })
         .collect::<BTreeMap<_, _>>();
@@ -456,6 +503,29 @@ fn command_environment(
         "GROK_AUTH_PATH".into(),
         source.auth_file_path.as_os_str().to_owned(),
     );
+    match proxy {
+        Some(NetworkProxy::Proxy { url }) => {
+            for name in [
+                "HTTP_PROXY",
+                "http_proxy",
+                "HTTPS_PROXY",
+                "https_proxy",
+                "ALL_PROXY",
+                "all_proxy",
+            ] {
+                environment.insert(name.into(), url.into());
+            }
+            for name in ["NO_PROXY", "no_proxy"] {
+                environment.insert(name.into(), "".into());
+            }
+        }
+        Some(NetworkProxy::Direct) | None => {
+            // CLI probes and refreshes obey the same explicit policy as native HTTP calls.
+            for name in ["NO_PROXY", "no_proxy"] {
+                environment.insert(name.into(), "*".into());
+            }
+        }
+    }
     environment
 }
 
@@ -494,4 +564,5 @@ fn now_millis() -> i64 {
 }
 
 #[cfg(test)]
+#[path = "../test/grok_source.test.rs"]
 mod tests;

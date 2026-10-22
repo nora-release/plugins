@@ -1,5 +1,29 @@
 [workspace]
 members = [
+    "packages/typesafe",
+    "packages/google-gemini",
+    "packages/kiro",
+    "packages/codeassist",
+    "packages/gemini-cli",
+    "packages/antigravity",
+    "packages/kimi-work",
+    "packages/ollama-cloud",
+    "packages/minimax-cn",
+    "packages/minimax",
+    "packages/opencode-go",
+    "packages/kimi-coding",
+    "packages/zai",
+    "packages/zhipu",
+    "packages/aihubmix",
+    "packages/stepfun-cn",
+    "packages/stepfun",
+    "packages/siliconflow-global",
+    "packages/siliconflow",
+    "packages/openrouter",
+    "packages/moonshotai-cn",
+    "packages/moonshotai",
+    "packages/deepseek",
+    "packages/quota",
     "packages/auth",
     "packages/runtime",
     "packages/openai",
@@ -10,11 +34,11 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
-nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "d96eb5ea5a5a0c47ea0765ce610c64a417ac4412" }
-nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "d96eb5ea5a5a0c47ea0765ce610c64a417ac4412" }
+nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "a2a9ae604d4a5177950947406112eedb07664a5f" }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "a2a9ae604d4a5177950947406112eedb07664a5f" }

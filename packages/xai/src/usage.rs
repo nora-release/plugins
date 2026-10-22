@@ -68,13 +68,14 @@ fn grok(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
         Some("USAGE_PERIOD_TYPE_MONTHLY" | "MONTHLY") => "Monthly credits",
         _ => "Grok credits",
     };
-    if let Some(item) = quantities(
+    if let Some(mut item) = quantities(
         "included_credits",
         label,
         &allowance,
         Some("credits"),
         resets,
     ) {
+        item["countsForRouting"] = json!(true);
         remaining_balance(
             &item,
             "included_credits",
@@ -85,13 +86,14 @@ fn grok(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
     }
     let on_demand =
         json!({"used":number(&config["onDemandUsed"]),"limit":number(&config["onDemandCap"])});
-    if let Some(item) = quantities(
+    if let Some(mut item) = quantities(
         "on_demand",
         "On-demand credits",
         &on_demand,
         Some("credits"),
         resets,
     ) {
+        item["countsForRouting"] = json!(false);
         remaining_balance(
             &item,
             "on_demand",
@@ -104,3 +106,7 @@ fn grok(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
         balances.push(json!({"id":"prepaid_credits","label":"Prepaid credits","amount":amount,"unit":"credits"}));
     }
 }
+
+#[cfg(test)]
+#[path = "../test/usage.test.rs"]
+mod tests;

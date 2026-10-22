@@ -40,6 +40,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
+if [[ -n "${CARGO_TARGET_DIR:-}" && "${CARGO_TARGET_DIR}" != /* ]]; then
+  export CARGO_TARGET_DIR="$(pwd)/${CARGO_TARGET_DIR}"
+fi
+
 CONFIGURATION=Release BUILD_CONFIGURATION=Release CARGO_BUILD_TARGET="${HOST_TARGET}" \
   bash "${SCRIPT_DIR}/build-providers.sh" build "${STAGING_ROOT}/providers"
 mkdir -p "${STAGING_ROOT}/archives"
@@ -76,6 +80,11 @@ fi
     sha256sum ./*.zip > SHA256SUMS
   fi
 )
+if [[ -n "${PROVIDER_DOWNLOAD_BASE_URL:-}" ]]; then
+  CATALOG_BINARY="${CARGO_TARGET_DIR:-${REPO_ROOT}/target}/${HOST_TARGET}/release/nora-provider"
+  "${CATALOG_BINARY}" --catalog "${REPO_ROOT}/packages" "${STAGING_ROOT}/archives/providers.json" \
+    "${STAGING_ROOT}/archives" "${HOST_TARGET}" "${PROVIDER_DOWNLOAD_BASE_URL}"
+fi
 if [[ -e "${OUTPUT}" ]]; then
   BACKUP="${STAGING_ROOT}/previous"
   mv "${OUTPUT}" "${BACKUP}"

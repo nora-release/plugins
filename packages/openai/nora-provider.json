@@ -2,7 +2,7 @@
   "apiVersion": 1,
   "id": "openai",
   "name": "OpenAI",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "runtime": {
     "entry": "provider",
     "type": "native"
@@ -52,6 +52,52 @@
           "api": "openai-responses",
           "baseURL": "https://api.openai.com/v1"
         }
+      ]
+    },
+    "operations": [
+      "images.generations",
+      "images.edits",
+      "embeddings",
+      "audio.transcriptions",
+      "audio.translations",
+      "videos.create",
+      "videos.get",
+      "videos.content"
+    ],
+    "operationsAuthMethods": {
+      "images.generations": [
+        "api",
+        "apiKey",
+        "oauth"
+      ],
+      "images.edits": [
+        "api",
+        "apiKey",
+        "oauth"
+      ],
+      "embeddings": [
+        "api",
+        "apiKey"
+      ],
+      "audio.transcriptions": [
+        "api",
+        "apiKey"
+      ],
+      "audio.translations": [
+        "api",
+        "apiKey"
+      ],
+      "videos.create": [
+        "api",
+        "apiKey"
+      ],
+      "videos.get": [
+        "api",
+        "apiKey"
+      ],
+      "videos.content": [
+        "api",
+        "apiKey"
       ]
     }
   }

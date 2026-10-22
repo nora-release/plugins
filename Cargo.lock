@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "ahash"
+version = "0.8.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
+dependencies = [
+ "cfg-if",
+ "once_cell",
+ "version_check",
+ "zerocopy",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -135,6 +147,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono-tz"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6139a8597ed92cf816dfb33f5dd6cf0bb93a6adc938f11039f371bc5bcd26c3"
+dependencies = [
+ "chrono",
+ "phf",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -145,6 +167,12 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "core_detect"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f8f80099a98041a3d1622845c271458a2d73e688351bf3cb999266764b81d48"
 
 [[package]]
 name = "cpufeatures"
@@ -162,6 +190,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "crc32fast"
+version = "1.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ba106e844045ddc02c20768ac4b0b7cb45f2cc2ecbd833ac9f5dacb183c2055"
+dependencies = [
+ "cfg-if",
 ]
 
 [[package]]
@@ -214,14 +251,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "encoding_rs"
+version = "0.8.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e985e0451871ad22fb8d2b6b076e2028a502a0d3950998c2c5c0a4f9b5d9679"
+dependencies = [
+ "cfg-if",
+ "core_detect",
+ "multiversion_no_op",
+ "rustversion",
+ "scopeguard",
+ "simdutf8",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "fallible-iterator"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
+
+[[package]]
+name = "fallible-streaming-iterator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "find-msvc-tools"
@@ -361,6 +424,24 @@ dependencies = [
  "r-efi",
  "rand_core 0.10.1",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+]
+
+[[package]]
+name = "hashlink"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
+dependencies = [
+ "hashbrown",
 ]
 
 [[package]]
@@ -647,6 +728,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
+name = "libsqlite3-sys"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e99fb7a497b1e3339bc746195567ed8d3e24945ecd636e3619d20b9de9e9149"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "litemap"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -671,6 +763,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
+name = "mime"
+version = "0.3.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+
+[[package]]
 name = "mio"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -682,9 +780,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes",
+ "encoding_rs",
+ "futures-util",
+ "http",
+ "httparse",
+ "memchr",
+ "mime",
+ "spin",
+ "version_check",
+]
+
+[[package]]
+name = "multiversion_no_op"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
+
+[[package]]
 name = "nora-ai"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=d96eb5ea5a5a0c47ea0765ce610c64a417ac4412#d96eb5ea5a5a0c47ea0765ce610c64a417ac4412"
+source = "git+https://github.com/nora-release/nora.git?rev=a2a9ae604d4a5177950947406112eedb07664a5f#a2a9ae604d4a5177950947406112eedb07664a5f"
 dependencies = [
  "async-trait",
  "base64",
@@ -705,45 +826,81 @@ dependencies = [
 
 [[package]]
 name = "nora-provider"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "base64",
+ "bytes",
  "chrono",
  "futures",
+ "multer",
  "nora-ai",
  "nora-provider-auth",
  "nora-provider-plugin-sdk",
+ "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
+ "tokio-util",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-aihubmix"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
 name = "nora-provider-anthropic"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
+ "base64",
  "chrono",
+ "chrono-tz",
+ "futures",
+ "libc",
  "nora-ai",
  "nora-provider",
- "nora-provider-auth",
  "nora-provider-plugin-sdk",
+ "regex",
  "serde_json",
+ "sha2",
  "tokio",
+ "unicode-normalization",
  "url",
 ]
 
 [[package]]
+name = "nora-provider-antigravity"
+version = "1.1.0"
+dependencies = [
+ "nora-provider-codeassist",
+ "nora-provider-plugin-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-auth"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "base64",
  "chrono",
  "jsonwebtoken",
  "nora-ai",
+ "nora-provider-plugin-sdk",
  "rand 0.8.6",
  "rsa",
  "serde",
@@ -753,8 +910,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-codeassist"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-auth",
+ "nora-provider-plugin-sdk",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-deepseek"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-gemini-cli"
+version = "1.1.0"
+dependencies = [
+ "nora-provider-codeassist",
+ "nora-provider-plugin-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-github-copilot"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -768,11 +965,143 @@ dependencies = [
 ]
 
 [[package]]
-name = "nora-provider-openai"
-version = "1.0.0"
+name = "nora-provider-google-gemini"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-kimi-coding"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-kimi-work"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-kiro"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "crc32fast",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "rusqlite",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-minimax"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-minimax-cn"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-moonshotai"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-moonshotai-cn"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-ollama-cloud"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-openai"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
  "nora-ai",
  "nora-provider",
  "nora-provider-auth",
@@ -781,27 +1110,141 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-opencode-go"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "getrandom 0.2.17",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-openrouter"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
 name = "nora-provider-plugin-sdk"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=d96eb5ea5a5a0c47ea0765ce610c64a417ac4412#d96eb5ea5a5a0c47ea0765ce610c64a417ac4412"
+source = "git+https://github.com/nora-release/nora.git?rev=a2a9ae604d4a5177950947406112eedb07664a5f#a2a9ae604d4a5177950947406112eedb07664a5f"
 dependencies = [
  "async-trait",
  "base64",
  "futures",
+ "libc",
+ "reqwest",
  "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "nora-provider-quota"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-siliconflow"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
  "serde_json",
  "tokio",
 ]
 
 [[package]]
-name = "nora-provider-xai"
-version = "1.0.0"
+name = "nora-provider-siliconflow-global"
+version = "1.1.0"
 dependencies = [
  "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-stepfun"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-stepfun-cn"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-typesafe"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-xai"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
  "chrono",
+ "futures",
  "nora-ai",
  "nora-provider",
  "nora-provider-auth",
@@ -809,6 +1252,34 @@ dependencies = [
  "serde_json",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "nora-provider-zai"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-zhipu"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-quota",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -878,6 +1349,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
+name = "phf"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "913273894cec178f401a31ec4b656318d95473527be05c0752cc41cdc32be8b7"
+dependencies = [
+ "phf_shared",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06005508882fb681fd97892ecff4b7fd0fee13ef1aa569f8695dae7ab9099981"
+dependencies = [
+ "siphasher",
+]
+
+[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -903,6 +1392,12 @@ dependencies = [
  "der",
  "spki",
 ]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "potential_utf"
@@ -984,7 +1479,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1163,6 +1658,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusqlite"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7753b721174eb8ff87a9a0e799e2d7bc3749323e773db92e0984debb00019d6e"
+dependencies = [
+ "bitflags",
+ "fallible-iterator",
+ "fallible-streaming-iterator",
+ "hashlink",
+ "libsqlite3-sys",
+ "smallvec",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1214,6 +1723,12 @@ name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
+name = "scopeguard"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "serde"
@@ -1317,6 +1832,18 @@ dependencies = [
  "digest",
  "rand_core 0.6.4",
 ]
+
+[[package]]
+name = "simdutf8"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "siphasher"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33f4fe9184a62d842c9ef383018f3306d8ba224fd9d836f56d7288308847c256"
 
 [[package]]
 name = "slab"
@@ -1644,6 +2171,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
+name = "unicode-normalization"
+version = "0.1.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75cd3fb03d5288b3ba9a1ee103ac7e9cbb59f0b03d64f8ddfcc04dd42758a85d"
+dependencies = [
+ "tinyvec",
+]
+
+[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1672,6 +2208,23 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+
+[[package]]
+name = "uuid"
+version = "1.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
+dependencies = [
+ "getrandom 0.4.3",
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "vcpkg"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "version_check"

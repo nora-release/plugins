@@ -20,6 +20,9 @@ pub mod codex_version;
 #[path = "usage.rs"]
 pub mod usage;
 
+#[path = "media.rs"]
+mod media;
+
 #[derive(Debug)]
 pub struct OpenAI;
 
@@ -168,14 +171,40 @@ impl ProviderAdapter for OpenAI {
     fn preserve_model_api(&self, credentials: &Value) -> bool {
         is_oauth(Some(credentials))
     }
+    fn supplemental_models(
+        &self,
+        definition: &Definition,
+        credentials: Option<&Value>,
+    ) -> Vec<Model> {
+        if !is_oauth(credentials) {
+            return Vec::new();
+        }
+        let mut model = Model::new("gpt-image-2", "openai-responses", &definition.id);
+        model.name = "GPT Image".into();
+        model.info.chat = Some(false);
+        model.info.image_output = Some(true);
+        model.info.tool_calling = Some(false);
+        models::configure_model(definition, credentials, &mut model);
+        vec![model]
+    }
     async fn prepare_fetch(
         &self,
         credentials: &Value,
-        _target: &mut Url,
-        _headers: &mut BTreeMap<String, String>,
-        _body: &mut Option<Vec<u8>>,
+        target: &mut Url,
+        headers: &mut BTreeMap<String, String>,
+        body: &mut Option<Vec<u8>>,
         auth: &mut ResolvedProviderAuth,
     ) -> PluginResult<()> {
+        media::prepare(is_oauth(Some(credentials)), target, headers, body)?;
+        if target.path().starts_with("/backend-api/codex/images/") {
+            merge_headers(
+                &mut auth.headers,
+                [
+                    ("originator".into(), "codex_cli_rs".into()),
+                    ("accept".into(), "application/json".into()),
+                ],
+            );
+        }
         if is_oauth(Some(credentials)) {
             merge_headers(
                 &mut auth.headers,
@@ -191,6 +220,15 @@ impl ProviderAdapter for OpenAI {
         client: &dyn HttpClient,
     ) -> Result<Value, String> {
         usage::fetch(auth, account_id, client).await
+    }
+
+    async fn fetch_override(
+        &self,
+        definition: &Definition,
+        request: &nora_provider_plugin_sdk::FetchRequest,
+        client: &dyn HttpClient,
+    ) -> PluginResult<Option<nora_provider_plugin_sdk::FetchResponse>> {
+        media::fetch(definition, request, client).await
     }
 }
 

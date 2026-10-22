@@ -1,0 +1,17 @@
+[package]
+name = "nora-provider-typesafe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider = { path = "../runtime" }
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+async-trait = "0.1"
+base64 = "0.22"
+futures = "0.3"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+url = "2"

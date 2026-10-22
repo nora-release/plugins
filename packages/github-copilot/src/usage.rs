@@ -50,6 +50,9 @@ pub async fn fetch(
 }
 
 fn copilot(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
+    let managed = payload["copilot_plan"].as_str().is_some_and(|plan| {
+        plan.eq_ignore_ascii_case("business") || plan.eq_ignore_ascii_case("enterprise")
+    });
     for (key, label) in [
         ("premium_interactions", "Premium requests"),
         ("chat", "Chat requests"),
@@ -72,9 +75,12 @@ fn copilot(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
                     .get("quota_reset_date")
                     .filter(|value| timestamp(value).is_some())
             });
-        let exhausted_pool = key == "premium_interactions" && quota["has_quota"] == false;
+        let exhausted_pool = key == "premium_interactions"
+            && quota["unlimited"] == true
+            && quota["has_quota"] == false;
         if quota["unlimited"] == true && !exhausted_pool {
-            let mut item = json!({"id":key,"label":label,"value":"Unlimited"});
+            let mut item =
+                json!({"id":key,"label":label,"value":"Unlimited","countsForRouting":false});
             if let Some(resets) = resets.and_then(timestamp) {
                 item["resetsAt"] = json!(resets);
             }
@@ -84,7 +90,7 @@ fn copilot(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
         }
         let limit = number(&quota["entitlement"]);
         let remaining = number(&quota["quota_remaining"]).or_else(|| number(&quota["remaining"]));
-        let percent = if quota["unlimited"] == true && exhausted_pool {
+        let percent = if exhausted_pool {
             Some(100.0)
         } else if let (Some(limit), Some(remaining)) =
             (limit.filter(|limit| *limit > 0.0), remaining)
@@ -95,9 +101,21 @@ fn copilot(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
         };
         let quantities_payload =
             json!({"limit":limit,"remaining":remaining,"used_percent":percent});
-        if let Some(item) = quantities(key, label, &quantities_payload, Some("requests"), resets) {
+        if let Some(mut item) =
+            quantities(key, label, &quantities_payload, Some("requests"), resets)
+        {
+            item["countsForRouting"] = json!(
+                (key == "chat"
+                    || key == "premium_interactions"
+                        && (managed || quota["overage_permitted"] != true))
+                    && (exhausted_pool || limit.is_none_or(|limit| limit > 0.0))
+            );
             remaining_balance(&item, key, label, balances);
             items.push(item);
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../test/usage.test.rs"]
+mod tests;

@@ -1,0 +1,38 @@
+{
+  "apiVersion": 1,
+  "id": "kimi-work",
+  "name": "Kimi Work",
+  "version": "1.1.0",
+  "runtime": { "entry": "provider", "type": "native" },
+  "api": "openai-completions",
+  "baseURL": "https://agent-gw.kimi.com/coding/v1",
+  "aliases": [],
+  "authMethods": [
+    {
+      "id": "desktop",
+      "type": "oauth",
+      "label": "Use a selected Kimi desktop configuration",
+      "fields": [
+        { "id": "configPath", "key": "configPath", "type": "text", "label": "Kimi desktop config.json path", "required": true }
+      ]
+    },
+    {
+      "id": "tokens",
+      "type": "api",
+      "label": "Paste Work and membership tokens",
+      "fields": [
+        { "id": "workToken", "key": "workToken", "type": "password", "label": "Kimi Work token", "required": true },
+        { "id": "membershipToken", "key": "membershipToken", "type": "password", "label": "Kimi membership token", "required": true }
+      ]
+    }
+  ],
+  "models": [
+    { "id": "k3-agent", "name": "K3 · Work", "contextWindow": 262144, "maxTokens": 32768, "reasoning": true }
+  ],
+  "config": {
+    "catalog": "",
+    "keyProvider": "kimi-work",
+    "oauthProvider": "kimi-work",
+    "description": "Use your explicitly selected local Kimi Work account or supplied Work and membership tokens."
+  }
+}

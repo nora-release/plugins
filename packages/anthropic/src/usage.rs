@@ -50,28 +50,45 @@ fn anthropic(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>)
         {
             quantities_payload["used_percent"] = json!(percent);
         }
-        if let Some(item) = quantities(
+        if let Some(mut item) = quantities(
             key,
             label,
             &quantities_payload,
             None,
             window.get("resets_at"),
         ) {
+            item["windowSeconds"] = json!(if key == "five_hour" { 18_000 } else { 604_800 });
+            let model_ids = match key {
+                "seven_day_opus" => Some(["*opus*"]),
+                "seven_day_sonnet" => Some(["*sonnet*"]),
+                "seven_day_overage_included" => Some(["*fable*"]),
+                _ => None,
+            };
+            item["countsForRouting"] =
+                json!(matches!(key, "five_hour" | "seven_day") || model_ids.is_some());
+            if let Some(model_ids) = model_ids {
+                item["modelIDs"] = json!(model_ids);
+            }
             items.push(item);
         }
     }
     let extra = &payload["extra_usage"];
     if extra["is_enabled"] == true {
         let quantities_payload = json!({"used":number(&extra["used_credits"]),"limit":number(&extra["monthly_limit"]),"used_percent":number(&extra["utilization"])});
-        if let Some(item) = quantities(
+        if let Some(mut item) = quantities(
             "extra_usage",
             "Extra usage",
             &quantities_payload,
             Some("credits"),
             extra.get("resets_at"),
         ) {
+            item["countsForRouting"] = json!(false);
             remaining_balance(&item, "extra_usage", "Extra usage remaining", balances);
             items.push(item);
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../test/usage.test.rs"]
+mod tests;

@@ -2,7 +2,7 @@
   "apiVersion": 1,
   "id": "anthropic",
   "name": "Anthropic",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "runtime": {
     "entry": "provider",
     "type": "native"
@@ -14,7 +14,16 @@
     {
       "id": "oauth",
       "type": "oauth",
-      "label": "Sign in"
+      "label": "Sign in with installed Claude Code",
+      "fields": [
+        {
+          "id": "claudePath",
+          "key": "claudePath",
+          "type": "text",
+          "label": "Claude Code executable path (optional)",
+          "required": false
+        }
+      ]
     },
     {
       "id": "apiKey",
@@ -41,6 +50,7 @@
       "keyProvider": "anthropic-api-key",
       "oauthProvider": "anthropic",
       "credentialProvider": "anthropic"
-    }
+    },
+    "description": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly."
   }
 }

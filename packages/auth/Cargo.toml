@@ -16,6 +16,7 @@ path = "test/lib.rs"
 
 [dependencies]
 nora-ai.workspace = true
+nora-provider-plugin-sdk.workspace = true
 async-trait = "0.1"
 base64 = "0.22"
 chrono = "0.4"

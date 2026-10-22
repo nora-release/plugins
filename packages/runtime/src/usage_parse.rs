@@ -165,14 +165,3 @@ pub fn compact(value: f64) -> String {
         .trim_end_matches('.')
         .to_string()
 }
-
-#[cfg(test)]
-pub(super) fn parse_usage(plugin: &str, payload: &Value) -> Value {
-    match plugin {
-        "openai" => crate::openai_provider::usage::parse(payload),
-        "xai" => crate::xai_provider::usage::parse(payload),
-        "anthropic" => crate::anthropic_provider::usage::parse(payload),
-        "github-copilot" => crate::copilot_provider::usage::parse(payload),
-        _ => result(payload, Vec::new(), Vec::new()),
-    }
-}

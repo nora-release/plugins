@@ -11,9 +11,18 @@ nora-ai.workspace = true
 nora-provider-auth = { path = "../auth" }
 async-trait = "0.1"
 base64 = "0.22"
+bytes = "1"
 chrono = "0.4"
 futures = "0.3"
+multer = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util"] }
+sha2 = "0.10"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "socks"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util", "fs"] }
+tokio-util = { version = "0.7", features = ["io"] }
 url = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["net"] }
+uuid = { version = "1", features = ["v4"] }

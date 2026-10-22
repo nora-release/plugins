@@ -4,7 +4,7 @@ use crate::{
     model_catalog, models,
 };
 use nora_ai::{HttpClient, HttpMethod, HttpRequest, Model, ModelsCatalog, ResolvedProviderAuth};
-use nora_provider_plugin_sdk::{PluginError, PluginResult};
+use nora_provider_plugin_sdk::{NetworkProxy, PluginError, PluginResult};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -37,6 +37,16 @@ pub async fn discover(
     data_directory: &Path,
     client: &dyn HttpClient,
 ) -> PluginResult<Value> {
+    discover_with_network(definition, credentials, data_directory, client, None).await
+}
+
+pub async fn discover_with_network(
+    definition: &Definition,
+    credentials: Option<&Value>,
+    data_directory: &Path,
+    client: &dyn HttpClient,
+    proxy: Option<&NetworkProxy>,
+) -> PluginResult<Value> {
     let remote = credentials.is_some()
         && definition.adapter.remote_models(credentials)
         && !definition
@@ -67,11 +77,12 @@ pub async fn discover(
         return fallback();
     }
     let remote = async {
-        let (_, resolved) = auth::resolve(definition, value).await?;
+        let (_, resolved) = auth::resolve_with_network(definition, value, proxy).await?;
         fetch_routes(definition, value, &resolved, &catalog, client).await
     };
     match remote.await {
-        Ok(remote) => {
+        Ok(mut remote) => {
+            supplement_models(definition, credentials, &mut remote.models);
             let mut result =
                 json!({"models":remote.models,"source":"remote","allowUnknownModels":false});
             if !remote.failed_parts.is_empty() {
@@ -114,12 +125,30 @@ fn preset(
     } else {
         "catalog"
     };
+    supplement_models(definition, credentials, &mut models);
     let mut result = json!({"models":models,"source":source,"allowUnknownModels":true});
     if let Some(error) = error.filter(|_| result["models"].as_array().is_none_or(Vec::is_empty)) {
         result["modelError"] = json!(error);
     }
     add_default_route(&mut result, definition, credentials);
     Ok(result)
+}
+
+pub(crate) fn supplement_models(
+    definition: &Definition,
+    credentials: Option<&Value>,
+    models: &mut Vec<Model>,
+) {
+    for mut model in definition
+        .adapter
+        .supplemental_models(definition, credentials)
+    {
+        if models.iter().any(|existing| existing.id == model.id) {
+            continue;
+        }
+        model.info.catalog_source = Some("preset".into());
+        models.push(model);
+    }
 }
 
 fn add_default_route(result: &mut Value, definition: &Definition, credentials: Option<&Value>) {
@@ -647,5 +676,5 @@ fn both_auth_refused(status: u16, body: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "discovery_tests.rs"]
+#[path = "../test/discovery.test.rs"]
 mod tests;

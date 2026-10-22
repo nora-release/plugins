@@ -78,11 +78,12 @@ pub async fn fetch(
 }
 
 fn openai(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
-    openai_windows(&payload["rate_limit"], "rate_limit", "", items);
+    openai_windows(&payload["rate_limit"], "rate_limit", "", true, items);
     openai_windows(
         &payload["code_review_rate_limit"],
         "code_review",
         "Code review",
+        false,
         items,
     );
     match &payload["additional_rate_limits"] {
@@ -94,7 +95,7 @@ fn openai(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
                 let label = text(limit, &["limit_name", "name", "metered_feature"])
                     .unwrap_or("Additional allowance");
                 let windows = limit.get("rate_limit").unwrap_or(limit);
-                openai_windows(windows, &format!("additional:{id}"), label, items);
+                openai_windows(windows, &format!("additional:{id}"), label, false, items);
             }
         }
         Value::Object(limits) => {
@@ -104,6 +105,7 @@ fn openai(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
                     limit.get("rate_limit").unwrap_or(limit),
                     &format!("additional:{id}"),
                     label,
+                    false,
                     items,
                 );
             }
@@ -125,19 +127,26 @@ fn openai(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
     }
     let spend = &payload["spend_control"]["individual_limit"];
     if spend.is_object() {
-        if let Some(item) = quantities(
+        if let Some(mut item) = quantities(
             "spend_control",
             "Spending limit",
             spend,
             Some("credits"),
             spend.get("reset_at"),
         ) {
+            item["countsForRouting"] = json!(false);
             items.push(item);
         }
     }
 }
 
-fn openai_windows(limits: &Value, id: &str, prefix: &str, items: &mut Vec<Value>) {
+fn openai_windows(
+    limits: &Value,
+    id: &str,
+    prefix: &str,
+    counts_for_routing: bool,
+    items: &mut Vec<Value>,
+) {
     for (key, fallback) in [
         ("primary_window", "Primary window"),
         ("secondary_window", "Secondary window"),
@@ -164,6 +173,12 @@ fn openai_windows(limits: &Value, id: &str, prefix: &str, items: &mut Vec<Value>
             })
         });
         if let Some(mut item) = quantities(&format!("{id}:{key}"), &label, window, None, None) {
+            item["countsForRouting"] = json!(counts_for_routing);
+            put_number(
+                &mut item,
+                "windowSeconds",
+                number(&window["limit_window_seconds"]).filter(|seconds| *seconds > 0.0),
+            );
             if let Some(resets) = resets {
                 item["resetsAt"] = json!(resets);
             }
@@ -171,3 +186,7 @@ fn openai_windows(limits: &Value, id: &str, prefix: &str, items: &mut Vec<Value>
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../test/usage.test.rs"]
+mod tests;

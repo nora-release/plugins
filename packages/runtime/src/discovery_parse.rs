@@ -48,7 +48,7 @@ pub fn model(
     if id.is_empty()
         || id.len() > 512
         || id.chars().any(char::is_control)
-        || !is_chat(entry, kind, id)
+        || entry.get("active").and_then(Value::as_bool) == Some(false)
         || !definition.adapter.model_visible(entry, id, credentials)
     {
         return None;
@@ -181,6 +181,11 @@ pub fn model(
     definition
         .adapter
         .enrich_model(entry, &mut model, credentials);
+    crate::pricing::apply(entry, &mut model);
+    let media = models::apply_media_metadata(entry, &mut model);
+    if !media && model.info.chat != Some(true) && !is_chat(entry, kind, id) {
+        return None;
+    }
     model.normalize_info();
     Some(model)
 }

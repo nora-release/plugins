@@ -1,0 +1,22 @@
+[package]
+name = "nora-provider-codeassist"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-ai.workspace = true
+nora-provider-plugin-sdk.workspace = true
+nora-provider = { path = "../runtime" }
+nora-provider-auth = { path = "../auth" }
+async-trait = "0.1"
+base64 = "0.22"
+futures = "0.3"
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+url = "2"
+
+[dev-dependencies]
+chrono = "0.4"

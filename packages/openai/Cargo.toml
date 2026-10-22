@@ -11,8 +11,13 @@ nora-provider-auth = { path = "../auth" }
 nora-provider-plugin-sdk.workspace = true
 nora-ai.workspace = true
 async-trait = "0.1"
+base64 = "0.22"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["rt", "macros"] }
 url = "2"
 chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+futures = "0.3"

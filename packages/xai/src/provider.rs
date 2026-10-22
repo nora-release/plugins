@@ -5,7 +5,7 @@ use nora_ai::{
 };
 use nora_provider::{adapter::is_oauth, definition::Definition, models, ProviderAdapter};
 use nora_provider_auth::{OAuthLogin, OAuthLoginCallbacks, XaiOAuthProvider};
-use nora_provider_plugin_sdk::{PluginError, PluginResult};
+use nora_provider_plugin_sdk::{NetworkProxy, PluginError, PluginResult};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use url::Url;
@@ -14,6 +14,9 @@ use url::Url;
 mod grok_source;
 #[path = "usage.rs"]
 pub mod usage;
+
+#[path = "media.rs"]
+mod media;
 
 #[derive(Debug)]
 pub struct Xai;
@@ -47,11 +50,16 @@ impl ProviderAdapter for Xai {
     fn is_source(&self, credentials: &OAuthCredentials) -> bool {
         grok_source::is_bound(credentials)
     }
-    async fn authorize_source(&self, method: &str) -> PluginResult<OAuthCredentials> {
+    async fn authorize_source(
+        &self,
+        method: &str,
+        client: &dyn HttpClient,
+        proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<OAuthCredentials> {
         if method != "grokCLI" {
             return Err(PluginError::unsupported(method));
         }
-        grok_source::bind_current_account()
+        grok_source::bind_current_account_with_network(client, proxy)
             .await
             .map_err(PluginError::authentication)
     }
@@ -59,13 +67,14 @@ impl ProviderAdapter for Xai {
         &self,
         credentials: &OAuthCredentials,
         force: bool,
+        proxy: Option<&NetworkProxy>,
     ) -> PluginResult<()> {
         let reason = if force {
             grok_source::AgentAuthResolveReason::Refresh
         } else {
             grok_source::AgentAuthResolveReason::Initial
         };
-        grok_source::resolve(credentials, reason)
+        grok_source::resolve(credentials, reason, proxy)
             .await
             .ok_or_else(|| PluginError::authentication("Reconnect the Grok Build account."))?;
         Ok(())
@@ -73,14 +82,19 @@ impl ProviderAdapter for Xai {
     async fn resolve_source(
         &self,
         credentials: &OAuthCredentials,
+        proxy: Option<&NetworkProxy>,
     ) -> PluginResult<ResolvedProviderAuth> {
-        grok_source::resolve(credentials, grok_source::AgentAuthResolveReason::Initial)
-            .await
-            .ok_or_else(|| {
-                PluginError::authentication(
-                    "Reconnect the Grok Build account. Its local identity or session changed.",
-                )
-            })
+        grok_source::resolve(
+            credentials,
+            grok_source::AgentAuthResolveReason::Initial,
+            proxy,
+        )
+        .await
+        .ok_or_else(|| {
+            PluginError::authentication(
+                "Reconnect the Grok Build account. Its local identity or session changed.",
+            )
+        })
     }
     fn enrich_auth(&self, credentials: &OAuthCredentials, auth: &mut ResolvedProviderAuth) {
         if credentials.provider != OAuthProviderId::XAI {
@@ -135,8 +149,39 @@ impl ProviderAdapter for Xai {
     fn bearer_model_list(&self, auth: &ResolvedProviderAuth) -> bool {
         auth.credential_provider_id.as_deref() == Some("xai")
     }
+    fn supplemental_models(
+        &self,
+        definition: &Definition,
+        credentials: Option<&Value>,
+    ) -> Vec<Model> {
+        if !is_oauth(credentials) {
+            return Vec::new();
+        }
+        [
+            ("grok-imagine-image", "Grok Imagine", true),
+            ("grok-imagine-image-quality", "Grok Imagine Quality", true),
+            ("grok-imagine-video", "Grok Imagine Video", false),
+            ("grok-imagine-video-1.5", "Grok Imagine Video 1.5", false),
+        ]
+        .into_iter()
+        .map(|(id, name, image)| {
+            let mut model = Model::new(id, "openai-responses", &definition.id);
+            model.name = name.into();
+            model.info.chat = Some(false);
+            model.info.tool_calling = Some(false);
+            if image {
+                model.info.image_output = Some(true);
+            } else {
+                model.info.video_output = Some(true);
+            }
+            models::configure_model(definition, credentials, &mut model);
+            model
+        })
+        .collect()
+    }
     fn model_visible(&self, entry: &Value, _id: &str, credentials: &Value) -> bool {
         !is_oauth(Some(credentials))
+            || _id.starts_with("grok-imagine-")
             || !entry
                 .get("api_backend")
                 .and_then(Value::as_str)
@@ -162,11 +207,14 @@ impl ProviderAdapter for Xai {
     async fn prepare_fetch(
         &self,
         credentials: &Value,
-        _target: &mut Url,
+        target: &mut Url,
         headers: &mut BTreeMap<String, String>,
         body: &mut Option<Vec<u8>>,
         _auth: &mut ResolvedProviderAuth,
     ) -> PluginResult<()> {
+        if media::prepare(target, headers, body)? {
+            return Ok(());
+        }
         if !is_oauth(Some(credentials)) {
             return Ok(());
         }
@@ -212,6 +260,15 @@ impl ProviderAdapter for Xai {
         client: &dyn HttpClient,
     ) -> Result<Value, String> {
         usage::fetch(auth, account_id, client).await
+    }
+
+    async fn fetch_override(
+        &self,
+        definition: &Definition,
+        request: &nora_provider_plugin_sdk::FetchRequest,
+        client: &dyn HttpClient,
+    ) -> PluginResult<Option<nora_provider_plugin_sdk::FetchResponse>> {
+        media::fetch(definition, request, client).await
     }
 }
 pub fn grok_model_selection(id: &str) -> (&str, Option<u64>) {

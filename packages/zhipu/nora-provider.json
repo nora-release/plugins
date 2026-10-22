@@ -1,0 +1,56 @@
+{
+  "apiVersion": 1,
+  "id": "zhipu",
+  "name": "Zhipu GLM",
+  "version": "1.1.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-completions",
+  "baseURL": "https://open.bigmodel.cn/api/coding/paas/v4",
+  "authMethods": [
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "API key",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        },
+        {
+          "id": "organizationID",
+          "key": "organizationID",
+          "type": "text",
+          "label": "Team organization ID (optional)",
+          "required": false
+        },
+        {
+          "id": "projectID",
+          "key": "projectID",
+          "type": "text",
+          "label": "Team project ID (optional)",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "catalog": "zhipuai",
+    "keyProvider": "zhipu",
+    "modelDiscovery": {
+      "defaultBaseURL": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "bases": [
+        {
+          "api": "openai-completions",
+          "baseURL": "https://open.bigmodel.cn/api/coding/paas/v4"
+        }
+      ]
+    }
+  }
+}

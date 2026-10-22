@@ -16,5 +16,5 @@ license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
-nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "6ad24c81a68c55ddc506d9f0df969c399a8ea33d" }
-nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "6ad24c81a68c55ddc506d9f0df969c399a8ea33d" }
+nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "d96eb5ea5a5a0c47ea0765ce610c64a417ac4412" }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "d96eb5ea5a5a0c47ea0765ce610c64a417ac4412" }

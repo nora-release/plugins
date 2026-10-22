@@ -684,7 +684,7 @@ dependencies = [
 [[package]]
 name = "nora-ai"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=6ad24c81a68c55ddc506d9f0df969c399a8ea33d#6ad24c81a68c55ddc506d9f0df969c399a8ea33d"
+source = "git+https://github.com/nora-release/nora.git?rev=d96eb5ea5a5a0c47ea0765ce610c64a417ac4412#d96eb5ea5a5a0c47ea0765ce610c64a417ac4412"
 dependencies = [
  "async-trait",
  "base64",
@@ -786,7 +786,7 @@ dependencies = [
 [[package]]
 name = "nora-provider-plugin-sdk"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=6ad24c81a68c55ddc506d9f0df969c399a8ea33d#6ad24c81a68c55ddc506d9f0df969c399a8ea33d"
+source = "git+https://github.com/nora-release/nora.git?rev=d96eb5ea5a5a0c47ea0765ce610c64a417ac4412#d96eb5ea5a5a0c47ea0765ce610c64a417ac4412"
 dependencies = [
  "async-trait",
  "base64",

@@ -45,10 +45,6 @@
       "oauthProvider": "openai-codex",
       "credentialProvider": "openAICodex"
     },
-    "customTemplate": true,
-    "customRuntime": {
-      "entry": "bin/nora-provider-compatible"
-    },
     "modelDiscovery": {
       "defaultBaseURL": "https://api.openai.com",
       "bases": [

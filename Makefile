@@ -1,17 +1,22 @@
 CARGO ?= cargo
+PROVIDERS_OUTPUT ?= $(CURDIR)/.build/providers
+PACKAGES_OUTPUT ?= $(CURDIR)/.build/packages
 
-.PHONY: build test check fmt fmt-check
+.PHONY: build package test check fmt fmt-check
 
 build:
-	$(CARGO) build --workspace --locked
+	CARGO="$(CARGO)" bash scripts/build-providers.sh build "$(PROVIDERS_OUTPUT)"
+
+package:
+	CARGO="$(CARGO)" bash scripts/package-providers.sh "$(PACKAGES_OUTPUT)"
 
 test:
-	$(CARGO) test --workspace --locked
+	CARGO="$(CARGO)" bash scripts/build-providers.sh --test
 
 check: fmt-check test
 
 fmt:
-	$(CARGO) fmt --all
+	CARGO="$(CARGO)" bash scripts/build-providers.sh --fmt
 
 fmt-check:
-	$(CARGO) fmt --all --check
+	CARGO="$(CARGO)" bash scripts/build-providers.sh --fmt-check

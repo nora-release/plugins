@@ -2,10 +2,10 @@ name: Check Rust providers
 
 on:
   pull_request:
-    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', '.github/workflows/check-providers.yml']
+    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/*.sh', '.github/workflows/check-providers.yml']
   push:
     branches: [main, agent/router]
-    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', '.github/workflows/check-providers.yml']
+    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/*.sh', '.github/workflows/check-providers.yml']
   workflow_dispatch:
 
 permissions:
@@ -25,3 +25,5 @@ jobs:
         run: rustup update stable --no-self-update && rustup component add rustfmt
       - name: Check and test providers
         run: make check
+      - name: Check packaging scripts
+        run: bash -n scripts/build-providers.sh scripts/package-providers.sh

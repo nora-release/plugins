@@ -2,6 +2,22 @@ use super::*;
 #[path = "fixture.rs"]
 mod fixture;
 #[test]
+fn aws_decimal_reset_timestamps_are_visible_for_monthly_and_trial_allowances() {
+    let mut value = fixture::usage();
+    value["nextDateReset"] = json!(1793491200.0);
+    value["usageBreakdownList"][0]["nextDateReset"] = json!(1793491200.0);
+    value["usageBreakdownList"][0]["freeTrialInfo"] = json!({
+        "freeTrialStatus":"ACTIVE", "usageLimitWithPrecision":500,
+        "currentUsageWithPrecision":1, "freeTrialExpiry":1800000000.125
+    });
+    let usage = parse(&value).unwrap();
+    let items = usage["items"].as_array().unwrap();
+    assert_eq!(items[0]["resetsAt"], "2026-11-01T00:00:00Z");
+    assert_eq!(items[1]["resetsAt"], "2027-01-15T08:00:00Z");
+    assert_eq!(items[2]["resetsAt"], "2026-11-01T00:00:00Z");
+}
+
+#[test]
 fn monthly_and_trial_credits_are_displayed_separately_but_routed_as_additive_credit() {
     let mut value = fixture::usage();
     value["usageBreakdownList"][0]["freeTrialInfo"] = json!({"freeTrialStatus":"ACTIVE","usageLimitWithPrecision":500,"currentUsageWithPrecision":500,"freeTrialExpiry":1800000000});

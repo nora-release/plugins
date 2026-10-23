@@ -86,7 +86,10 @@ pub(crate) async fn synchronize(
     account: &mut cli::Account,
     persistence: &dyn Persistence,
 ) -> PluginResult<()> {
-    let oauth = cli::credentials(&account.directory).await?;
+    if account.home.is_own() {
+        return Ok(());
+    }
+    let oauth = cli::credentials(&account.home).await?;
     let access = cli::text(oauth.get("accessToken"), 64 * 1024).ok_or_else(cli::error)?;
     let refresh = cli::text(oauth.get("refreshToken"), 64 * 1024).ok_or_else(cli::error)?;
     if account.saved["access"] == access && account.saved["refresh"] == refresh {

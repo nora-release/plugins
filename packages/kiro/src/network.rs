@@ -44,12 +44,97 @@ pub(crate) fn post(url: String, value: &Value) -> PluginResult<HttpRequest> {
         .with_json_body(value)
         .map_err(|_| PluginError::invalid("The Kiro request cannot be encoded."))
 }
+async fn control(
+    client: &dyn HttpClient,
+    c: &Credential,
+    region: &str,
+    target: &str,
+    body: &Value,
+    origin: bool,
+) -> PluginResult<Value> {
+    let region = session::region(region)?;
+    let mut url = url::Url::parse(&format!("https://management.{region}.kiro.dev/"))
+        .expect("validated region URL");
+    if origin {
+        url.query_pairs_mut().append_pair("origin", "KIRO_CLI");
+    }
+    let request = post(url.into(), body)?
+        .with_header("content-type", "application/x-amz-json-1.0")
+        .with_header("x-amz-target", target)
+        .with_header("x-amzn-codewhisperer-optout", "false");
+    json(client, authorize(request, c)).await
+}
+
+async fn key_models(client: &dyn HttpClient, c: &Credential) -> PluginResult<Value> {
+    let region = c.runtime_region()?;
+    let mut output = json!({"models":[]});
+    let mut next = None;
+    for _ in 0..20 {
+        let mut body = json!({"origin":"KIRO_CLI"});
+        if let Some(next) = next.take() {
+            body["nextToken"] = json!(next);
+        }
+        let page = control(
+            client,
+            c,
+            &region,
+            "KiroControlPlaneBearerService.ListAvailableModels",
+            &body,
+            true,
+        )
+        .await?;
+        if let Some(models) = page["models"].as_array() {
+            output["models"]
+                .as_array_mut()
+                .expect("model collection")
+                .extend(models.iter().cloned());
+        }
+        if output.get("defaultModel").is_none_or(Value::is_null) {
+            if let Some(default) = page.get("defaultModel") {
+                output["defaultModel"] = default.clone();
+            }
+        }
+        next = match page.get("nextToken") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(value)) if value.is_empty() => None,
+            Some(value) => Some(
+                session::text(Some(value), 16 * 1024)
+                    .ok_or_else(|| {
+                        PluginError::transport("Kiro returned an invalid models page token.")
+                    })?
+                    .to_owned(),
+            ),
+        };
+        if next.is_none() {
+            break;
+        }
+    }
+    Ok(output)
+}
+
 pub(crate) async fn management(
     client: &dyn HttpClient,
     c: &Credential,
     method: &str,
     body: Option<&Value>,
 ) -> PluginResult<Value> {
+    if c.method == "apikey" {
+        return match method {
+            "Get-Usage-Limits" => {
+                control(
+                    client,
+                    c,
+                    &c.runtime_region()?,
+                    "AmazonCodeWhispererService.GetUsageLimits",
+                    &json!({"origin":"KIRO_CLI"}),
+                    true,
+                )
+                .await
+            }
+            "List-Available-Models" => key_models(client, c).await,
+            _ => Err(PluginError::unsupported(method)),
+        };
+    }
     let region = c.runtime_region()?;
     let mut url = url::Url::parse(&format!("https://management.{region}.kiro.dev/{method}"))
         .expect("validated region URL");
@@ -81,13 +166,23 @@ pub(crate) async fn profile(client: &dyn HttpClient, c: &Credential) -> PluginRe
         return Ok(c.profile.clone());
     }
     if c.method == "apikey" {
-        let request = post("https://management.us-east-1.kiro.dev/".into(), &json!({}))?
-            .with_header("content-type", "application/x-amz-json-1.0")
-            .with_header("x-amz-target", "AmazonCodeWhispererService.GetProfile");
-        let value = json(client, authorize(request, c)).await?;
-        return session::text(value.pointer("/profile/arn"), 2048)
-            .map(str::to_owned)
-            .ok_or_else(session::expired);
+        for region in ["us-east-1", "eu-central-1"] {
+            if let Ok(value) = control(
+                client,
+                c,
+                region,
+                "AmazonCodeWhispererService.GetProfile",
+                &json!({}),
+                false,
+            )
+            .await
+            {
+                if let Some(profile) = session::text(value.pointer("/profile/arn"), 2048) {
+                    return Ok(profile.into());
+                }
+            }
+        }
+        return Ok(String::new());
     }
     if c.builder {
         return Ok(session::BUILDER_PROFILE.into());
@@ -121,20 +216,26 @@ pub(crate) async fn identify(client: &dyn HttpClient, c: &mut Credential) -> Plu
     c.email = session::text(usage.pointer("/userInfo/email"), 512)
         .unwrap_or_default()
         .into();
+    c.user_id = match usage.pointer("/userInfo/userId") {
+        None | Some(Value::Null) => String::new(),
+        Some(value) => session::text(Some(value), 500)
+            .filter(|id| value.as_str() == Some(*id) && !id.chars().any(char::is_whitespace))
+            .ok_or_else(session::expired)?
+            .into(),
+    };
     c.plan = super::usage::plan(
         session::text(usage.pointer("/subscriptionInfo/subscriptionTitle"), 128)
             .unwrap_or_default(),
     );
-    c.identity = session::fingerprint(&format!(
-        "kiro-account\0{}\0{}",
-        c.email.to_ascii_lowercase(),
-        if c.email.is_empty() {
-            c.profile.as_str()
-        } else {
-            ""
-        }
-    ));
+    c.identity = if c.method == "apikey" {
+        key_identity(&c.access)
+    } else {
+        c.legacy_identity()
+    };
     Ok(usage)
+}
+pub(crate) fn key_identity(access: &str) -> String {
+    session::fingerprint(&format!("kiro-api-key\0{access}"))
 }
 pub(crate) async fn refresh(client: &dyn HttpClient, c: &Credential) -> PluginResult<Credential> {
     if c.refresh.is_empty() {
@@ -156,15 +257,39 @@ pub(crate) async fn refresh(client: &dyn HttpClient, c: &Credential) -> PluginRe
             ),
             &json!({"clientId":c.client_id,"clientSecret":c.client_secret,"refreshToken":c.refresh,"grantType":"refresh_token"}),
         )?,
+        "external-idp" => {
+            let endpoint = session::token_endpoint(&c.token_endpoint)?;
+            if c.client_id.is_empty() {
+                return Err(session::expired());
+            }
+            let form = url::form_urlencoded::Serializer::new(String::new())
+                .append_pair("grant_type", "refresh_token")
+                .append_pair("client_id", &c.client_id)
+                .append_pair("refresh_token", &c.refresh)
+                .finish();
+            HttpRequest::new(HttpMethod::Post, endpoint)
+                .with_header("content-type", "application/x-www-form-urlencoded")
+                .with_header("accept", "application/json")
+                .with_body(form.into_bytes())
+        }
         _ => return Err(session::expired()),
     };
     let value = json(client, request).await?;
     let mut next = c.clone();
-    next.access = session::secret(value.get("accessToken"))?;
-    if let Some(refresh) = value.get("refreshToken") {
+    let external = c.method == "external-idp";
+    next.access = session::secret(value.get(if external {
+        "access_token"
+    } else {
+        "accessToken"
+    }))?;
+    if let Some(refresh) = value.get(if external {
+        "refresh_token"
+    } else {
+        "refreshToken"
+    }) {
         next.refresh = session::secret(Some(refresh))?;
     }
-    let seconds = value["expiresIn"]
+    let seconds = value[if external { "expires_in" } else { "expiresIn" }]
         .as_i64()
         .filter(|seconds| *seconds > 0 && *seconds < 31_536_000)
         .unwrap_or(3600);

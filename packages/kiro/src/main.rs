@@ -1,8 +1,11 @@
 mod auth;
+mod magpie;
 mod network;
 mod provider;
 mod request;
 mod session;
+mod source;
+mod source_kind;
 mod stream;
 mod usage;
 

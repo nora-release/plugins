@@ -77,7 +77,13 @@ fn semver(version: &str) -> Option<(u64, u64, u64)> {
 
 pub async fn bind_current_account() -> Result<OAuthCredentials, String> {
     let client = nora_provider_plugin_sdk::http_client(None)
-        .map(nora_ai::ReqwestHttpClient::with_client)
+        .map(|client| {
+            nora_ai::ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
+                nora_provider_plugin_sdk::before_http_request()
+                    .await
+                    .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+            })
+        })
         .map_err(|_| "The Grok Build HTTP client could not be initialized.".to_string())?;
     bind_current_account_with_client(&client).await
 }
@@ -98,6 +104,64 @@ pub async fn bind_current_account_with_network(
         .ok_or("The current user's home directory is unavailable")?;
     let source = Source::current(&home, &std::env::vars().collect());
     bind_source(source, client, proxy).await
+}
+
+/// Discovers the current local sign-in without treating a read or network
+/// failure as a sign-out. The saved account remains a token-free reference.
+pub async fn discover_current_account_with_network(
+    client: &dyn HttpClient,
+    proxy: Option<&NetworkProxy>,
+) -> Result<Option<OAuthCredentials>, String> {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .ok_or("The current user's home directory is unavailable")?;
+    discover_source(
+        Source::current(&home, &std::env::vars().collect()),
+        client,
+        proxy,
+    )
+    .await
+}
+
+async fn discover_source(
+    source: Source,
+    client: &dyn HttpClient,
+    _proxy: Option<&NetworkProxy>,
+) -> Result<Option<OAuthCredentials>, String> {
+    let mut credentials =
+        match source.bound_credentials() {
+            Ok(credentials) => credentials,
+            Err(SourceError::NotSignedIn) => return Ok(None),
+            Err(_) => return Err(
+                "The Grok Build sign-in could not be read. Try again after checking Grok Build."
+                    .into(),
+            ),
+        };
+    let subject = credentials
+        .extras
+        .get(ACCOUNT_ID_KEY)
+        .and_then(|value| value.as_str())
+        .ok_or("The Grok Build sign-in did not identify its account.")?;
+    let session = source.read(subject).map_err(|_| {
+        "The Grok Build sign-in could not be read. Try again after checking Grok Build."
+    })?;
+    // Discovery does not run a CLI command or renew a third-party session.
+    if session
+        .expires_at
+        .is_some_and(|expires| expires <= now_millis())
+    {
+        return Err("The Grok Build sign-in expired. Open Grok Build to renew it.".into());
+    }
+    let user = crate::validate_xai_oauth_session(client, &session.token)
+        .await
+        .map_err(|_| "xAI could not verify the Grok Build account. Try again.")?;
+    if user.user_id != subject {
+        return Err("The Grok Build account changed while it was being read. Try again.".into());
+    }
+    credentials.extras.extend(user.credential_extras());
+    credentials.expires_at = None;
+    Ok(Some(credentials))
 }
 
 async fn bind_source(
@@ -267,8 +331,13 @@ impl Source {
     }
 
     fn bound_credentials(&self) -> Result<OAuthCredentials, SourceError> {
-        let file =
-            std::fs::File::open(&self.auth_file_path).map_err(|_| SourceError::NotSignedIn)?;
+        let file = std::fs::File::open(&self.auth_file_path).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                SourceError::NotSignedIn
+            } else {
+                SourceError::InvalidCredentials
+            }
+        })?;
         let mut data = Vec::new();
         file.take(MAX_AUTH_BYTES + 1)
             .read_to_end(&mut data)
@@ -318,8 +387,13 @@ impl Source {
     }
 
     fn read(&self, expected_user: &str) -> Result<Session, SourceError> {
-        let file =
-            std::fs::File::open(&self.auth_file_path).map_err(|_| SourceError::NotSignedIn)?;
+        let file = std::fs::File::open(&self.auth_file_path).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                SourceError::NotSignedIn
+            } else {
+                SourceError::InvalidCredentials
+            }
+        })?;
         let mut data = Vec::new();
         file.take(MAX_AUTH_BYTES + 1)
             .read_to_end(&mut data)

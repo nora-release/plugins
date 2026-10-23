@@ -414,3 +414,110 @@ async fn invalid_proxy_never_starts_the_cli_and_failures_do_not_expose_output() 
     assert!(!visible.contains("private-user"));
     assert!(!visible.contains("private-password"));
 }
+
+struct DiscoveryClient {
+    status: u16,
+    subject: &'static str,
+}
+
+#[async_trait::async_trait]
+impl HttpClient for DiscoveryClient {
+    async fn stream(
+        &self,
+        _request: nora_ai::HttpRequest,
+    ) -> Result<nora_ai::HttpStreamingResponse, nora_ai::HttpClientError> {
+        unreachable!("local account discovery uses /user only")
+    }
+
+    async fn request(
+        &self,
+        request: nora_ai::HttpRequest,
+    ) -> Result<nora_ai::HttpResponse, nora_ai::HttpClientError> {
+        assert_eq!(request.url, crate::XAI_OAUTH_USER_URL);
+        assert_eq!(
+            request.headers["authorization"],
+            "Bearer local-discovery-token"
+        );
+        Ok(nora_ai::HttpResponse {
+            status: self.status,
+            headers: BTreeMap::new(),
+            body: serde_json::to_vec(&json!({"userId":self.subject,"email":"person@example.test"}))
+                .unwrap(),
+        })
+    }
+}
+
+#[tokio::test]
+async fn discovery_verifies_the_current_account_without_copying_tokens_or_running_cli_commands() {
+    let mut fixture = Fixture::new();
+    #[cfg(unix)]
+    fixture.cli();
+    fixture.write("local-discovery-token", "account-a", now_millis() + 30_000);
+    let original = std::fs::read(&fixture.source.auth_file_path).unwrap();
+    let account = discover_source(
+        fixture.source.clone(),
+        &DiscoveryClient {
+            status: 200,
+            subject: "account-a",
+        },
+        None,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(is_bound(&account));
+    assert_eq!(account.extras["userId"].as_str(), Some("account-a"));
+    assert!(account.access_token.is_empty());
+    assert!(account.refresh_token.is_none());
+    assert!(!fixture.directory.join("refresh-count").exists());
+    assert_eq!(
+        std::fs::read(&fixture.source.auth_file_path).unwrap(),
+        original
+    );
+}
+
+#[tokio::test]
+async fn discovery_only_reports_signed_out_when_the_local_source_is_definitely_absent() {
+    let fixture = Fixture::new();
+    let client = DiscoveryClient {
+        status: 200,
+        subject: "account-a",
+    };
+    assert!(discover_source(fixture.source.clone(), &client, None)
+        .await
+        .unwrap()
+        .is_none());
+    std::fs::write(&fixture.source.auth_file_path, "broken-json").unwrap();
+    assert!(discover_source(fixture.source.clone(), &client, None)
+        .await
+        .is_err());
+    fixture.write(
+        "local-discovery-token",
+        "account-a",
+        now_millis() + 3_600_000,
+    );
+    assert!(discover_source(
+        fixture.source.clone(),
+        &DiscoveryClient {
+            status: 503,
+            subject: "account-a"
+        },
+        None
+    )
+    .await
+    .is_err());
+    assert!(discover_source(
+        fixture.source.clone(),
+        &DiscoveryClient {
+            status: 200,
+            subject: "account-b"
+        },
+        None
+    )
+    .await
+    .is_err());
+    fixture.write("expired-token", "account-a", now_millis() - 1);
+    assert!(discover_source(fixture.source.clone(), &client, None)
+        .await
+        .is_err());
+}

@@ -1,6 +1,7 @@
 use super::{
     auth, network, request,
     session::{self, Credential},
+    source_kind::SourceKind,
     stream, usage,
 };
 use async_trait::async_trait;
@@ -15,6 +16,13 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tokio::sync::Mutex;
+#[path = "discovery.rs"]
+mod discovery;
+#[path = "owner.rs"]
+mod owner;
+#[path = "source_runtime.rs"]
+mod source_runtime;
+
 #[async_trait]
 pub(crate) trait Persistence: Send + Sync {
     async fn save(&self, value: Value) -> PluginResult<()>;
@@ -35,8 +43,12 @@ struct Config {
 #[derive(Default)]
 struct Rotations {
     after: BTreeMap<String, Credential>,
-    pending: BTreeMap<String, Credential>,
-    verified: BTreeMap<String, Credential>,
+    pending: BTreeMap<String, OwnedRenewal>,
+    key_profiles: BTreeMap<String, String>,
+}
+struct OwnedRenewal {
+    next: Credential,
+    needs_identity: bool,
 }
 pub(crate) struct Kiro {
     config: RwLock<Option<Config>>,
@@ -44,6 +56,8 @@ pub(crate) struct Kiro {
     persistence: Arc<dyn Persistence>,
     pending: Mutex<BTreeMap<String, auth::Pending>>,
     rotations: Mutex<Rotations>,
+    owner: Arc<dyn owner::CliOwner>,
+    sources: Mutex<BTreeMap<String, Arc<Mutex<source_runtime::SourceState>>>>,
     windows: Mutex<BTreeMap<String, u64>>,
 }
 impl Default for Kiro {
@@ -54,6 +68,8 @@ impl Default for Kiro {
             persistence: Arc::new(Host),
             pending: Mutex::new(BTreeMap::new()),
             rotations: Mutex::new(Rotations::default()),
+            owner: Arc::new(owner::InstalledCli),
+            sources: Mutex::new(BTreeMap::new()),
             windows: Mutex::new(BTreeMap::new()),
         }
     }
@@ -75,9 +91,14 @@ impl Kiro {
         if let Some(client) = &self.client {
             return Ok(client.clone());
         }
-        Ok(Arc::new(ReqwestHttpClient::with_client(
-            nora_provider_plugin_sdk::http_client(proxy)?,
-        )))
+        Ok(Arc::new(
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(proxy)?)
+                .with_observer_fn(|| async {
+                    nora_provider_plugin_sdk::before_http_request()
+                        .await
+                        .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+                }),
+        ))
     }
     fn params_client(&self, params: &Value) -> PluginResult<Arc<dyn HttpClient>> {
         let proxy: Option<NetworkProxy> =
@@ -85,88 +106,131 @@ impl Kiro {
                 .map_err(|_| PluginError::invalid("The Kiro network proxy is invalid."))?;
         self.client(proxy.as_ref())
     }
+    fn rotation_key(credential: &Credential) -> String {
+        session::fingerprint(&format!(
+            "owned\0{}\0{}\0{}\0{}\0{}",
+            credential.access,
+            credential.method,
+            credential.profile,
+            credential.realm,
+            credential.account_identity().unwrap_or(Value::Null)
+        ))
+    }
+    #[cfg(test)]
     async fn live(
         &self,
         value: Option<&Value>,
         client: &dyn HttpClient,
         force: bool,
     ) -> PluginResult<Credential> {
+        self.live_with_proxy(value, client, force, None, None).await
+    }
+    async fn live_with_proxy(
+        &self,
+        value: Option<&Value>,
+        client: &dyn HttpClient,
+        force: bool,
+        rejected: Option<&str>,
+        proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<Credential> {
         let value = value.ok_or_else(session::expired)?;
         if let Some(source) = value.get("source") {
-            let kind = session::text(source.get("kind"), 16)
-                .ok_or_else(session::expired)?
-                .to_owned();
-            let path = session::text(source.get("path"), 16 * 1024)
-                .ok_or_else(session::expired)?
-                .to_owned();
-            let expected = session::text(value.get("accountId"), 128)
-                .ok_or_else(session::expired)?
-                .to_owned();
-            let mut credential =
-                tokio::task::spawn_blocking(move || session::read_source(&kind, &path))
-                    .await
-                    .map_err(|_| session::expired())??;
-            if credential.expires > 0 && credential.expires <= session::now() {
-                return Err(session::expired());
-            }
-            let key = session::fingerprint(&format!("source\0{}\0{expected}", credential.access));
-            let mut state = self.rotations.lock().await;
-            if let Some(cached) = state.verified.get(&key).filter(|_| !force) {
-                return Ok(cached.clone());
-            }
-            network::identify(client, &mut credential).await?;
-            if credential.email.is_empty() || credential.identity != expected {
-                return Err(session::expired());
-            }
-            if state.verified.len() >= 32 {
-                state.verified.clear();
-            }
-            state.verified.insert(key, credential.clone());
-            return Ok(credential);
+            let selected = SourceKind::from_reference(source)?;
+            let path = session::text(source.get("path"), 16 * 1024).ok_or_else(session::expired)?;
+            return self
+                .source_live(&selected, path, client, Some(value), force, rejected, proxy)
+                .await?
+                .ok_or_else(session::expired);
         }
         let mut credential = Credential::from_saved(value)?;
         let mut state = self.rotations.lock().await;
         // A rotated refresh token is never used until the host confirms durable storage.
         for _ in 0..32 {
-            let next_key = session::fingerprint(&credential.access);
-            if let Some(pending) = state.pending.get(&next_key).cloned() {
-                self.persistence.save(pending.saved()).await?;
+            let next_key = Self::rotation_key(&credential);
+            if let Some(pending) = state.pending.get_mut(&next_key) {
+                let next = self.finish_owned_renewal(pending, client, value).await?;
                 state.pending.remove(&next_key);
-                state.after.insert(next_key, pending.clone());
-                return Ok(pending);
+                state.after.insert(next_key, next.clone());
+                return Ok(next);
             }
             let Some(next) = state.after.get(&next_key) else {
                 break;
             };
-            credential = next.clone();
-        }
-        if credential.method != "apikey" && (force || !credential.fresh()) {
-            let old_key = session::fingerprint(&credential.access);
-            let mut next = network::refresh(client, &credential).await?;
-            let expected = credential.identity.clone();
-            if next.profile != credential.profile || next.identity.is_empty() {
-                network::identify(client, &mut next).await?;
-            }
-            if !expected.is_empty() && !next.identity.is_empty() && next.identity != expected {
+            if !next.matches_saved_identity(value) {
                 return Err(session::expired());
             }
+            credential = next.clone();
+        }
+        if credential.method != "apikey"
+            && ((force && rejected.is_none_or(|access| access == credential.access))
+                || !credential.fresh())
+        {
+            let old_key = Self::rotation_key(&credential);
+            let next = network::refresh(client, &credential).await?;
+            let expected = credential.saved();
+            let needs_identity = next.profile != credential.profile
+                || next.realm != credential.realm
+                || next.identity.is_empty();
+            let pending = state
+                .pending
+                .entry(old_key.clone())
+                .or_insert(OwnedRenewal {
+                    next,
+                    needs_identity,
+                });
+            let next = self
+                .finish_owned_renewal(pending, client, &expected)
+                .await?;
             if state.after.len() >= 32 {
                 state.after.clear();
             }
-            state.pending.insert(old_key.clone(), next.clone());
-            self.persistence.save(next.saved()).await?;
             state.pending.remove(&old_key);
             state.after.insert(old_key, next.clone());
             credential = next;
         }
         if credential.profile.is_empty() {
-            credential.profile = network::profile(client, &credential).await?;
+            if credential.method == "apikey" {
+                let key = network::key_identity(&credential.access);
+                credential.profile = if let Some(profile) = state.key_profiles.get(&key) {
+                    profile.clone()
+                } else {
+                    let profile = network::profile(client, &credential).await?;
+                    if state.key_profiles.len() >= 32 {
+                        state.key_profiles.clear();
+                    }
+                    state.key_profiles.insert(key, profile.clone());
+                    profile
+                };
+            } else {
+                credential.profile = network::profile(client, &credential).await?;
+            }
         }
         credential.runtime_region()?;
         Ok(credential)
     }
-    fn source_saved(credential: &Credential, kind: &str, path: &str) -> Value {
-        json!({"type":"oauth","authMethod":if kind=="cli"{"cliSource"}else{"ideSource"},"source":{"kind":kind,"path":path},"accountId":credential.identity,"email":credential.email,"plan":credential.plan,"label":if credential.email.is_empty(){"Kiro account"}else{&credential.email}})
+    async fn finish_owned_renewal(
+        &self,
+        pending: &mut OwnedRenewal,
+        client: &dyn HttpClient,
+        expected: &Value,
+    ) -> PluginResult<Credential> {
+        if pending.needs_identity {
+            network::identify(client, &mut pending.next).await?;
+            pending.needs_identity = false;
+        }
+        if !pending.next.matches_saved_identity(expected) {
+            return Err(session::expired());
+        }
+        self.persistence.save(pending.next.saved()).await?;
+        Ok(pending.next.clone())
+    }
+    fn source_saved(credential: &Credential, kind: &SourceKind, path: &str) -> Value {
+        let mut saved = json!({"type":"oauth","authMethod":kind.auth_method(),"source":kind.reference(path),"accountId":credential.identity,"email":credential.email,"plan":credential.plan,"label":if credential.email.is_empty(){"Kiro account"}else{&credential.email},"profileArn":credential.profile,"region":credential.region,"userId":credential.user_id,"realm":credential.realm,"extras":{"noraAccountSource":kind.marker(path)}});
+        if let Some(identity) = credential.account_identity() {
+            saved["accountIdentity"] = identity.clone();
+            saved["extras"]["accountIdentity"] = identity;
+        }
+        saved
     }
     async fn send(
         &self,
@@ -224,22 +288,95 @@ impl ProviderPlugin for Kiro {
             methods: params.manifest["authMethods"].clone(),
             installation: params.data_directory.to_string_lossy().into(),
         });
-        Ok(json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true}}))
+        Ok(
+            json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true,"accountDiscovery":true}}),
+        )
     }
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
         Ok(self.config()?.methods)
     }
+    async fn discover_accounts(&self, context: CallContext) -> PluginResult<Value> {
+        discovery::discover(self, context).await
+    }
     async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
-        let Some(value) = context.credentials else {
+        let Some(value) = context.credentials.as_ref() else {
             return Ok(json!([]));
+        };
+        let saved = if let Some(source) = value.get("source") {
+            let kind = SourceKind::from_reference(source)?;
+            let path = session::text(source.get("path"), 16 * 1024).ok_or_else(session::expired)?;
+            let client = self.client(context.network_proxy.as_ref())?;
+            let credential = self
+                .live_with_proxy(
+                    Some(value),
+                    client.as_ref(),
+                    false,
+                    None,
+                    context.network_proxy.as_ref(),
+                )
+                .await?;
+            Self::source_saved(&credential, &kind, path)
+        } else {
+            let mut credential = Credential::from_saved(value)?;
+            if credential.method == "apikey" {
+                credential.identity = network::key_identity(&credential.access);
+                credential.saved()
+            } else {
+                if credential.user_id.is_empty()
+                    && value
+                        .get("accountIdentity")
+                        .or_else(|| value.pointer("/extras/accountIdentity"))
+                        .is_none()
+                    && credential.fresh()
+                {
+                    let client = self.client(context.network_proxy.as_ref())?;
+                    let mut verified = credential.clone();
+                    // Legacy Kiro records kept only the verified email. A current
+                    // session may now also reveal a stable user id; a temporary
+                    // failure keeps the already saved profile available.
+                    if network::identify(client.as_ref(), &mut verified)
+                        .await
+                        .is_ok()
+                    {
+                        credential = verified;
+                    }
+                }
+                if credential.account_identity().is_none() {
+                    let client = self.client(context.network_proxy.as_ref())?;
+                    if credential.fresh() {
+                        network::identify(client.as_ref(), &mut credential).await?;
+                    } else {
+                        credential = self
+                            .live_with_proxy(
+                                Some(value),
+                                client.as_ref(),
+                                false,
+                                None,
+                                context.network_proxy.as_ref(),
+                            )
+                            .await?;
+                        if credential.account_identity().is_none() {
+                            network::identify(client.as_ref(), &mut credential).await?;
+                        }
+                    }
+                }
+                if !credential.matches_saved_identity(value) {
+                    return Err(session::expired());
+                }
+                credential.saved()
+            }
         };
         let mut profile = json!({"id":context.account});
         for key in ["email", "plan", "accountId"] {
-            if let Some(value) = session::text(value.get(key), 512) {
-                profile[key] = json!(value);
+            if let Some(text) = session::text(saved.get(key), 512) {
+                profile[key] = json!(text);
             }
         }
-        Ok(json!([profile]))
+        let mut result = json!({"accounts":[profile]});
+        if saved != *value {
+            result["credentials"] = saved;
+        }
+        Ok(result)
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let client = self.params_client(&params)?;
@@ -267,29 +404,50 @@ impl ProviderPlugin for Kiro {
             }
             "apiKey" => {
                 let mut credential = Credential::api_key(inputs)?;
-                network::identify(client.as_ref(), &mut credential).await?;
+                credential.identity = network::key_identity(&credential.access);
+                let mut verified = credential.clone();
+                if network::identify(client.as_ref(), &mut verified)
+                    .await
+                    .is_ok()
+                {
+                    credential = verified;
+                } else {
+                    // A key remains usable without optional account metadata.
+                    // Its profile only determines the region used by later calls.
+                    credential.profile = verified.profile;
+                }
+                let mut state = self.rotations.lock().await;
+                if state.key_profiles.len() >= 32 {
+                    state.key_profiles.clear();
+                }
+                state.key_profiles.insert(
+                    network::key_identity(&credential.access),
+                    credential.profile.clone(),
+                );
                 Ok(json!({"ok":true,"credentials":credential.saved()}))
             }
-            "cliSource" | "ideSource" => {
+            "cliSource" | "ideSource" | "magpieSource" => {
                 let path = session::text(inputs.get("sourcePath"), 16 * 1024)
                     .ok_or_else(|| PluginError::invalid("Select one Kiro account file."))?
                     .to_owned();
-                let kind = if method == "cliSource" { "cli" } else { "ide" };
-                let selected = path.clone();
-                let mut credential =
-                    tokio::task::spawn_blocking(move || session::read_source(kind, &selected))
-                        .await
-                        .map_err(|_| session::expired())??;
-                if credential.expires > 0 && credential.expires <= session::now() {
-                    return Err(session::expired());
-                }
-                network::identify(client.as_ref(), &mut credential).await?;
-                if credential.email.is_empty() {
-                    return Err(PluginError::authentication(
-                        "Kiro did not identify the selected source's account.",
-                    ));
-                }
-                Ok(json!({"ok":true,"credentials":Self::source_saved(&credential,kind,&path)}))
+                let kind = SourceKind::from_auth_method(method, inputs)?;
+                let proxy: Option<NetworkProxy> = serde_json::from_value(
+                    params.get("networkProxy").cloned().unwrap_or(Value::Null),
+                )
+                .map_err(|_| PluginError::invalid("The Kiro network proxy is invalid."))?;
+                let credential = self
+                    .source_live(
+                        &kind,
+                        &path,
+                        client.as_ref(),
+                        None,
+                        false,
+                        None,
+                        proxy.as_ref(),
+                    )
+                    .await?
+                    .ok_or_else(session::expired)?;
+                Ok(json!({"ok":true,"credentials":Self::source_saved(&credential,&kind,&path)}))
             }
             _ => Err(PluginError::unsupported(method)),
         }
@@ -307,12 +465,18 @@ impl ProviderPlugin for Kiro {
     }
     async fn refresh(&self, params: Value) -> PluginResult<Value> {
         let value = params.get("credentials").ok_or_else(session::expired)?;
-        if value.get("source").is_some() {
-            return Ok(json!({"changed":false}));
-        }
         let client = self.params_client(&params)?;
-        self.live(Some(value), client.as_ref(), params["force"] == true)
-            .await?;
+        let proxy: Option<NetworkProxy> =
+            serde_json::from_value(params.get("networkProxy").cloned().unwrap_or(Value::Null))
+                .map_err(|_| PluginError::invalid("The Kiro network proxy is invalid."))?;
+        self.live_with_proxy(
+            Some(value),
+            client.as_ref(),
+            params["force"] == true,
+            None,
+            proxy.as_ref(),
+        )
+        .await?;
         Ok(json!({"changed":false}))
     }
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
@@ -323,7 +487,13 @@ impl ProviderPlugin for Kiro {
         }
         let client = self.client(context.network_proxy.as_ref())?;
         let credential = self
-            .live(context.credentials.as_ref(), client.as_ref(), false)
+            .live_with_proxy(
+                context.credentials.as_ref(),
+                client.as_ref(),
+                false,
+                None,
+                context.network_proxy.as_ref(),
+            )
             .await?;
         let output = usage::models(
             &network::management(client.as_ref(), &credential, "List-Available-Models", None)
@@ -342,7 +512,13 @@ impl ProviderPlugin for Kiro {
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
         let client = self.client(context.network_proxy.as_ref())?;
         let credential = self
-            .live(context.credentials.as_ref(), client.as_ref(), false)
+            .live_with_proxy(
+                context.credentials.as_ref(),
+                client.as_ref(),
+                false,
+                None,
+                context.network_proxy.as_ref(),
+            )
             .await?;
         let mut value = usage::parse(
             &network::management(client.as_ref(), &credential, "Get-Usage-Limits", None).await?,
@@ -388,14 +564,31 @@ impl ProviderPlugin for Kiro {
             .to_owned();
         let client = self.client(proxy.as_ref())?;
         let credential = self
-            .live(credentials.as_ref(), client.as_ref(), false)
+            .live_with_proxy(
+                credentials.as_ref(),
+                client.as_ref(),
+                false,
+                None,
+                proxy.as_ref(),
+            )
             .await?;
         let budget = request::thinking(&body, &model, effort.as_deref());
-        let (payload, names) = request::build(&body, &model, &credential.profile, budget)?;
+        let profile = if credential.method == "apikey" {
+            ""
+        } else {
+            &credential.profile
+        };
+        let (payload, names) = request::build(&body, &model, profile, budget)?;
         let mut response = self.send(client.as_ref(), &credential, &payload).await?;
         if response.status == 403 && credential.method != "apikey" {
             let refreshed = self
-                .live(credentials.as_ref(), client.as_ref(), true)
+                .live_with_proxy(
+                    credentials.as_ref(),
+                    client.as_ref(),
+                    true,
+                    Some(&credential.access),
+                    proxy.as_ref(),
+                )
                 .await?;
             if refreshed.access != credential.access {
                 let (payload, _) = request::build(&body, &model, &refreshed.profile, budget)?;

@@ -110,10 +110,10 @@ async fn saved_codex_accounts_derive_a_safe_profile_without_signing_in_again() {
         .await
         .unwrap();
     assert_eq!(
-        accounts[0],
+        accounts["accounts"][0],
         json!({"id":"work","email":"historic@example.com","name":"Historic Name","plan":"plus"})
     );
-    let visible = accounts.to_string();
+    let visible = accounts["accounts"].to_string();
     assert!(!visible.contains("private-refresh"));
     assert!(!visible.contains("signature"));
     assert!(!visible.contains("workspace-id"));

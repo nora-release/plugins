@@ -2,7 +2,7 @@
   "apiVersion": 1,
   "id": "github-copilot",
   "name": "GitHub Copilot",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "runtime": {
     "entry": "provider",
     "type": "native"
@@ -29,6 +29,11 @@
           "required": true
         }
       ]
+    },
+    {
+      "id": "copilotEditors",
+      "type": "source",
+      "label": "Use the Copilot editors’ sign-in"
     }
   ],
   "models": [
@@ -44,6 +49,13 @@
     }
   ],
   "config": {
+    "sourceAuthMethods": [
+      {
+        "id": "copilotEditors",
+        "type": "source",
+        "label": "Use the Copilot editors’ sign-in"
+      }
+    ],
     "catalog": "github-copilot",
     "keyProvider": "github-copilot",
     "oauthProvider": "github-copilot",
@@ -53,5 +65,14 @@
       "oauthProvider": "github-copilot",
       "credentialProvider": "gitHubCopilot"
     }
-  }
+  },
+  "localSignIns": [
+    {
+      "method": "copilotEditors",
+      "label": "GitHub Copilot",
+      "paths": [
+        "~/.config/github-copilot/apps.json"
+      ]
+    }
+  ]
 }

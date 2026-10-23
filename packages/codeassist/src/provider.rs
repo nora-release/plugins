@@ -55,9 +55,14 @@ impl CodeAssist {
         if let Some(client) = &self.client {
             return Ok(client.clone());
         }
-        Ok(Arc::new(ReqwestHttpClient::with_client(
-            nora_provider_plugin_sdk::http_client(proxy)?,
-        )))
+        Ok(Arc::new(
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(proxy)?)
+                .with_observer_fn(|| async {
+                    nora_provider_plugin_sdk::before_http_request()
+                        .await
+                        .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+                }),
+        ))
     }
     fn params_client(&self, params: &Value) -> PluginResult<Arc<dyn HttpClient>> {
         let proxy: Option<NetworkProxy> =

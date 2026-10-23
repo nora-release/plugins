@@ -47,6 +47,119 @@ impl ProviderAdapter for Xai {
                 )
             })
     }
+    fn enrich_credentials(&self, value: &Value, credentials: &mut OAuthCredentials) {
+        if credentials.provider != OAuthProviderId::XAI {
+            return;
+        }
+        for field in ["userId", "teamId", "organizationId"] {
+            let stored = credentials
+                .extras
+                .get(field)
+                .and_then(|value| value.as_str());
+            if stored.is_none_or(str::is_empty) {
+                if let Some(text) = value.get(field).and_then(Value::as_str).filter(|text| {
+                    !text.is_empty() && text.len() <= 512 && !text.chars().any(char::is_control)
+                }) {
+                    credentials
+                        .extras
+                        .insert(field.into(), nora_ai::JsonValue::string(text));
+                }
+            }
+        }
+        if self.is_source(credentials) && !credentials.extras.contains_key("userId") {
+            if let Some(subject) = credentials
+                .extras
+                .get(nora_provider_auth::grok_source::ACCOUNT_ID_KEY)
+                .cloned()
+            {
+                credentials.extras.insert("userId".into(), subject);
+            }
+        }
+    }
+    fn supports_account_discovery(&self) -> bool {
+        true
+    }
+    async fn discover_accounts(
+        &self,
+        client: &dyn HttpClient,
+        proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<Vec<OAuthCredentials>> {
+        nora_provider_auth::grok_source::discover_current_account_with_network(client, proxy)
+            .await
+            .map(|account| account.into_iter().collect())
+            .map_err(PluginError::authentication)
+    }
+    async fn enrich_account(
+        &self,
+        credentials: &mut OAuthCredentials,
+        client: &dyn HttpClient,
+        _proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<()> {
+        if credentials.provider != OAuthProviderId::XAI {
+            return Ok(());
+        }
+        let identity_exists = credentials
+            .extras
+            .get("accountIdentity")
+            .is_some_and(|value| value.as_value().is_object());
+        if identity_exists {
+            return Ok(());
+        }
+        // A userId saved by /user remains an identity after its access token
+        // expires. Only older sessions without that verified id need /user.
+        let stored_user = credentials
+            .extras
+            .get("userId")
+            .and_then(|value| value.as_str())
+            .filter(|value| {
+                !value.is_empty() && value.len() <= 512 && !value.chars().any(char::is_control)
+            });
+        let user = if stored_user.is_some() || self.is_source(credentials) {
+            None
+        } else {
+            Some(
+                nora_provider_auth::validate_xai_oauth_session(client, &credentials.access_token)
+                    .await
+                    .map_err(|_| {
+                        PluginError::authentication("xAI could not verify this account. Try again.")
+                    })?,
+            )
+        };
+        if let Some(user) = user {
+            credentials.extras.extend(user.credential_extras());
+        }
+        let subject = credentials
+            .extras
+            .get("userId")
+            .and_then(|value| value.as_str())
+            .filter(|value| {
+                !value.is_empty() && value.len() <= 512 && !value.chars().any(char::is_control)
+            })
+            .ok_or_else(|| {
+                PluginError::authentication("xAI did not return a stable account identity.")
+            })?;
+        // A team or organization selects a separate billing account even when
+        // the person signing in is the same.
+        let scope = ["teamId", "organizationId"].map(|key| {
+            credentials
+                .extras
+                .get(key)
+                .and_then(|value| value.as_str())
+                .unwrap_or_default()
+        });
+        let scope = serde_json::to_string(&scope)
+            .map_err(|_| PluginError::invalid("The xAI account identity is invalid."))?;
+        if scope.len() > 512 || scope.chars().any(char::is_control) {
+            return Err(PluginError::authentication(
+                "xAI returned an invalid account identity.",
+            ));
+        }
+        let identity = json!({"issuer":"https://auth.x.ai","subject":subject,"scope":scope});
+        credentials
+            .extras
+            .insert("accountIdentity".into(), identity.into());
+        Ok(())
+    }
     fn is_source(&self, credentials: &OAuthCredentials) -> bool {
         grok_source::is_bound(credentials)
     }
@@ -335,3 +448,7 @@ pub fn grok_windows(mut model: Model, entry: &Value) -> Vec<Model> {
     }
     models
 }
+
+#[cfg(test)]
+#[path = "../test/account_identity.test.rs"]
+mod account_identity_tests;

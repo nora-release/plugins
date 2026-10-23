@@ -805,7 +805,7 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 [[package]]
 name = "nora-ai"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=a2a9ae604d4a5177950947406112eedb07664a5f#a2a9ae604d4a5177950947406112eedb07664a5f"
+source = "git+https://github.com/nora-release/nora.git?rev=709c2225bd5c9003655a806f1d598a7c7269e822#709c2225bd5c9003655a806f1d598a7c7269e822"
 dependencies = [
  "async-trait",
  "base64",
@@ -826,7 +826,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -849,7 +849,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-aihubmix"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -863,7 +863,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-anthropic"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -884,7 +884,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-antigravity"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "nora-provider-codeassist",
  "nora-provider-plugin-sdk",
@@ -893,7 +893,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-auth"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -911,7 +911,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-codeassist"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -929,7 +929,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-deepseek"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-gemini-cli"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "nora-provider-codeassist",
  "nora-provider-plugin-sdk",
@@ -951,7 +951,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-github-copilot"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -966,7 +966,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-google-gemini"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -981,7 +981,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-kimi-coding"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -995,7 +995,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-kimi-work"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -1011,7 +1011,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-kiro"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -1030,7 +1030,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-minimax"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1043,7 +1043,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-minimax-cn"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1056,7 +1056,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-moonshotai"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1069,7 +1069,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-moonshotai-cn"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1082,7 +1082,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-ollama-cloud"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1096,7 +1096,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-openai"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -1115,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-opencode-go"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1129,7 +1129,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-openrouter"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1143,7 +1143,7 @@ dependencies = [
 [[package]]
 name = "nora-provider-plugin-sdk"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=a2a9ae604d4a5177950947406112eedb07664a5f#a2a9ae604d4a5177950947406112eedb07664a5f"
+source = "git+https://github.com/nora-release/nora.git?rev=709c2225bd5c9003655a806f1d598a7c7269e822#709c2225bd5c9003655a806f1d598a7c7269e822"
 dependencies = [
  "async-trait",
  "base64",
@@ -1159,7 +1159,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-quota"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1172,7 +1172,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-siliconflow"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1185,7 +1185,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-siliconflow-global"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-stepfun"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1211,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-stepfun-cn"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1224,7 +1224,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-typesafe"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -1239,7 +1239,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-xai"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64",
@@ -1256,7 +1256,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-zai"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -1270,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-zhipu"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures",

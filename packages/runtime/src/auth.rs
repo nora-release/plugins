@@ -71,6 +71,16 @@ pub fn decode(definition: &Definition, value: Option<&Value>) -> PluginResult<OA
             }
         }
     }
+    if !credentials.extras.contains_key("accountIdentity") {
+        if let Some(identity) = original
+            .get("accountIdentity")
+            .filter(|value| value.is_object())
+        {
+            credentials
+                .extras
+                .insert("accountIdentity".into(), identity.clone().into());
+        }
+    }
     definition
         .adapter
         .enrich_credentials(original, &mut credentials);
@@ -124,6 +134,9 @@ pub fn encode(credentials: &OAuthCredentials, auth_provider: &str, source: bool)
         if let Some(text) = credentials.extras.get(key).and_then(|value| value.as_str()) {
             value[key] = json!(text);
         }
+    }
+    if let Some(identity) = credentials.extras.get("accountIdentity") {
+        value["accountIdentity"] = identity.as_value().clone();
     }
     let label = ["email", "name"]
         .into_iter()

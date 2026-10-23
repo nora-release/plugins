@@ -41,7 +41,11 @@ impl OAuthManager {
     pub fn at_default_store() -> Self {
         Self::with_default_providers(
             OAuthStore::at_default_path(),
-            Arc::new(ReqwestHttpClient::new()),
+            Arc::new(ReqwestHttpClient::new().with_observer_fn(|| async {
+                nora_provider_plugin_sdk::before_http_request()
+                    .await
+                    .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+            })),
         )
     }
 

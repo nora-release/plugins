@@ -33,6 +33,24 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
         Err(PluginError::unsupported("refresh"))
     }
     fn enrich_credentials(&self, _value: &Value, _credentials: &mut OAuthCredentials) {}
+    async fn enrich_account(
+        &self,
+        _credentials: &mut OAuthCredentials,
+        _client: &dyn HttpClient,
+        _proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<()> {
+        Ok(())
+    }
+    fn supports_account_discovery(&self) -> bool {
+        false
+    }
+    async fn discover_accounts(
+        &self,
+        _client: &dyn HttpClient,
+        _proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<Vec<OAuthCredentials>> {
+        Ok(Vec::new())
+    }
     fn configure_api_credentials(
         &self,
         _inputs: &Value,

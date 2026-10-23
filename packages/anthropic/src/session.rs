@@ -120,7 +120,7 @@ impl Pool {
             cli::hash(&format!(
                 "{}\0{}\0{conversation}",
                 account.identity,
-                account.directory.display()
+                account.home.directory().display()
             ))
         } else {
             let candidates = runs
@@ -130,7 +130,7 @@ impl Pool {
                     let length = run.told.len();
                     (!run.dead
                         && run.account.identity == account.identity
-                        && run.account.directory == account.directory
+                        && run.account.home == account.home
                         && run.signature == wanted
                         && incoming.len() >= length
                         && prompt::canonical(&incoming[..length]) == prompt::canonical(&run.told))
@@ -302,7 +302,7 @@ async fn start(
         &account.executable,
         &args,
         &directory,
-        cli::env(&account.directory, &proxy, false),
+        cli::env(&account.home, &proxy, false),
     )?;
     let input = process.child.stdin.take().ok_or_else(cli::error)?;
     let stdout = process.child.stdout.take().ok_or_else(cli::error)?;

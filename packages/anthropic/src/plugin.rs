@@ -84,9 +84,8 @@ impl Claude {
         proxy: Arc<Proxy>,
     ) -> PluginResult<cli::Account> {
         let root = self.config()?.root;
-        let (executable, directory, expected) = cli::materialize(&root, id, value)?;
-        let mut account =
-            cli::identify(&executable, &directory, proxy, expected.as_deref()).await?;
+        let (executable, home, expected) = cli::materialize(&root, id, value)?;
+        let mut account = cli::identify(&executable, &home, proxy, expected.as_deref()).await?;
         let expected_email = cli::text(
             value
                 .get("email")
@@ -125,7 +124,8 @@ impl ProviderPlugin for Claude {
         if let Some(proxy) = &proxy {
             proxy.validate()?;
         }
-        let result = self.inner.initialize(params).await?;
+        let mut result = self.inner.initialize(params).await?;
+        result["capabilities"]["accountDiscovery"] = json!(true);
         cli::directory(&root)?;
         *self.config.write().map_err(|_| cli::error())? = Some(Config { root, proxy });
         Ok(result)
@@ -133,20 +133,50 @@ impl ProviderPlugin for Claude {
     async fn auth_methods(&self, context: CallContext) -> PluginResult<Value> {
         self.inner.auth_methods(context).await
     }
+    async fn discover_accounts(&self, context: CallContext) -> PluginResult<Value> {
+        let executable = match cli::executable(None) {
+            Ok(executable) => executable,
+            Err(error) => return Err(error),
+        };
+        let proxy = self.proxy(context.network_proxy.as_ref()).await?;
+        let account = cli::signed_in(&executable, &cli::Home::own()?, proxy, None).await?;
+        let Some(account) = account else {
+            return Ok(json!({"accounts":[]}));
+        };
+        let saved = account.saved();
+        if !saved["accountIdentity"].is_object() {
+            return Err(PluginError::authentication("Claude Code did not return a stable account identity. Open Claude Code to update its sign-in."));
+        }
+        Ok(json!({"accounts":[{"sourceID":"claudeCode","credentials":saved}]}))
+    }
     async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
         let Some(value) = context.credentials.as_ref() else {
-            return Ok(json!([]));
+            return Ok(json!({"accounts":[]}));
         };
         if is_api(value) {
             return self.inner.accounts(context).await;
         }
-        let mut account = json!({"id":context.account});
+        let saved = if value
+            .get("accountIdentity")
+            .or_else(|| value.pointer("/extras/accountIdentity"))
+            .is_some_and(Value::is_object)
+        {
+            value.clone()
+        } else {
+            let proxy = self.proxy(context.network_proxy.as_ref()).await?;
+            self.account(&context.account, value, proxy).await?.saved()
+        };
+        let mut profile = json!({"id":context.account});
         for key in ["email", "plan", "accountId", "label"] {
-            if let Some(text) = cli::text(value.get(key), 512) {
-                account[key] = json!(text);
+            if let Some(text) = cli::text(saved.get(key), 512) {
+                profile[key] = json!(text);
             }
         }
-        Ok(json!([account]))
+        let mut result = json!({"accounts":[profile]});
+        if saved != *value {
+            result["credentials"] = saved;
+        }
+        Ok(result)
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let method = params
@@ -154,14 +184,21 @@ impl ProviderPlugin for Claude {
             .or_else(|| params.get("method"))
             .and_then(Value::as_str)
             .unwrap_or("oauth");
-        if method != "oauth" {
-            return self.inner.authorize(params).await;
-        }
         let inputs = params
             .get("inputs")
             .or_else(|| params.get("fields"))
             .unwrap_or(&params);
         let selected = cli::text(inputs.get("claudePath"), 16 * 1024);
+        if method == "claudeCode" {
+            // Claude Code's own sign-in, used where Claude Code keeps it.
+            let proxy = self.params_proxy(&params).await?;
+            let executable = cli::executable(selected)?;
+            let account = cli::identify(&executable, &cli::Home::own()?, proxy, None).await?;
+            return Ok(json!({"ok":true,"credentials":account.saved()}));
+        }
+        if method != "oauth" {
+            return self.inner.authorize(params).await;
+        }
         let proxy = self.params_proxy(&params).await?;
         let (pending, url) = login::start(&self.config()?.root, selected, proxy).await?;
         let session = cli::random();
@@ -217,7 +254,7 @@ impl ProviderPlugin for Claude {
                 "",
                 "--no-session-persistence",
             ],
-            &account.directory,
+            &account.home,
             proxy,
             true,
         )

@@ -362,3 +362,34 @@ async fn openai_refresh_reads_id_token_profile_and_preserves_missing_existing_pr
         .unwrap()
         .contains("signature"));
 }
+
+#[test]
+fn openai_account_identity_keeps_people_and_workspaces_separate_even_with_the_same_email() {
+    fn token(subject: &str, account: &str) -> String {
+        let claims = json!({"sub":subject,"email":"shared@example.test","https://api.openai.com/auth":{"chatgpt_account_id":account}});
+        format!(
+            "header.{}.signature",
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(serde_json::to_vec(&claims).unwrap())
+        )
+    }
+    let first = OpenAICodexOAuthProvider::profile_extras_from_tokens(
+        &token("person-a", "workspace-a"),
+        None,
+    );
+    let second = OpenAICodexOAuthProvider::profile_extras_from_tokens(
+        &token("person-b", "workspace-a"),
+        None,
+    );
+    let third = OpenAICodexOAuthProvider::profile_extras_from_tokens(
+        &token("person-a", "workspace-b"),
+        None,
+    );
+    assert_eq!(
+        first["accountIdentity"].as_value(),
+        &json!({"issuer":"https://auth.openai.com","subject":"person-a","scope":"workspace-a"})
+    );
+    assert_ne!(first["accountIdentity"], second["accountIdentity"]);
+    assert_ne!(first["accountIdentity"], third["accountIdentity"]);
+    assert_eq!(first["email"], second["email"]);
+}

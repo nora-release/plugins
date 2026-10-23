@@ -282,6 +282,7 @@ async fn github_device_flow_polls_and_exchanges_pat_for_session_token() {
         200,
         br#"{"token":"session","expires_at":2000,"endpoints":{"api":"https://api.test"}}"#.to_vec(),
     );
+    client.push(200, br#"{"id":42,"login":"octocat"}"#.to_vec());
 
     let credentials = OAuthLogin::login_github_copilot_with_config(
         GitHubCopilotLoginConfig {
@@ -289,6 +290,7 @@ async fn github_device_flow_polls_and_exchanges_pat_for_session_token() {
             device_code_url: "https://github.test/device".to_string(),
             access_token_url: "https://github.test/token".to_string(),
             copilot_token_url: "https://copilot.test/token".to_string(),
+            github_user_url: "https://github.test/user".to_string(),
             timeout: Duration::from_secs(1),
         },
         OAuthLoginCallbacks::silent(),
@@ -308,7 +310,7 @@ async fn github_device_flow_polls_and_exchanges_pat_for_session_token() {
         Some("https://api.test")
     );
     let requests = client.requests();
-    assert_eq!(requests.len(), 4);
+    assert_eq!(requests.len(), 5);
     assert_eq!(requests[0].url, "https://github.test/device");
     assert_eq!(requests[0].method, HttpMethod::Post);
     assert_eq!(
@@ -325,6 +327,12 @@ async fn github_device_flow_polls_and_exchanges_pat_for_session_token() {
         "client_id=client&device_code=dev&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code"
     );
     assert_eq!(requests[3].url, "https://copilot.test/token");
+    assert_eq!(requests[4].url, "https://github.test/user");
+    assert_eq!(credentials.extras["name"].as_str(), Some("octocat"));
+    assert_eq!(
+        credentials.extras["accountIdentity"].as_value(),
+        &json!({"issuer":"https://github.com","subject":"42"})
+    );
 }
 
 #[tokio::test]
@@ -342,6 +350,7 @@ async fn github_device_flow_surfaces_terminal_poll_errors() {
             device_code_url: "https://github.test/device".to_string(),
             access_token_url: "https://github.test/token".to_string(),
             copilot_token_url: "https://copilot.test/token".to_string(),
+            github_user_url: "https://github.test/user".to_string(),
             timeout: Duration::from_secs(1),
         },
         OAuthLoginCallbacks::silent(),

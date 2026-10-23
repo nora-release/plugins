@@ -9,8 +9,8 @@ use nora_provider::{
     discovery::{parsing, Kind},
     models, ProviderAdapter,
 };
-use nora_provider_auth::{OAuthLogin, OAuthLoginCallbacks, OpenAICodexOAuthProvider};
-use nora_provider_plugin_sdk::{PluginError, PluginResult};
+use nora_provider_auth::{codex_source, OAuthLogin, OAuthLoginCallbacks, OpenAICodexOAuthProvider};
+use nora_provider_plugin_sdk::{NetworkProxy, PluginError, PluginResult};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use url::Url;
@@ -75,6 +75,72 @@ impl ProviderAdapter for OpenAI {
                 credentials.extras.insert(key, value);
             }
         }
+    }
+    fn supports_account_discovery(&self) -> bool {
+        true
+    }
+    async fn discover_accounts(
+        &self,
+        _client: &dyn HttpClient,
+        _proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<Vec<OAuthCredentials>> {
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .filter(|home| home.is_absolute())
+            .ok_or_else(|| PluginError::authentication("The home directory is unavailable."))?;
+        let path = codex_source::auth_file(&home, &std::env::vars().collect());
+        match codex_source::bind(&path) {
+            Ok(credentials) => Ok(vec![credentials]),
+            Err(codex_source::SourceError::NotSignedIn) => Ok(Vec::new()),
+            Err(error) => Err(source_error(error)),
+        }
+    }
+    fn is_source(&self, credentials: &OAuthCredentials) -> bool {
+        codex_source::is_bound(credentials)
+    }
+    async fn authorize_source(
+        &self,
+        method: &str,
+        client: &dyn HttpClient,
+        _proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<OAuthCredentials> {
+        if method != codex_source::KIND {
+            return Err(PluginError::unsupported(method));
+        }
+        let home = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .filter(|home| home.is_absolute())
+            .ok_or_else(|| PluginError::authentication("The home directory is unavailable."))?;
+        let path = codex_source::auth_file(&home, &std::env::vars().collect());
+        let credentials = codex_source::bind(&path).map_err(source_error)?;
+        // A sign-in Nora cannot use fails here, not on the first request.
+        codex_source::resolve(&credentials, false, client)
+            .await
+            .map_err(source_error)?;
+        Ok(credentials)
+    }
+    async fn refresh_source(
+        &self,
+        credentials: &OAuthCredentials,
+        force: bool,
+        proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<()> {
+        codex_source::resolve(credentials, force, &source_client(proxy)?)
+            .await
+            .map_err(source_error)?;
+        Ok(())
+    }
+    async fn resolve_source(
+        &self,
+        credentials: &OAuthCredentials,
+        proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<ResolvedProviderAuth> {
+        let current = codex_source::resolve(credentials, false, &source_client(proxy)?)
+            .await
+            .map_err(source_error)?;
+        let mut auth = nora_provider::auth::base_auth("openai-codex", &current);
+        self.enrich_auth(&current, &mut auth);
+        Ok(auth)
     }
     fn enrich_auth(&self, credentials: &OAuthCredentials, auth: &mut ResolvedProviderAuth) {
         if credentials.provider != OAuthProviderId::OpenAICodex {
@@ -265,4 +331,14 @@ fn cli_models(definition: &Definition, credentials: &Value, catalog: &ModelsCata
         .iter()
         .filter_map(|entry| parsing::model(entry, Kind::OpenAI, definition, credentials, &known))
         .collect()
+}
+
+fn source_error(error: codex_source::SourceError) -> PluginError {
+    PluginError::authentication(error.message())
+}
+
+fn source_client(proxy: Option<&NetworkProxy>) -> PluginResult<nora_ai::ReqwestHttpClient> {
+    Ok(nora_ai::ReqwestHttpClient::with_client(
+        nora_provider_plugin_sdk::http_client(proxy)?,
+    ))
 }

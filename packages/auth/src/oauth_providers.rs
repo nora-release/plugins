@@ -5,7 +5,7 @@ use nora_ai::http::{HttpClient, HttpMethod, HttpRequest};
 use nora_ai::json_value::JsonValue;
 use nora_ai::oauth::{
     decode_token_response, expires_from_now, url_encoded_form, OAuthCredentials, OAuthError,
-    OAuthProvider, OAuthProviderId,
+    OAuthProvider, OAuthProviderId, OAuthTokenResponse,
 };
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -117,6 +117,36 @@ impl OpenAICodexOAuthProvider {
         }
     }
 
+    /// Exchanges a refresh token for the token response as OpenAI sends it,
+    /// ID token included.
+    pub async fn refresh_tokens(
+        &self,
+        refresh_token: &str,
+        client: &dyn HttpClient,
+    ) -> Result<OAuthTokenResponse, OAuthError> {
+        let form = url_encoded_form(&BTreeMap::from([
+            ("client_id".to_string(), self.client_id.clone()),
+            ("grant_type".to_string(), "refresh_token".to_string()),
+            ("refresh_token".to_string(), refresh_token.to_string()),
+        ]));
+        let response = client
+            .request(
+                HttpRequest::new(HttpMethod::Post, self.token_url.clone())
+                    .with_header("content-type", "application/x-www-form-urlencoded")
+                    .with_header("accept", "application/json")
+                    .with_body(form),
+            )
+            .await?;
+        if response.status >= 400 {
+            return Err(OAuthError::RefreshFailed(format!(
+                "openai-codex {}: {}",
+                response.status,
+                String::from_utf8_lossy(&response.body)
+            )));
+        }
+        decode_token_response(&response.body)
+    }
+
     /// Extract the ChatGPT account id from the access token JWT claim.
     pub fn extract_account_id_from_jwt(token: &str) -> Option<String> {
         let value = openai_token_claims(token)?;
@@ -133,12 +163,23 @@ impl OpenAICodexOAuthProvider {
         id_token: Option<&str>,
     ) -> BTreeMap<String, JsonValue> {
         let mut extras = BTreeMap::new();
+        let mut subject = None;
+        let mut account = None;
         for token in std::iter::once(access_token).chain(id_token) {
             let Some(claims) = openai_token_claims(token) else {
                 continue;
             };
             let profile = &claims["https://api.openai.com/profile"];
             let auth = &claims["https://api.openai.com/auth"];
+            subject = profile_display_text(auth.get("chatgpt_user_id"))
+                .or_else(|| profile_display_text(auth.get("user_id")))
+                .or_else(|| profile_display_text(claims.get("sub")))
+                .map(str::to_owned)
+                .or(subject);
+            account = profile_display_text(auth.get("chatgpt_account_id"))
+                .map(str::to_owned)
+                .or(account);
+
             if let Some(email) = profile_display_text(claims.get("email"))
                 .filter(|email| valid_profile_email(email))
                 .or_else(|| {
@@ -166,6 +207,15 @@ impl OpenAICodexOAuthProvider {
             {
                 extras.insert("plan".into(), JsonValue::string(plan));
             }
+        }
+        if let (Some(subject), Some(account)) = (subject, account) {
+            extras.insert(
+                "accountIdentity".into(),
+                serde_json::json!({
+                    "issuer":"https://auth.openai.com", "subject":subject, "scope":account
+                })
+                .into(),
+            );
         }
         extras
     }
@@ -216,29 +266,7 @@ impl OAuthProvider for OpenAICodexOAuthProvider {
         client: &dyn HttpClient,
     ) -> Result<OAuthCredentials, OAuthError> {
         let refresh_token = require_refresh_token(credentials, self.id())?;
-        let form = url_encoded_form(&BTreeMap::from([
-            ("client_id".to_string(), self.client_id.clone()),
-            ("grant_type".to_string(), "refresh_token".to_string()),
-            ("refresh_token".to_string(), refresh_token.to_string()),
-        ]));
-
-        let response = client
-            .request(
-                HttpRequest::new(HttpMethod::Post, self.token_url.clone())
-                    .with_header("content-type", "application/x-www-form-urlencoded")
-                    .with_header("accept", "application/json")
-                    .with_body(form),
-            )
-            .await?;
-        if response.status >= 400 {
-            return Err(OAuthError::RefreshFailed(format!(
-                "openai-codex {}: {}",
-                response.status,
-                String::from_utf8_lossy(&response.body)
-            )));
-        }
-
-        let token = decode_token_response(&response.body)?;
+        let token = self.refresh_tokens(refresh_token, client).await?;
         let mut extras = credentials.extras.clone();
         extras.extend(Self::profile_extras_from_tokens(
             &token.access_token,

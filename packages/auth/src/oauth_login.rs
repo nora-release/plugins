@@ -422,7 +422,15 @@ impl OAuthLogin {
                     Some(0),
                     BTreeMap::new(),
                 );
-                return provider.refresh(&base, client).await;
+                let mut credentials = provider.refresh(&base, client).await?;
+                crate::copilot_identity::enrich_at(
+                    &mut credentials,
+                    client,
+                    &config.github_user_url,
+                    "",
+                )
+                .await?;
+                return Ok(credentials);
             }
         }
 
@@ -566,6 +574,7 @@ pub struct GitHubCopilotLoginConfig {
     pub device_code_url: String,
     pub access_token_url: String,
     pub copilot_token_url: String,
+    pub github_user_url: String,
     pub timeout: Duration,
 }
 
@@ -576,6 +585,7 @@ impl Default for GitHubCopilotLoginConfig {
             device_code_url: "https://github.com/login/device/code".to_string(),
             access_token_url: "https://github.com/login/oauth/access_token".to_string(),
             copilot_token_url: "https://api.github.com/copilot_internal/v2/token".to_string(),
+            github_user_url: "https://api.github.com/user".to_string(),
             timeout: Duration::from_secs(15 * 60),
         }
     }

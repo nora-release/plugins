@@ -59,6 +59,7 @@ async fn actual_social_callback_checks_state_and_uses_pkce_before_returning_cred
     let credential = pending.complete().await.unwrap();
     assert_eq!(credential.email, "person@example.test");
     assert_eq!(credential.method, "social");
+    assert!(credential.realm.is_empty());
     let requests = client.requests.lock().unwrap();
     let body: Value = serde_json::from_slice(requests[0].body.as_ref().unwrap()).unwrap();
     assert_eq!(
@@ -109,6 +110,7 @@ async fn builder_callback_registers_an_aws_client_and_checks_a_distinct_second_s
     assert!(credential.builder);
     assert_eq!(credential.client_secret, "aws-secret");
     assert_eq!(credential.profile, session::BUILDER_PROFILE);
+    assert!(credential.realm.is_empty());
     let requests = client.requests.lock().unwrap();
     let registration: Value = serde_json::from_slice(requests[0].body.as_ref().unwrap()).unwrap();
     assert_eq!(
@@ -166,4 +168,47 @@ async fn company_browser_flow_is_explicitly_unsupported_without_sending_its_code
         "method_not_supported"
     );
     assert!(client.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn enterprise_browser_callback_preserves_the_same_realm_as_cli_and_ide() {
+    let (pending, url, client) = begin(vec![
+        fixture::Reply::json(json!({"clientId":"aws-client","clientSecret":"aws-secret"})),
+        fixture::Reply::json(json!({"accessToken":"private-access","refreshToken":"private-refresh","expiresIn":3600,"profileArn":fixture::PROFILE})),
+        fixture::Reply::json(json!({"userInfo":{"userId":"verified-user","email":"person@example.test"}})),
+    ]).await;
+    let query = url.query_pairs().collect::<BTreeMap<_, _>>();
+    let response = browse(port(&url), &format!("/oauth/callback?state={}&login_option=awsidc&idc_region=eu-central-1&issuer_url=https%3A%2F%2Ftenant.awsapps.com%2Fstart%2F", query["state"])).await;
+    assert!(response.starts_with("HTTP/1.1 302"));
+    let authorize = url::Url::parse(
+        response
+            .lines()
+            .find_map(|line| line.strip_prefix("Location: "))
+            .unwrap(),
+    )
+    .unwrap();
+    let next = authorize.query_pairs().collect::<BTreeMap<_, _>>();
+    let response = browse(
+        port(&url),
+        &format!("/oauth/callback?state={}&code=private-code", next["state"]),
+    )
+    .await;
+    assert!(response.starts_with("HTTP/1.1 200"));
+    assert!(!response.contains("private"));
+    let credential = pending.complete().await.unwrap();
+    assert!(!credential.builder);
+    assert_eq!(credential.realm, "https://tenant.awsapps.com/start");
+    let mut cli = credential.clone();
+    cli.realm = "https://tenant.awsapps.com/start/".into();
+    assert_eq!(cli.account_identity(), credential.account_identity());
+    assert_eq!(
+        credential.saved()["realm"],
+        "https://tenant.awsapps.com/start"
+    );
+    let request = client.requests.lock().unwrap();
+    let registration: Value = serde_json::from_slice(request[0].body.as_ref().unwrap()).unwrap();
+    assert_eq!(
+        registration["issuerUrl"],
+        "https://tenant.awsapps.com/start/"
+    );
 }

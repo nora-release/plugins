@@ -28,6 +28,22 @@ enum LoginNotice {
     Progress(String),
 }
 
+fn valid_account_identity(identity: &Value) -> bool {
+    let text = |key: &str, max: usize, required: bool| match identity.get(key) {
+        None => !required,
+        Some(Value::String(value)) => {
+            (!required || !value.is_empty())
+                && value.len() <= max
+                && !value.chars().any(char::is_control)
+        }
+        Some(_) => false,
+    };
+    identity.is_object()
+        && text("issuer", 256, true)
+        && text("subject", 512, true)
+        && text("scope", 512, false)
+}
+
 #[derive(Default)]
 pub struct BundledProvider {
     adapter: Option<Arc<dyn ProviderAdapter>>,
@@ -43,6 +59,20 @@ impl BundledProvider {
             adapter: Some(Arc::new(adapter)),
             ..Self::default()
         }
+    }
+
+    async fn enriched_credentials(
+        &self,
+        definition: &Definition,
+        mut credentials: OAuthCredentials,
+        client: &dyn HttpClient,
+        proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<OAuthCredentials> {
+        definition
+            .adapter
+            .enrich_account(&mut credentials, client, proxy)
+            .await?;
+        Ok(credentials)
     }
 
     fn definition(&self) -> PluginResult<Definition> {
@@ -67,7 +97,13 @@ impl BundledProvider {
 
     fn client(&self, proxy: Option<&NetworkProxy>) -> PluginResult<ReqwestHttpClient> {
         let proxy = self.effective_proxy(proxy)?;
-        nora_provider_plugin_sdk::http_client(proxy.as_ref()).map(ReqwestHttpClient::with_client)
+        nora_provider_plugin_sdk::http_client(proxy.as_ref()).map(|client| {
+            ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
+                nora_provider_plugin_sdk::before_http_request()
+                    .await
+                    .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+            })
+        })
     }
 
     fn params_proxy(&self, params: &Value) -> PluginResult<Option<NetworkProxy>> {
@@ -85,6 +121,7 @@ impl BundledProvider {
         &self,
         definition: &Definition,
         client: ReqwestHttpClient,
+        proxy: Option<NetworkProxy>,
     ) -> PluginResult<Value> {
         if definition.config.oauth_provider.is_none() {
             return Err(PluginError::unsupported("oauth"));
@@ -130,9 +167,13 @@ impl BundledProvider {
         let url = match url {
             Ok(url) => url,
             Err(credentials) => {
+                let client = self.client(proxy.as_ref())?;
+                let credentials = self
+                    .enriched_credentials(definition, credentials, &client, proxy.as_ref())
+                    .await?;
                 return Ok(
                     json!({"ok":true,"credentials":auth::encode(&credentials,definition.config.oauth_provider.as_deref().unwrap_or_default(),false)}),
-                )
+                );
             }
         };
         while let Ok(notice) = notices.try_recv() {
@@ -184,12 +225,13 @@ impl ProviderPlugin for BundledProvider {
             .write()
             .map_err(|_| PluginError::invalid("The provider data directory is unavailable."))? =
             params.data_directory;
+        let account_discovery = definition.adapter.supports_account_discovery();
         *self
             .definition
             .write()
             .map_err(|_| PluginError::invalid("The provider configuration is unavailable."))? =
             Some(definition);
-        Ok(json!({"apiVersion":API_VERSION}))
+        Ok(json!({"apiVersion":API_VERSION,"capabilities":{"accountDiscovery":account_discovery}}))
     }
 
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
@@ -215,14 +257,90 @@ impl ProviderPlugin for BundledProvider {
         .await
     }
 
+    async fn discover_accounts(&self, context: CallContext) -> PluginResult<Value> {
+        let definition = self.definition()?;
+        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
+        let client = self.client(proxy.as_ref())?;
+        let found = definition
+            .adapter
+            .discover_accounts(&client, proxy.as_ref())
+            .await?;
+        if found.len() > 128 {
+            return Err(PluginError::invalid(
+                "The provider returned too many local accounts.",
+            ));
+        }
+        let mut accounts = Vec::with_capacity(found.len());
+        for credentials in found {
+            let credentials = self
+                .enriched_credentials(&definition, credentials, &client, proxy.as_ref())
+                .await?;
+            let Some(source) = credentials.extras.get("noraAccountSource") else {
+                return Err(PluginError::invalid(
+                    "A discovered account must stay bound to its local sign-in.",
+                ));
+            };
+            let Some(source_id) = source
+                .as_value()
+                .get("kind")
+                .and_then(Value::as_str)
+                .filter(|id| {
+                    !id.is_empty() && id.len() <= 128 && !id.chars().any(char::is_control)
+                })
+            else {
+                return Err(PluginError::invalid(
+                    "A discovered account has an invalid local sign-in source.",
+                ));
+            };
+            if !definition.adapter.is_source(&credentials)
+                || !credentials
+                    .extras
+                    .get("accountIdentity")
+                    .is_some_and(|identity| valid_account_identity(identity.as_value()))
+            {
+                return Err(PluginError::invalid(
+                    "A discovered account must provide a verified account identity.",
+                ));
+            }
+            let saved = auth::encode(
+                &credentials,
+                definition
+                    .config
+                    .oauth_provider
+                    .as_deref()
+                    .unwrap_or_default(),
+                true,
+            );
+            accounts.push(json!({"sourceID":source_id,"credentials":saved}));
+        }
+        Ok(json!({"accounts":accounts}))
+    }
+
     async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
         let Some(value) = context.credentials.as_ref() else {
-            return Ok(json!([]));
+            return Ok(json!({"accounts":[]}));
         };
-        let credentials = auth::decode(&self.definition()?, Some(value))?;
+        let definition = self.definition()?;
+        let credentials = auth::decode(&definition, Some(value))?;
+        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
+        let client = self.client(proxy.as_ref())?;
+        let credentials = self
+            .enriched_credentials(&definition, credentials, &client, proxy.as_ref())
+            .await?;
         let mut profile = auth::public_profile(&credentials);
         profile["id"] = json!(context.account);
-        Ok(json!([profile]))
+        let bound = definition.adapter.is_source(&credentials);
+        let mut saved = auth::encode(&credentials, auth::provider_id(&definition, value), bound);
+        // Account inspection enriches identity and profile information; it does
+        // not switch an explicitly chosen plan's authentication method.
+        if let Some(method) = value.get("authMethod").filter(|value| value.is_string()) {
+            saved["authMethod"] = method.clone();
+        }
+        let mut result = json!({"accounts":[profile]});
+        if saved != *value {
+            result["credentials"] = saved;
+        }
+        Ok(result)
     }
 
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
@@ -244,12 +362,18 @@ impl ProviderPlugin for BundledProvider {
                 .adapter
                 .authorize_source(method, &client, proxy.as_ref())
                 .await?;
+            let credentials = self
+                .enriched_credentials(&definition, credentials, &client, proxy.as_ref())
+                .await?;
+            // A sign-in read from another app either stays bound to it, and
+            // keeps no tokens here, or is taken over like any other sign-in.
+            let bound = definition.adapter.is_source(&credentials);
             return Ok(
-                json!({"ok":true,"credentials":auth::encode(&credentials,definition.config.oauth_provider.as_deref().unwrap_or(""),true)}),
+                json!({"ok":true,"credentials":auth::encode(&credentials,definition.config.oauth_provider.as_deref().unwrap_or(""),bound)}),
             );
         }
         if method == "oauth" {
-            return self.start_login(&definition, client).await;
+            return self.start_login(&definition, client, proxy).await;
         }
         if method != "apiKey" {
             return Err(PluginError::unsupported(method));
@@ -298,6 +422,11 @@ impl ProviderPlugin for BundledProvider {
                 PluginError::authentication("The provider sign-in failed. Start again.")
             })?;
         let definition = self.definition()?;
+        let proxy = self.params_proxy(&params)?;
+        let client = self.client(proxy.as_ref())?;
+        let credentials = self
+            .enriched_credentials(&definition, credentials, &client, proxy.as_ref())
+            .await?;
         Ok(
             json!({"ok":true,"credentials":auth::encode(&credentials,definition.config.oauth_provider.as_deref().unwrap_or_default(),false)}),
         )
@@ -329,6 +458,9 @@ impl ProviderPlugin for BundledProvider {
         }
         let provider_id = auth::provider_id(&definition, value);
         let credentials = definition.adapter.refresh(&credentials, &client).await?;
+        let credentials = self
+            .enriched_credentials(&definition, credentials, &client, proxy.as_ref())
+            .await?;
         Ok(json!({"credentials":auth::encode(&credentials,provider_id,false)}))
     }
 
@@ -435,3 +567,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../test/plugin_network.test.rs"]
 mod network_tests;
+
+#[cfg(test)]
+#[path = "../test/account_discovery.test.rs"]
+mod account_discovery_tests;

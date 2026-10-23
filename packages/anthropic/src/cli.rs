@@ -12,6 +12,52 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     process::{Child, Command},
 };
+/// Where an account's Claude Code configuration lives.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Home {
+    /// A configuration directory of the plugin's own, one per account.
+    Isolated(PathBuf),
+    /// Claude Code's own configuration, the one the user signed in to. Claude
+    /// Code goes on renewing that sign-in there, so Nora keeps no tokens.
+    Own(PathBuf),
+}
+impl Home {
+    pub fn own() -> PluginResult<Self> {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .filter(|home| home.is_absolute())
+            .map(|home| Self::Own(home.join(".claude")))
+            .ok_or_else(error)
+    }
+    pub fn directory(&self) -> &Path {
+        match self {
+            Self::Isolated(directory) | Self::Own(directory) => directory,
+        }
+    }
+    pub fn is_own(&self) -> bool {
+        matches!(self, Self::Own(_))
+    }
+    /// Claude Code names its Keychain item after the configuration directory
+    /// it was told to use, and keeps the plain name for its own.
+    fn keychain_service(&self) -> String {
+        match self {
+            Self::Own(_) => "Claude Code-credentials".into(),
+            Self::Isolated(directory) => {
+                use unicode_normalization::UnicodeNormalization;
+                let path = directory.to_string_lossy().nfc().collect::<String>();
+                format!("Claude Code-credentials-{}", &hash(&path)[..8])
+            }
+        }
+    }
+    /// Claude Code's profile, which sits beside its own configuration
+    /// directory and inside one it was given.
+    fn profile(&self) -> PathBuf {
+        match self {
+            Self::Own(directory) => directory.with_file_name(".claude.json"),
+            Self::Isolated(directory) => directory.join(".claude.json"),
+        }
+    }
+}
 pub(crate) fn error() -> PluginError {
     PluginError::authentication(
         "Claude Code could not use this account. Sign in to this account again.",
@@ -41,23 +87,59 @@ pub(crate) fn executable(selected: Option<&str>) -> PluginResult<PathBuf> {
             "Select an installed Claude Code executable by its absolute path.",
         ));
     }
-    for directory in std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()) {
-        if directory.as_os_str().is_empty() {
-            continue;
-        }
-        let path = directory.join(if cfg!(windows) {
-            "claude.exe"
-        } else {
-            "claude"
-        });
-        if path.is_file() {
-            return Ok(path);
-        }
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .filter(|home| home.is_absolute());
+    if let Some(path) = installed_executable(
+        home.as_deref(),
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ) {
+        return Ok(path);
     }
+
     Err(PluginError::authentication(
         "Install Claude Code, then select its executable or add claude to PATH.",
     ))
 }
+fn installed_executable(home: Option<&Path>, path: &std::ffi::OsStr) -> Option<PathBuf> {
+    let name = if cfg!(windows) {
+        "claude.exe"
+    } else {
+        "claude"
+    };
+    let mut candidates = std::env::split_paths(path)
+        .filter(|directory| directory.is_absolute())
+        .map(|directory| directory.join(name))
+        .collect::<Vec<_>>();
+    if let Some(home) = home {
+        candidates.extend([
+            home.join(".local/bin").join(name),
+            home.join(".claude/local").join(name),
+        ]);
+    }
+    candidates.extend([
+        PathBuf::from("/opt/homebrew/bin").join(name),
+        PathBuf::from("/usr/local/bin").join(name),
+    ]);
+    candidates.into_iter().find(|path| {
+        let Ok(metadata) = std::fs::metadata(path) else {
+            return false;
+        };
+        if !metadata.is_file() {
+            return false;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            metadata.permissions().mode() & 0o111 != 0
+        }
+        #[cfg(not(unix))]
+        {
+            true
+        }
+    })
+}
+
 pub(crate) fn directory(path: &Path) -> PluginResult<()> {
     std::fs::create_dir_all(path).map_err(|_| error())?;
     #[cfg(unix)]
@@ -99,7 +181,7 @@ pub(crate) fn read(path: &Path) -> PluginResult<Value> {
     }
     serde_json::from_slice(&bytes).map_err(|_| error())
 }
-pub(crate) fn env(config: &Path, proxy: &Proxy, usage: bool) -> BTreeMap<String, String> {
+pub(crate) fn env(home: &Home, proxy: &Proxy, usage: bool) -> BTreeMap<String, String> {
     let blocked = [
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_API_KEY",
@@ -130,12 +212,12 @@ pub(crate) fn env(config: &Path, proxy: &Proxy, usage: bool) -> BTreeMap<String,
         .filter(|(key, _)| !blocked.contains(&key.as_str()) && !key.starts_with("CLAUDE_PLUGIN_"))
         .collect::<BTreeMap<_, _>>();
     env.extend(proxy.env.clone());
+    if let Home::Isolated(config) = home {
+        let config = config.to_string_lossy().into_owned();
+        env.insert("CLAUDE_CONFIG_DIR".into(), config.clone());
+        env.insert("CLAUDE_SECURESTORAGE_CONFIG_DIR".into(), config);
+    }
     for (key, value) in [
-        ("CLAUDE_CONFIG_DIR", config.to_string_lossy().as_ref()),
-        (
-            "CLAUDE_SECURESTORAGE_CONFIG_DIR",
-            config.to_string_lossy().as_ref(),
-        ),
         ("ENABLE_CLAUDEAI_MCP_SERVERS", "0"),
         ("DISABLE_AUTO_COMPACT", "1"),
         ("CLAUDE_CODE_DISABLE_AUTO_MEMORY", "1"),
@@ -209,7 +291,7 @@ impl Drop for Process {
 #[derive(Clone)]
 pub(crate) struct Account {
     pub executable: PathBuf,
-    pub directory: PathBuf,
+    pub home: Home,
     pub identity: String,
     pub email: String,
     pub organization: String,
@@ -219,8 +301,16 @@ pub(crate) struct Account {
 impl Account {
     pub fn saved(&self) -> Value {
         let mut saved = self.saved.clone();
-        saved["type"] = json!("oauth");
-        saved["authMethod"] = json!("oauth");
+        saved["type"] = json!(if self.home.is_own() {
+            "claudeCode"
+        } else {
+            "oauth"
+        });
+        saved["authMethod"] = json!(if self.home.is_own() {
+            "claudeCode"
+        } else {
+            "oauth"
+        });
         saved["provider"] = json!("anthropic");
         saved["credentialProvider"] = json!("anthropic");
         saved["accountId"] = json!(self.identity);
@@ -234,19 +324,37 @@ impl Account {
         if !saved["extras"].is_object() {
             saved["extras"] = json!({});
         }
-        saved["extras"]["noraClaudeCLI"] = json!({"directory":self.directory,"executable":self.executable,"identity":self.identity,"organization":self.organization});
+        if self.home.is_own() {
+            saved["extras"]["noraAccountSource"] = json!({"kind":"claudeCode"});
+        }
+        if let Some(identity) = saved.get("accountIdentity").cloned() {
+            saved["extras"]["accountIdentity"] = identity;
+        }
+        saved["extras"]["noraClaudeCLI"] = match &self.home {
+            Home::Isolated(directory) => {
+                json!({"directory":directory,"executable":self.executable,"identity":self.identity,"organization":self.organization})
+            }
+            Home::Own(_) => {
+                json!({"own":true,"executable":self.executable,"identity":self.identity,"organization":self.organization})
+            }
+        };
         saved
     }
 }
 pub(crate) async fn output(
     executable: &Path,
     args: &[&str],
-    cwd: &Path,
+    home: &Home,
     proxy: Arc<Proxy>,
     usage: bool,
 ) -> PluginResult<Vec<u8>> {
     let args = args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
-    let mut process = Process::spawn(executable, &args, cwd, env(cwd, &proxy, usage))?;
+    let mut process = Process::spawn(
+        executable,
+        &args,
+        home.directory(),
+        env(home, &proxy, usage),
+    )?;
     drop(process.child.stdin.take());
     let mut stdout = process.child.stdout.take().ok_or_else(error)?;
     let mut stderr = process.child.stderr.take().ok_or_else(error)?;
@@ -285,12 +393,10 @@ pub(crate) async fn output(
     .map_err(|_| PluginError::transport("Claude Code did not reply in time."))?;
     result
 }
-pub(crate) async fn credentials(directory: &Path) -> PluginResult<Value> {
+pub(crate) async fn credentials(home: &Home) -> PluginResult<Value> {
     #[cfg(target_os = "macos")]
     {
-        use unicode_normalization::UnicodeNormalization;
-        let path = directory.to_string_lossy().nfc().collect::<String>();
-        let service = format!("Claude Code-credentials-{}", &hash(&path)[..8]);
+        let service = home.keychain_service();
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(5),
             Command::new("/usr/bin/security")
@@ -309,7 +415,7 @@ pub(crate) async fn credentials(directory: &Path) -> PluginResult<Value> {
             }
         }
     }
-    if let Ok(value) = read(&directory.join(".credentials.json")) {
+    if let Ok(value) = read(&home.directory().join(".credentials.json")) {
         if value.get("claudeAiOauth").is_some() {
             return Ok(value["claudeAiOauth"].clone());
         }
@@ -319,14 +425,25 @@ pub(crate) async fn credentials(directory: &Path) -> PluginResult<Value> {
 }
 pub(crate) async fn identify(
     executable: &Path,
-    directory: &Path,
+    home: &Home,
     proxy: Arc<Proxy>,
     expected: Option<&str>,
 ) -> PluginResult<Account> {
+    signed_in(executable, home, proxy, expected)
+        .await?
+        .ok_or_else(error)
+}
+
+pub(crate) async fn signed_in(
+    executable: &Path,
+    home: &Home,
+    proxy: Arc<Proxy>,
+    expected: Option<&str>,
+) -> PluginResult<Option<Account>> {
     let bytes = output(
         executable,
         &["auth", "status", "--json"],
-        directory,
+        home,
         proxy,
         false,
     )
@@ -337,16 +454,16 @@ pub(crate) async fn identify(
             .as_str()
             .is_some_and(|method| ["api_key", "apiKey", "console"].contains(&method))
     {
-        return Err(error());
+        return Ok(None);
     }
-    let profile = read(&directory.join(".claude.json")).unwrap_or_else(|_| json!({}));
+    let profile = read(&home.profile()).unwrap_or_else(|_| json!({}));
     let email = text(status.get("email"), 512)
         .or_else(|| text(profile.pointer("/oauthAccount/emailAddress"), 512))
         .ok_or_else(error)?
         .to_owned();
-    let account = text(status.get("accountUuid"), 256)
-        .or_else(|| text(profile.pointer("/oauthAccount/accountUuid"), 256))
-        .unwrap_or(&email);
+    let account_uuid = text(status.get("accountUuid"), 256)
+        .or_else(|| text(profile.pointer("/oauthAccount/accountUuid"), 256));
+    let account = account_uuid.unwrap_or(&email);
     let organization = text(status.get("orgUuid").or_else(|| status.get("orgId")), 256)
         .or_else(|| text(profile.pointer("/oauthAccount/organizationUuid"), 256))
         .unwrap_or_default();
@@ -358,17 +475,28 @@ pub(crate) async fn identify(
     if expected.is_some_and(|expected| expected != identity) {
         return Err(error());
     }
-    let oauth = credentials(directory).await?;
+    let oauth = credentials(home).await?;
     let access = text(oauth.get("accessToken"), 64 * 1024).ok_or_else(error)?;
     let refresh = text(oauth.get("refreshToken"), 64 * 1024).ok_or_else(error)?;
     let plan = text(status.get("subscriptionType"), 128)
         .or_else(|| text(oauth.get("subscriptionType"), 128))
         .unwrap_or_default()
         .to_owned();
-    let saved = json!({"access":access,"refresh":refresh,"expires":oauth["expiresAt"],"extras":{"scopes":oauth["scopes"]}});
-    Ok(Account {
+    let mut saved = if home.is_own() {
+        json!({"extras":{"scopes":oauth["scopes"]}})
+    } else {
+        json!({"access":access,"refresh":refresh,"expires":oauth["expiresAt"],"extras":{"scopes":oauth["scopes"]}})
+    };
+    if let Some(subject) = account_uuid {
+        let mut identity = json!({"issuer":"https://claude.ai","subject":subject});
+        if !organization.is_empty() {
+            identity["scope"] = json!(organization);
+        }
+        saved["accountIdentity"] = identity;
+    }
+    Ok(Some(Account {
         executable: executable.into(),
-        directory: directory.into(),
+        home: home.clone(),
         identity,
         email,
         organization: text(status.get("orgName"), 256)
@@ -377,13 +505,23 @@ pub(crate) async fn identify(
             .into(),
         plan,
         saved,
-    })
+    }))
 }
 pub(crate) fn materialize(
     root: &Path,
     account: &str,
     value: &Value,
-) -> PluginResult<(PathBuf, PathBuf, Option<String>)> {
+) -> PluginResult<(PathBuf, Home, Option<String>)> {
+    if let Some(reference) = value
+        .pointer("/extras/noraClaudeCLI")
+        .filter(|reference| reference["own"] == true)
+    {
+        let executable = executable(text(reference.get("executable"), 16 * 1024))?;
+        let expected = text(reference.get("identity"), 128)
+            .ok_or_else(error)?
+            .to_owned();
+        return Ok((executable, Home::own()?, Some(expected)));
+    }
     if let Some(reference) = value.pointer("/extras/noraClaudeCLI") {
         let directory = text(reference.get("directory"), 16 * 1024).ok_or_else(error)?;
         let executable = executable(text(reference.get("executable"), 16 * 1024))?;
@@ -398,7 +536,7 @@ pub(crate) fn materialize(
         let expected = text(reference.get("identity"), 128)
             .ok_or_else(error)?
             .to_owned();
-        return Ok((executable, directory, Some(expected)));
+        return Ok((executable, Home::Isolated(directory), Some(expected)));
     }
     let executable = executable(value.pointer("/extras/claudePath").and_then(Value::as_str))?;
     let directory = root.join(format!("account-{}", &hash(account)[..32]));
@@ -434,7 +572,7 @@ pub(crate) fn materialize(
             .map_err(|_| error())?,
         )?;
     }
-    Ok((executable, directory, None))
+    Ok((executable, Home::Isolated(directory), None))
 }
 pub(crate) fn opened_url(args: &[String]) -> bool {
     let Some(path) = std::env::var_os("NORA_CLAUDE_OPENED_URL") else {

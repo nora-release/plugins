@@ -97,7 +97,7 @@ pub(crate) async fn start(
     let directory = root.join(format!("signin-{}", cli::random()));
     cli::directory(&directory)?;
     let opened = directory.join(".opened-url");
-    let mut environment = cli::env(&directory, &proxy, false);
+    let mut environment = cli::env(&cli::Home::Isolated(directory.clone()), &proxy, false);
     environment.insert(
         "BROWSER".into(),
         std::env::current_exe()
@@ -125,7 +125,7 @@ pub(crate) async fn start(
     let task = tokio::spawn(async move {
         let mut sender = Some(url_send);
         let outcome=tokio::time::timeout(std::time::Duration::from_secs(600),async{loop{tokio::select!{
-status=process.child.wait()=>{let status=status.map_err(|_|cli::error())?;if !status.success(){return Err(cli::error());}if sender.is_some(){let opened_url=std::fs::read_to_string(&opened).ok().filter(|text|url::Url::parse(text).ok().is_some_and(|url|cli::login_url(&url)));let printed=if opened_url.is_none(){tokio::time::timeout(std::time::Duration::from_millis(200),receive.recv()).await.ok().flatten()}else{None};if let Some(url)=opened_url.or(printed){if let Some(sender)=sender.take(){let _=sender.send(url);}}}return cli::identify(&executable,&directory,proxy.clone(),None).await;},
+status=process.child.wait()=>{let status=status.map_err(|_|cli::error())?;if !status.success(){return Err(cli::error());}if sender.is_some(){let opened_url=std::fs::read_to_string(&opened).ok().filter(|text|url::Url::parse(text).ok().is_some_and(|url|cli::login_url(&url)));let printed=if opened_url.is_none(){tokio::time::timeout(std::time::Duration::from_millis(200),receive.recv()).await.ok().flatten()}else{None};if let Some(url)=opened_url.or(printed){if let Some(sender)=sender.take(){let _=sender.send(url);}}}return cli::identify(&executable,&cli::Home::Isolated(directory.clone()),proxy.clone(),None).await;},
 url=receive.recv(),if sender.is_some()=>{if let Some(url)=url{if let Some(sender)=sender.take(){let _=sender.send(url);}}},
 _=tokio::time::sleep(std::time::Duration::from_millis(50)),if sender.is_some()=>{if let Ok(bytes)=std::fs::read(&opened){if bytes.len()<=16*1024{if let Ok(text)=std::str::from_utf8(&bytes){if let Ok(url)=url::Url::parse(text){if cli::login_url(&url){if let Some(sender)=sender.take(){let _=sender.send(url.to_string());}}}}}}},
 }}}).await.map_err(|_|PluginError::authentication("Claude Code sign-in timed out."))?;

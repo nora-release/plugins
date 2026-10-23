@@ -120,6 +120,14 @@ for manifest in "${STAGING_ROOT}/providers"/*/nora-provider.json; do
     stage_provider "${binary_name}"
   fi
   copy_binary "${STAGING_ROOT}/runtime/${binary_name}" "${package_dir}/provider"
+  mkdir -p "${package_dir}/LICENSES"
+  if [[ -f "${REPO_ROOT}/LICENSE" ]]; then
+    cp "${REPO_ROOT}/LICENSE" "${package_dir}/LICENSES/Nora-Plugins-MIT.txt"
+  fi
+  for notice in "${REPO_ROOT}/LICENSES/"*.txt; do
+    [[ -f "${notice}" ]] || continue
+    cp "${notice}" "${package_dir}/LICENSES/$(basename "${notice}")"
+  done
   PACKAGE_BYTES="$(wc -c < "${package_dir}/provider")"
   MANIFEST_BYTES="$(wc -c < "${manifest}")"
   PACKAGE_BYTES=$((PACKAGE_BYTES + MANIFEST_BYTES))

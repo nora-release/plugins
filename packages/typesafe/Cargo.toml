@@ -7,6 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 nora-provider = { path = "../runtime" }
+nora-provider-subscription-core = { path = "../subscription-core" }
 nora-provider-plugin-sdk.workspace = true
 nora-ai.workspace = true
 async-trait = "0.1"

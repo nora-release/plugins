@@ -158,6 +158,7 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
     }
     async fn prepare_fetch(
         &self,
+        _definition: &Definition,
         _credentials: &Value,
         _target: &mut Url,
         _headers: &mut BTreeMap<String, String>,

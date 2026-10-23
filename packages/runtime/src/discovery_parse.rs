@@ -53,10 +53,12 @@ pub fn model(
     {
         return None;
     }
-    let mut model = catalog
-        .get(id)
-        .cloned()
-        .unwrap_or_else(|| Model::new(id, &definition.api, &definition.id));
+    let mut model = catalog.get(id).cloned().unwrap_or_else(|| {
+        let mut model = Model::new(id, &definition.api, &definition.id);
+        model.context_window = 0;
+        model.max_tokens = 0;
+        model
+    });
     models::configure_model(definition, Some(credentials), &mut model);
     if let Some(name) = text(
         entry,
@@ -96,10 +98,10 @@ pub fn model(
         .or_else(|| entry.pointer("/architecture/input_modalities"))
         .and_then(Value::as_array)
     {
-        model.input = vec![InputModality::Text];
-        if input.iter().any(|value| value.as_str() == Some("image")) {
-            model.input.push(InputModality::Image);
-        }
+        model.input = input
+            .iter()
+            .filter_map(|value| serde_json::from_value::<InputModality>(value.clone()).ok())
+            .collect();
     } else if let Some(vision) = boolean(
         entry,
         &[

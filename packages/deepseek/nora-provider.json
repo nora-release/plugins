@@ -2,13 +2,13 @@
   "apiVersion": 1,
   "id": "deepseek",
   "name": "DeepSeek",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "runtime": {
     "entry": "provider",
     "type": "native"
   },
   "api": "openai-completions",
-  "baseURL": "https://api.deepseek.com",
+  "baseURL": "https://api.deepseek.com/v1",
   "aliases": [],
   "authMethods": [
     {
@@ -37,17 +37,55 @@
       "credentialProvider": "apiKey"
     },
     "modelDiscovery": {
-      "defaultBaseURL": "https://api.deepseek.com",
+      "defaultBaseURL": "https://api.deepseek.com/v1",
       "bases": [
         {
           "api": "openai-completions",
           "baseURL": "https://api.deepseek.com/v1"
         },
         {
+          "api": "openai-responses",
+          "baseURL": "https://api.deepseek.com/v1"
+        },
+        {
           "api": "anthropic-messages",
           "baseURL": "https://api.deepseek.com/anthropic"
         }
-      ]
-    }
+      ],
+      "noList": false
+    },
+    "profiles": [
+      {
+        "id": "default",
+        "name": "API key",
+        "bases": [
+          {
+            "api": "openai-completions",
+            "baseURL": "https://api.deepseek.com/v1"
+          },
+          {
+            "api": "openai-responses",
+            "baseURL": "https://api.deepseek.com/v1"
+          },
+          {
+            "api": "anthropic-messages",
+            "baseURL": "https://api.deepseek.com/anthropic"
+          }
+        ],
+        "models": [],
+        "catalog": "deepseek",
+        "noList": false,
+        "keyOptional": false,
+        "modelRoutes": [
+          {
+            "pattern": "*claude*",
+            "api": "anthropic-messages"
+          }
+        ],
+        "only": []
+      }
+    ],
+    "connectionManaged": true,
+    "apiKeyAuth": "bearer"
   }
 }

@@ -41,6 +41,82 @@ async fn remote_free_and_price_fields_are_model_information_and_never_request_pa
         assert!(!model.provider_options.contains_key("pricingKnown"));
     }
 }
+
+#[tokio::test]
+async fn real_model_discovery_keeps_context_prices_and_claude_hour_write_rules() {
+    let definition = definition("anthropic-messages", "https://price-relay.invalid");
+    let client = client(vec![Reply::json(
+        json!({"data":[{"id":"claude-current","cost":{"input":5,"output":25,"cache_write":6.25,"tiers":[{"tier":{"type":"context","size":200000},"input":10,"output":37.5}]}}]}),
+    )]);
+    let result = fetch_routes(
+        &definition,
+        &api_credentials(),
+        &resolved(),
+        &catalog(),
+        &client,
+    )
+    .await
+    .unwrap();
+    let model = &result.models[0];
+    assert_eq!(model.info.pricing_known, Some(true));
+    assert_eq!(
+        model
+            .info
+            .cache_write_1h
+            .as_ref()
+            .and_then(serde_json::Number::as_f64),
+        Some(10.0)
+    );
+    assert_eq!(model.info.pricing_tiers[0].above, 200000);
+    assert_eq!(
+        model.info.pricing_tiers[0]
+            .cache_write_1h
+            .as_ref()
+            .and_then(serde_json::Number::as_f64),
+        Some(20.0)
+    );
+    assert!(model.provider_options.is_empty());
+}
+
+#[tokio::test]
+async fn model_list_header_learning_is_shared_with_later_fetches_for_only_that_account() {
+    let mut definition = definition("anthropic-messages", "https://learn-relay.invalid");
+    definition.id = "list-header-learning".into();
+    definition.request_account = Some("first".into());
+    let client = client(vec![
+        Reply {
+            status: 401,
+            body: br#"{"error":"x-api-key and Authorization cannot both be present"}"#.to_vec(),
+        },
+        Reply::json(json!({"data":[{"id":"one"}]})),
+    ]);
+    fetch_routes(
+        &definition,
+        &api_credentials(),
+        &resolved(),
+        &catalog(),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        crate::auth_headers::choice(
+            &definition,
+            &api_credentials(),
+            "https://learn-relay.invalid/messages"
+        ),
+        Some("x-api-key")
+    );
+    definition.request_account = Some("second".into());
+    assert_eq!(
+        crate::auth_headers::choice(
+            &definition,
+            &api_credentials(),
+            "https://learn-relay.invalid/messages"
+        ),
+        None
+    );
+}
 impl Reply {
     fn json(value: Value) -> Self {
         Self {
@@ -243,7 +319,7 @@ async fn generic_fetch_tries_magpie_candidates_and_only_returns_vendor_ids() {
     let client = client(vec![
         Reply::status(404),
         Reply::json(
-            json!({"data":[{"id":"fresh-model","display_name":"Fresh Model","context_length":512000,"modalities":{"input":["text","image"],"output":["text"]}},{"id":"text-embedding-new"}]}),
+            json!({"data":[{"id":"fresh-model","display_name":"Fresh Model","context_length":512000,"modalities":{"input":["text","image","audio","video","pdf"],"output":["text"]}},{"id":"text-embedding-new"}]}),
         ),
     ]);
     let mut catalog = catalog();

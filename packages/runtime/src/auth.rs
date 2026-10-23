@@ -84,7 +84,10 @@ pub fn decode(definition: &Definition, value: Option<&Value>) -> PluginResult<OA
     definition
         .adapter
         .enrich_credentials(original, &mut credentials);
-    if credentials.access_token.trim().is_empty() && !definition.adapter.is_source(&credentials) {
+    if credentials.access_token.trim().is_empty()
+        && !definition.config.key_optional
+        && !definition.adapter.is_source(&credentials)
+    {
         return Err(PluginError::authentication(
             "The saved provider account has no credentials.",
         ));
@@ -250,6 +253,7 @@ pub async fn resolve_with_network(
         });
         auth.base_url = Some(crate::models::effective_endpoint(definition, Some(value)));
     }
+    crate::adapter::merge_headers(&mut auth.headers, crate::account_headers::read(value)?);
     Ok((credentials, auth))
 }
 

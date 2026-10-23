@@ -1,0 +1,26 @@
+[package]
+name = "nora-provider-subscription-core"
+version = "1.2.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[dependencies]
+nora-ai.workspace = true
+nora-provider-plugin-sdk.workspace = true
+async-trait = "0.1"
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+futures = "0.3"
+hex = "0.4"
+hmac = "0.12"
+libc = "0.2"
+md-5 = "0.10"
+percent-encoding = "2"
+rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros", "time", "sync", "net", "io-util"] }
+url = "2"
+uuid = { version = "1", features = ["v4"] }

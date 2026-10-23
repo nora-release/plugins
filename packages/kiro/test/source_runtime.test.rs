@@ -198,6 +198,365 @@ async fn a_valid_source_without_expiry_or_refresh_is_verified_without_renewal_or
 }
 
 #[tokio::test]
+async fn a_rejected_unexpired_or_undated_source_is_renewed_once_before_verification() {
+    for expires in [0, session::now() + 3_600_000] {
+        for status in [401, 403] {
+            let directory = Directory::new();
+            directory.write("ide", "rejected-access", expires);
+            let client = Arc::new(fixture::Client::new(vec![
+                fixture::Reply::raw(status, b"rejected".to_vec()),
+                refreshed(),
+                fixture::Reply::json(fixture::usage()),
+            ]));
+            let plugin = provider(client.clone(), no_owner());
+            let credential = live(&plugin, &directory, "ide", client.as_ref(), None)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(credential.access, "next-access");
+            assert_eq!(credential.email, "person@example.test");
+            let requests = client.requests.lock().unwrap();
+            assert_eq!(requests.len(), 3);
+            assert_eq!(
+                requests[0].headers["authorization"],
+                "Bearer rejected-access"
+            );
+            assert!(requests[1].url.ends_with("/refreshToken"));
+            assert_eq!(requests[2].headers["authorization"], "Bearer next-access");
+            let stored = session::read_source(&SourceKind::Ide, &directory.path("ide")).unwrap();
+            assert_eq!(stored.access, "next-access");
+            assert_eq!(stored.refresh, "next-refresh");
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_rejected_unexpired_cli_source_asks_its_owner_before_direct_renewal() {
+    let directory = Directory::new();
+    directory.write("cli", "rejected-access", session::now() + 3_600_000);
+    let client = Arc::new(fixture::Client::new(vec![
+        fixture::Reply::raw(401, b"rejected".to_vec()),
+        fixture::Reply::json(fixture::usage()),
+    ]));
+    let owner = Arc::new(Owner {
+        owns: true,
+        path: Some(directory.path("cli")),
+        calls: AtomicUsize::new(0),
+        fail: false,
+    });
+    let plugin = provider(client.clone(), owner.clone());
+    let credential = live(&plugin, &directory, "cli", client.as_ref(), None)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(credential.access, "owner-access");
+    assert_eq!(owner.calls.load(Ordering::SeqCst), 1);
+    let requests = client.requests.lock().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].headers["authorization"], "Bearer owner-access");
+}
+
+#[tokio::test]
+async fn a_repeated_authentication_rejection_stops_after_one_renewal() {
+    for status in [401, 403] {
+        let directory = Directory::new();
+        directory.write("ide", "rejected-access", session::now() + 3_600_000);
+        let client = Arc::new(fixture::Client::new(vec![
+            fixture::Reply::raw(status, b"rejected".to_vec()),
+            refreshed(),
+            fixture::Reply::raw(status, b"still rejected".to_vec()),
+        ]));
+        let plugin = provider(client.clone(), no_owner());
+        assert!(live(&plugin, &directory, "ide", client.as_ref(), None)
+            .await
+            .is_err());
+        assert_eq!(client.requests.lock().unwrap().len(), 3);
+        let stored = session::read_source(&SourceKind::Ide, &directory.path("ide")).unwrap();
+        assert_eq!(stored.access, "next-access");
+        assert_eq!(stored.refresh, "next-refresh");
+    }
+}
+
+#[tokio::test]
+async fn a_temporary_identity_outage_does_not_renew_a_current_cli_source() {
+    let directory = Directory::new();
+    directory.write("cli", "current-access", session::now() + 3_600_000);
+    let client = Arc::new(fixture::Client::new(vec![fixture::Reply::raw(
+        503,
+        b"temporary".to_vec(),
+    )]));
+    let owner = Arc::new(Owner {
+        owns: true,
+        path: Some(directory.path("cli")),
+        calls: AtomicUsize::new(0),
+        fail: false,
+    });
+    let plugin = provider(client.clone(), owner.clone());
+    assert!(live(&plugin, &directory, "cli", client.as_ref(), None)
+        .await
+        .is_err());
+    assert_eq!(owner.calls.load(Ordering::SeqCst), 0);
+    assert_eq!(client.requests.lock().unwrap().len(), 1);
+    assert_eq!(
+        session::read_source(&SourceKind::Cli, &directory.path("cli"))
+            .unwrap()
+            .access,
+        "current-access"
+    );
+}
+
+#[tokio::test]
+async fn a_persisted_rotation_can_renew_again_after_identity_failure_without_replaying_the_old_token(
+) {
+    for recovery in ["rejected", "forced", "expired"] {
+        let directory = Directory::new();
+        directory.write("ide", "expired-access", session::now() - 1);
+        let mut replies = vec![
+            fixture::Reply::json(
+                json!({"accessToken":"first-access","refreshToken":"first-refresh","expiresIn":if recovery=="expired"{1}else{3600}}),
+            ),
+            fixture::Reply::raw(503, b"temporary".to_vec()),
+        ];
+        if recovery == "rejected" {
+            replies.push(fixture::Reply::raw(401, b"rejected".to_vec()));
+        }
+        replies.extend([refreshed(), fixture::Reply::json(fixture::usage())]);
+        let client = Arc::new(fixture::Client::new(replies));
+        let plugin = provider(client.clone(), no_owner());
+        assert!(live(&plugin, &directory, "ide", client.as_ref(), None)
+            .await
+            .is_err());
+        let stored = session::read_source(&SourceKind::Ide, &directory.path("ide")).unwrap();
+        assert_eq!(stored.access, "first-access");
+        assert_eq!(stored.refresh, "first-refresh");
+        let credential = plugin
+            .source_live(
+                &SourceKind::Ide,
+                &directory.path("ide"),
+                client.as_ref(),
+                None,
+                recovery == "forced",
+                Some("first-access"),
+                None,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(credential.access, "next-access", "recovery: {recovery}");
+        let requests = client.requests.lock().unwrap();
+        assert_eq!(requests.len(), if recovery == "rejected" { 5 } else { 4 });
+        let refresh_tokens = requests
+            .iter()
+            .filter(|request| request.url.ends_with("/refreshToken"))
+            .map(|request| {
+                serde_json::from_slice::<Value>(request.body.as_ref().unwrap()).unwrap()
+                    ["refreshToken"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(refresh_tokens, ["private-refresh", "first-refresh"]);
+    }
+}
+
+#[tokio::test]
+async fn resuming_a_written_rotation_reconciles_the_session_before_verifying_or_renewing_again() {
+    for kind in ["cli", "ide"] {
+        for recovery in ["current", "forced", "expired"] {
+            let directory = Directory::new();
+            directory.write(kind, "old-access", session::now() - 1);
+            let kind = SourceKind::from_reference(&json!({"kind":kind})).unwrap();
+            let path = directory.path(if kind == SourceKind::Cli {
+                "cli"
+            } else {
+                "ide"
+            });
+            let source = SourceSession::open(&kind, &path, &crate::source::lock_root())
+                .unwrap()
+                .unwrap();
+            let mut next = source.credential().clone();
+            next.access = "written-access".into();
+            next.refresh = "written-refresh".into();
+            next.expires = if recovery == "expired" {
+                session::now() - 1
+            } else {
+                session::now() + 3_600_000
+            };
+            // The durable write succeeded but the following snapshot reload failed.
+            write(
+                &path,
+                if kind == SourceKind::Cli {
+                    "cli"
+                } else {
+                    "ide"
+                },
+                &next.access,
+                &next.refresh,
+                next.expires,
+            );
+            assert_eq!(source.credential().access, "old-access");
+            assert_eq!(source.state(&next).unwrap(), DiskState::Written);
+            let mut replies = Vec::new();
+            if recovery == "current" {
+                replies.push(fixture::Reply::json(fixture::usage()));
+            }
+            replies.extend([refreshed(), fixture::Reply::json(fixture::usage())]);
+            let client = Arc::new(fixture::Client::new(replies));
+            let plugin = provider(client.clone(), no_owner());
+            let canonical = std::fs::canonicalize(&path).unwrap();
+            let source_key = session::fingerprint(&format!(
+                "{}\0{}",
+                kind.cache_key(),
+                canonical.to_string_lossy()
+            ));
+            plugin.sources.lock().await.insert(
+                source_key,
+                Arc::new(Mutex::new(SourceState {
+                    pending: Some(Renewal {
+                        session: source,
+                        next,
+                    }),
+                    verified: None,
+                })),
+            );
+            let mut credential = plugin
+                .source_live(
+                    &kind,
+                    &path,
+                    client.as_ref(),
+                    None,
+                    recovery == "forced",
+                    Some("written-access"),
+                    None,
+                )
+                .await
+                .unwrap()
+                .unwrap();
+            if recovery == "current" {
+                assert_eq!(credential.access, "written-access");
+                assert_eq!(client.requests.lock().unwrap().len(), 1);
+                credential = plugin
+                    .source_live(
+                        &kind,
+                        &path,
+                        client.as_ref(),
+                        None,
+                        true,
+                        Some("written-access"),
+                        None,
+                    )
+                    .await
+                    .unwrap()
+                    .unwrap();
+            }
+            assert_eq!(credential.access, "next-access");
+            let durable = session::read_source(&kind, &path).unwrap();
+            assert_eq!(durable.access, "next-access");
+            assert_eq!(durable.refresh, "next-refresh");
+            let requests = client.requests.lock().unwrap();
+            assert_eq!(requests.len(), if recovery == "current" { 3 } else { 2 });
+            let renewals = requests
+                .iter()
+                .filter(|request| request.url.ends_with("/refreshToken"))
+                .collect::<Vec<_>>();
+            assert_eq!(renewals.len(), 1);
+            let body: Value = serde_json::from_slice(renewals[0].body.as_ref().unwrap()).unwrap();
+            assert_eq!(body["refreshToken"], "written-refresh");
+            assert_eq!(
+                requests.last().unwrap().headers["authorization"],
+                "Bearer next-access"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn discovery_resumes_a_written_rotation_without_inheriting_the_previous_callers_account() {
+    for selected_account in [false, true] {
+        let directory = Directory::new();
+        let path = directory.path("cli");
+        directory.write("cli", "old-access", session::now() - 1);
+        let previous_profile = format!("{}-previous", fixture::PROFILE);
+        let db = rusqlite::Connection::open(&path).unwrap();
+        let raw: String = db
+            .query_row(
+                "SELECT value FROM auth_kv WHERE key = 'kirocli:social:token'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut value: Value = serde_json::from_str(&raw).unwrap();
+        value["profile_arn"] = json!(previous_profile);
+        db.execute(
+            "UPDATE auth_kv SET value = ?1 WHERE key = 'kirocli:social:token'",
+            [value.to_string()],
+        )
+        .unwrap();
+        drop(db);
+        let mut source = SourceSession::open(&SourceKind::Cli, &path, &crate::source::lock_root())
+            .unwrap()
+            .unwrap();
+        let mut previous = source.credential().clone();
+        previous.email = "person@example.test".into();
+        previous.identity = previous.legacy_identity();
+        let saved = previous.saved();
+        source.bind_identity(&saved).unwrap();
+        let mut next = source.credential().clone();
+        next.access = "written-access".into();
+        next.refresh = "written-refresh".into();
+        next.profile = fixture::PROFILE.into();
+        write(&path, "cli", &next.access, &next.refresh, next.expires);
+        assert_eq!(source.state(&next).unwrap(), DiskState::Written);
+        let client = Arc::new(fixture::Client::new(if selected_account {
+            vec![]
+        } else {
+            vec![fixture::Reply::json(fixture::usage())]
+        }));
+        let owner = Arc::new(Owner {
+            owns: true,
+            path: Some(path.clone()),
+            calls: AtomicUsize::new(0),
+            fail: false,
+        });
+        let plugin = provider(client.clone(), owner.clone());
+        let canonical = std::fs::canonicalize(&path).unwrap();
+        plugin.sources.lock().await.insert(
+            session::fingerprint(&format!("cli\0{}", canonical.to_string_lossy())),
+            Arc::new(Mutex::new(SourceState {
+                pending: Some(Renewal {
+                    session: source,
+                    next,
+                }),
+                verified: None,
+            })),
+        );
+        let result = plugin
+            .source_live(
+                &SourceKind::Cli,
+                &path,
+                client.as_ref(),
+                selected_account.then_some(&saved),
+                false,
+                None,
+                None,
+            )
+            .await;
+        if selected_account {
+            assert!(result.is_err());
+            assert_eq!(owner.calls.load(Ordering::SeqCst), 0);
+            assert!(client.requests.lock().unwrap().is_empty());
+        } else {
+            let credential = result.unwrap().unwrap();
+            assert_eq!(credential.access, "owner-access");
+            assert!(!credential.matches_saved_identity(&saved));
+            assert_eq!(owner.calls.load(Ordering::SeqCst), 1);
+            assert_eq!(client.requests.lock().unwrap().len(), 1);
+        }
+    }
+}
+
+#[tokio::test]
 async fn default_cli_owner_renewal_is_preferred_even_if_it_returns_an_error_after_saving() {
     let directory = Directory::new();
     directory.write("cli", "expired-access", session::now() - 1);
@@ -577,6 +936,59 @@ async fn a_source_switch_during_identity_verification_also_refuses_an_unexpired_
 }
 
 #[tokio::test]
+async fn an_authentication_rejection_during_an_owner_switch_does_not_renew_the_new_account() {
+    for kind in ["cli", "ide"] {
+        let directory = Directory::new();
+        directory.write(kind, "current-access", session::now() + 3_600_000);
+        let client = Arc::new(SwitchingSourceClient {
+            inner: fixture::Client::new(vec![fixture::Reply::raw(401, b"rejected".to_vec())]),
+            path: directory.path(kind),
+            kind: kind.into(),
+        });
+        let plugin = provider(client.clone(), no_owner());
+        assert!(live(&plugin, &directory, kind, client.as_ref(), None)
+            .await
+            .is_err());
+        let current = session::read_source(
+            &SourceKind::from_reference(&json!({"kind":kind})).unwrap(),
+            &directory.path(kind),
+        )
+        .unwrap();
+        assert_eq!(current.access, "owner-switched-access");
+        assert_eq!(current.refresh, "owner-switched-refresh");
+        assert_eq!(client.inner.requests.lock().unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn profile_authentication_rejection_is_recovered_before_the_first_source_identity() {
+    let directory = Directory::new();
+    directory.write("ide", "rejected-access", session::now() + 3_600_000);
+    let path = directory.path("ide");
+    let mut saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    saved.as_object_mut().unwrap().remove("profileArn");
+    std::fs::write(&path, saved.to_string()).unwrap();
+    let client = Arc::new(fixture::Client::new(vec![
+        fixture::Reply::raw(401, b"rejected".to_vec()),
+        fixture::Reply::raw(401, b"rejected".to_vec()),
+        fixture::Reply::json(
+            json!({"accessToken":"next-access","refreshToken":"next-refresh","expiresIn":3600,"profileArn":fixture::PROFILE}),
+        ),
+        fixture::Reply::json(fixture::usage()),
+    ]));
+    let plugin = provider(client.clone(), no_owner());
+    let credential = live(&plugin, &directory, "ide", client.as_ref(), None)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(credential.access, "next-access");
+    assert_eq!(credential.profile, fixture::PROFILE);
+    let requests = client.requests.lock().unwrap();
+    assert_eq!(requests.len(), 4);
+    assert!(requests[2].url.ends_with("/refreshToken"));
+}
+
+#[tokio::test]
 async fn a_source_switch_during_identity_verification_refuses_the_previous_rotated_pair() {
     for kind in ["cli", "ide"] {
         let directory = Directory::new();
@@ -784,13 +1196,14 @@ async fn signing_out_clears_pending_without_replaying_refresh_or_leaving_a_phant
 #[tokio::test]
 async fn full_pending_capacity_refuses_new_rotation_without_dropping_existing_pending_entries() {
     let directory = Directory::new();
-    directory.write("ide", "expired-access", session::now() - 1);
-    let client = Arc::new(fixture::Client::new(vec![
-        refreshed(),
-        fixture::Reply::raw(503, b"temporary".to_vec()),
-    ]));
+    directory.write("cli", "expired-access", session::now() - 1);
+    let client = Arc::new(LockedClient {
+        inner: fixture::Client::new(vec![refreshed()]),
+        path: directory.path("cli"),
+        database: std::sync::Mutex::new(None),
+    });
     let provider = provider(client.clone(), no_owner());
-    assert!(live(&provider, &directory, "ide", client.as_ref(), None)
+    assert!(live(&provider, &directory, "cli", client.as_ref(), None)
         .await
         .is_err());
     let original = provider
@@ -813,7 +1226,7 @@ async fn full_pending_capacity_refuses_new_rotation_without_dropping_existing_pe
     assert!(live(&provider, &next, "ide", client.as_ref(), None)
         .await
         .is_err());
-    assert_eq!(client.requests.lock().unwrap().len(), 2);
+    assert_eq!(client.inner.requests.lock().unwrap().len(), 1);
     assert_eq!(provider.sources.lock().await.len(), 64);
     assert!(original.lock().await.pending.is_some());
 }

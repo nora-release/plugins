@@ -71,6 +71,51 @@ async fn multipart_uploads_preserve_binary_images_masks_names_and_scalar_fields(
 }
 
 #[tokio::test]
+async fn multipart_streams_wait_for_initial_data_and_split_boundaries_before_parsing() {
+    struct PendingChunks(std::collections::VecDeque<Option<Bytes>>);
+    impl Stream for PendingChunks {
+        type Item = Result<Bytes, std::io::Error>;
+
+        fn poll_next(
+            mut self: Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Option<Self::Item>> {
+            match self.0.pop_front() {
+                Some(Some(bytes)) => std::task::Poll::Ready(Some(Ok(bytes))),
+                Some(None) => {
+                    context.waker().wake_by_ref();
+                    std::task::Poll::Pending
+                }
+                None => std::task::Poll::Ready(None),
+            }
+        }
+    }
+
+    let body = Bytes::from_static(b"--boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ncustom\r\n--boundary\r\nContent-Disposition: form-data; name=\"image\"; filename=\"bird.png\"\r\nContent-Type: image/png\r\n\r\n\x00\xffimage\r\n--boundary--\r\n");
+    for chunks in [
+        vec![None, Some(body.clone())],
+        vec![Some(Bytes::new()), None, Some(body.clone())],
+        vec![Some(body.slice(..4)), None, Some(body.slice(4..))],
+        vec![Some(body.slice(..12)), None, Some(body.slice(12..))],
+        vec![
+            Some(body.slice(..12)),
+            None,
+            Some(body.slice(12..70)),
+            None,
+            Some(body.slice(70..)),
+        ],
+    ] {
+        let form = parse_form(Box::pin(PendingChunks(chunks.into())), "boundary".into())
+            .await
+            .unwrap();
+        assert_eq!(form.fields["model"], "custom");
+        assert_eq!(form.files.len(), 1);
+        assert_eq!(form.files[0].filename.as_deref(), Some("bird.png"));
+        assert_eq!(form.files[0].bytes.as_ref(), b"\x00\xffimage");
+    }
+}
+
+#[tokio::test]
 async fn duplicate_fields_truncated_forms_and_file_models_are_rejected() {
     for bytes in [
         b"--boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\na\r\n--boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nb\r\n--boundary--\r\n".as_slice(),

@@ -56,7 +56,10 @@
       "oauthProvider": "anthropic",
       "credentialProvider": "anthropic"
     },
-    "description": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly."
+    "description": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly.",
+    "headerHints": [
+      "anthropic-workspace-id"
+    ]
   },
   "localSignIns": [
     {

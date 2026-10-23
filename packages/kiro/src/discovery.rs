@@ -117,9 +117,8 @@ pub(super) async fn discover_sources(
         match result {
             Ok(Some(credentials)) => accounts.push(json!({"sourceID":source.kind.auth_method(),"credentials":Kiro::source_saved(&credentials,&source.kind,&source.path.to_string_lossy())})),
             Ok(None) => {},
-            Err(_) => {
-                let detected = session::read_source_if_signed_in(&source.kind, &source.path.to_string_lossy()).ok().flatten().is_some();
-                errors.push(json!({"sourceID":source.kind.auth_method(),"detected":detected,"message":"The local Kiro sign-in could not be verified or renewed. Try again shortly."}));
+            Err(error) => {
+                errors.push(json!({"sourceID":source.kind.auth_method(),"code":error.code,"message":error.message}));
             },
         }
     }

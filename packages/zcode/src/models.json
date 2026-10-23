@@ -1,0 +1,41 @@
+[
+  {
+    "id": "GLM-5.3",
+    "context": 1000000,
+    "output": 128000,
+    "efforts": [
+      "low",
+      "high",
+      "max"
+    ]
+  },
+  {
+    "id": "GLM-5.3-Flash",
+    "context": 1000000,
+    "output": 128000,
+    "efforts": [
+      "low",
+      "high",
+      "max"
+    ]
+  },
+  {
+    "id": "GLM-5.2",
+    "context": 1000000,
+    "output": 128000,
+    "efforts": [
+      "none",
+      "high",
+      "max"
+    ]
+  },
+  {
+    "id": "GLM-5-Turbo",
+    "context": 200000,
+    "output": 64000,
+    "efforts": [
+      "none",
+      "high"
+    ]
+  }
+]

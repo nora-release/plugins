@@ -2,7 +2,7 @@
   "apiVersion": 1,
   "id": "kimi-work",
   "name": "Kimi Work",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "runtime": { "entry": "provider", "type": "native" },
   "api": "openai-completions",
   "baseURL": "https://agent-gw.kimi.com/coding/v1",

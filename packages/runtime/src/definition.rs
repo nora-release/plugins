@@ -1,6 +1,6 @@
 use nora_provider_plugin_sdk::{PluginError, PluginResult};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -17,6 +17,8 @@ pub struct Definition {
     #[serde(default)]
     pub auth_methods: Vec<Value>,
     pub config: Config,
+    #[serde(skip)]
+    pub(crate) request_account: Option<String>,
     #[serde(skip, default = "crate::adapter::generic")]
     pub adapter: std::sync::Arc<dyn crate::ProviderAdapter>,
 }
@@ -24,6 +26,25 @@ pub struct Definition {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, Value>,
+    #[serde(default)]
+    pub auth_header: String,
+    #[serde(default)]
+    pub header_hints: Vec<String>,
+    #[serde(default)]
+    pub forwarded_headers: Vec<String>,
+    #[serde(default)]
+    pub legacy_profile: Option<String>,
+    #[serde(default)]
+    pub profiles: Vec<crate::profiles::Profile>,
+    #[serde(default)]
+    pub model_routes: Vec<crate::profiles::ModelRoute>,
+    #[serde(default)]
+    pub only: Vec<String>,
+    #[serde(default)]
+    pub key_optional: bool,
+
     #[serde(default)]
     pub catalog: String,
     #[serde(default)]
@@ -79,8 +100,52 @@ impl Definition {
                 "The provider manifest requires its identity and key provider.",
             ));
         }
+        crate::profiles::validate(&definition)?;
+        crate::account_headers::validate(&definition)?;
         Ok(definition)
     }
+}
+
+pub fn validate_package(value: &Value) -> Result<&str, String> {
+    let id = value
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|id| {
+            !id.is_empty()
+                && id.len() <= 128
+                && id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+        })
+        .ok_or("The provider package identity is invalid.")?;
+    for (field, limit) in [("name", 128), ("version", 64), ("api", 128)] {
+        if !value
+            .get(field)
+            .and_then(Value::as_str)
+            .is_some_and(|text| !text.trim().is_empty() && text.len() <= limit)
+        {
+            return Err(format!("The provider package {field} is invalid."));
+        }
+    }
+    if value.get("apiVersion").and_then(Value::as_u64) != Some(1)
+        || value.pointer("/runtime/type").and_then(Value::as_str) != Some("native")
+        || !value
+            .pointer("/runtime/entry")
+            .and_then(Value::as_str)
+            .is_some_and(|entry| !entry.is_empty())
+    {
+        return Err("The provider package requires a native executable and API version 1.".into());
+    }
+    if value
+        .get("models")
+        .is_some_and(|models| !models.as_array().is_some_and(|models| models.len() <= 4096))
+        || value
+            .get("config")
+            .is_some_and(|config| !config.is_null() && !config.is_object())
+    {
+        return Err("The provider package model or configuration shape is invalid.".into());
+    }
+    Ok(id)
 }
 
 pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
@@ -104,13 +169,11 @@ pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
         return Err("No provider manifests were found.".into());
     }
     for path in definitions {
-        let mut value: Value =
+        let value: Value =
             serde_json::from_slice(&std::fs::read(path).map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())?;
-        let definition = Definition::parse(value.clone()).map_err(|error| error.to_string())?;
-        value["config"]["modelDefinitions"] = json!(definition.models);
-        value["models"] = json!(definition.models);
-        let directory = output.join(&definition.id);
+        let id = validate_package(&value)?;
+        let directory = output.join(id);
         std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
         std::fs::write(
             directory.join("nora-provider.json"),
@@ -120,3 +183,7 @@ pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../test/definition.test.rs"]
+mod tests;

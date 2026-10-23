@@ -55,6 +55,25 @@ async fn builder_profile_fallback_requires_the_specific_builder_error() {
     assert_eq!(profile(&client, &c).await.unwrap(), fixture::PROFILE);
     assert_eq!(client.requests.lock().unwrap().len(), 2);
 }
+
+#[tokio::test]
+async fn profile_lookup_preserves_service_errors_when_both_regions_fail() {
+    for status in [401, 403, 503] {
+        let client = fixture::Client::new(vec![
+            fixture::Reply::raw(status, b"private-service-response".to_vec()),
+            fixture::Reply::raw(status, b"private-service-response".to_vec()),
+        ]);
+        let credential = Credential {
+            method: "social".into(),
+            access: "private-access".into(),
+            ..Default::default()
+        };
+        let error = profile(&client, &credential).await.unwrap_err();
+        assert_eq!(error.code, format!("kiro_http_{status}"));
+        assert!(!error.message.contains("private"));
+        assert_eq!(client.requests.lock().unwrap().len(), 2);
+    }
+}
 #[tokio::test]
 async fn api_keys_resolve_their_own_profile_with_api_key_token_type() {
     let client = fixture::Client::new(vec![fixture::Reply::json(

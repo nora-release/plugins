@@ -1,0 +1,68 @@
+{
+  "apiVersion": 1,
+  "id": "google-vertex",
+  "name": "Google Vertex AI",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "google-generative-ai",
+  "baseURL": "https://aiplatform.googleapis.com",
+  "models": [],
+  "authMethods": [
+    {
+      "id": "adc",
+      "type": "api",
+      "label": "Google Cloud credentials",
+      "fields": [
+        {
+          "id": "project",
+          "type": "text",
+          "label": "Google Cloud project",
+          "required": true
+        },
+        {
+          "id": "location",
+          "type": "text",
+          "label": "Location",
+          "placeholder": "global"
+        },
+        {
+          "id": "sourcePath",
+          "type": "text",
+          "label": "Credentials file",
+          "placeholder": "Application Default Credentials"
+        },
+        {
+          "id": "impersonate",
+          "type": "text",
+          "label": "Impersonated service account"
+        },
+        {
+          "id": "header:X-Vertex-AI-LLM-Request-Type",
+          "key": "header:X-Vertex-AI-LLM-Request-Type",
+          "type": "text",
+          "label": "X-Vertex-AI-LLM-Request-Type",
+          "required": false
+        },
+        {
+          "id": "header:X-Vertex-AI-LLM-Shared-Request-Type",
+          "key": "header:X-Vertex-AI-LLM-Shared-Request-Type",
+          "type": "text",
+          "label": "X-Vertex-AI-LLM-Shared-Request-Type",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "config": {
+    "keyProvider": "google-vertex",
+    "catalog": "google-vertex",
+    "description": "Use your Google Cloud project and an explicitly connected Application Default Credentials file, service account key, or service account impersonation.",
+    "headerHints": [
+      "X-Vertex-AI-LLM-Request-Type",
+      "X-Vertex-AI-LLM-Shared-Request-Type"
+    ]
+  }
+}

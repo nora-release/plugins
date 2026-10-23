@@ -308,6 +308,15 @@ impl SourceSession {
         Ok(SourceState::Changed)
     }
 
+    pub(crate) fn select_identity(&mut self, saved: Option<&Value>) -> PluginResult<()> {
+        // A resumed write belongs to its source; the current caller selects
+        // which Nora account, if any, the subsequently verified identity must match.
+        self.expected = None;
+        match saved {
+            Some(saved) => self.bind_identity(saved),
+            None => Ok(()),
+        }
+    }
     pub(crate) fn bind_identity(&mut self, saved: &Value) -> PluginResult<()> {
         let identity = saved
             .get("accountIdentity")
@@ -344,6 +353,26 @@ impl SourceSession {
     }
     pub(crate) fn reload(&mut self) -> PluginResult<Option<Credential>> {
         self.reload_snapshot(true)
+    }
+    /// A write may succeed before reloading its snapshot fails. Reconcile only
+    /// that exact durable rotation before another request can refresh it again.
+    pub(crate) fn reconcile_refreshed(&mut self, next: &Credential) -> PluginResult<()> {
+        if self.state(next)? != SourceState::Written {
+            return Err(conflict());
+        }
+        let file = FileIdentity::read(&self.target)?;
+        let (credential, snapshot) = read(&self.kind, &self.target)?.ok_or_else(conflict)?;
+        if FileIdentity::read(&self.target)? != file
+            || !same_binding(&credential, next)
+            || credential.expires != next.expires
+            || self.state(next)? != SourceState::Written
+        {
+            return Err(conflict());
+        }
+        self.file = file;
+        self.credential = credential;
+        self.snapshot = Some(snapshot);
+        Ok(())
     }
     fn reload_snapshot(&mut self, check_binding: bool) -> PluginResult<Option<Credential>> {
         if std::fs::canonicalize(&self.path).map_err(|_| conflict())? != self.target {

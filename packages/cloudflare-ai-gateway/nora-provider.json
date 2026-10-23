@@ -2,7 +2,7 @@
   "apiVersion": 1,
   "id": "cloudflare-ai-gateway",
   "name": "Cloudflare AI Gateway",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "runtime": {
     "entry": "provider",
     "type": "native"

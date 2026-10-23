@@ -39,6 +39,9 @@ pub(crate) fn authorize(mut request: HttpRequest, c: &Credential) -> HttpRequest
     }
     request
 }
+pub(crate) fn authentication_rejected(error: &PluginError) -> bool {
+    matches!(error.code.as_str(), "kiro_http_401" | "kiro_http_403")
+}
 pub(crate) fn post(url: String, value: &Value) -> PluginResult<HttpRequest> {
     HttpRequest::new(HttpMethod::Post, url)
         .with_json_body(value)
@@ -187,6 +190,7 @@ pub(crate) async fn profile(client: &dyn HttpClient, c: &Credential) -> PluginRe
     if c.builder {
         return Ok(session::BUILDER_PROFILE.into());
     }
+    let mut last_error = None;
     for region in ["us-east-1", "eu-central-1"] {
         let mut cred = c.clone();
         cred.region = region.into();
@@ -204,10 +208,10 @@ pub(crate) async fn profile(client: &dyn HttpClient, c: &Credential) -> PluginRe
             Err(error) if c.method == "idc" && error.code == "kiro_builder_id" => {
                 return Ok(session::BUILDER_PROFILE.into());
             }
-            Err(_) => {}
+            Err(error) => last_error = Some(error),
         }
     }
-    Err(session::expired())
+    Err(last_error.unwrap_or_else(session::expired))
 }
 pub(crate) async fn identify(client: &dyn HttpClient, c: &mut Credential) -> PluginResult<Value> {
     c.profile = profile(client, c).await?;

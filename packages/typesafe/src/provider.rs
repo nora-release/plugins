@@ -120,7 +120,12 @@ impl ProviderPlugin for Typesafe {
         context.network_proxy = self.effective_proxy(context.network_proxy)?;
         let client = ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
             context.network_proxy.as_ref(),
-        )?);
+        )?)
+        .with_observer_fn(|| async {
+            nora_provider_plugin_sdk::before_http_request()
+                .await
+                .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+        });
         list_models(&definition, context, &client).await
     }
     async fn fetch(&self, mut request: FetchRequest) -> PluginResult<FetchResponse> {
@@ -128,7 +133,12 @@ impl ProviderPlugin for Typesafe {
         request.network_proxy = self.effective_proxy(request.network_proxy)?;
         let client = ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
             request.network_proxy.as_ref(),
-        )?);
+        )?)
+        .with_observer_fn(|| async {
+            nora_provider_plugin_sdk::before_http_request()
+                .await
+                .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+        });
         fetch(&definition, request, &client).await
     }
 }
@@ -155,7 +165,7 @@ fn endpoint(
     Ok(target)
 }
 
-fn marked(mut value: Value, definition: &Definition, base: &str, source: &str) -> Value {
+pub(crate) fn marked(mut value: Value, definition: &Definition, base: &str, source: &str) -> Value {
     value["provider"] = json!(definition.id);
     value["api"] = json!("systemone");
     value["baseUrl"] = json!(base);
@@ -259,7 +269,7 @@ async fn list_models(
             model["input"] = json!(input
                 .iter()
                 .filter_map(Value::as_str)
-                .filter(|input| matches!(*input, "text" | "image"))
+                .filter(|input| matches!(*input, "text" | "image" | "audio" | "video" | "pdf"))
                 .collect::<Vec<_>>());
         }
         if let Some(cost) = entry.get("cost").and_then(Value::as_object) {
@@ -284,7 +294,7 @@ async fn list_models(
     )
 }
 
-fn validate_body(request: &FetchRequest) -> PluginResult<Vec<u8>> {
+pub(crate) fn validate_body(request: &FetchRequest) -> PluginResult<Vec<u8>> {
     if request
         .body_file
         .as_ref()
@@ -319,7 +329,7 @@ fn validate_body(request: &FetchRequest) -> PluginResult<Vec<u8>> {
         .is_none_or(|model| {
             model.trim().is_empty() || model.len() > 1024 || model.chars().any(char::is_control)
         })
-        || !body.get("state").is_some_and(Value::is_object)
+        || body.get("state").is_none()
         || body
             .get("questions")
             .and_then(Value::as_object)
@@ -388,7 +398,7 @@ async fn fetch(
     Ok(FetchResponse::bytes(status, headers, bytes))
 }
 
-async fn exchange(
+pub(crate) async fn exchange(
     client: &dyn HttpClient,
     request: HttpRequest,
     timeout: Duration,

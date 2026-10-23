@@ -3,6 +3,8 @@ use nora_ai::{HttpClient, HttpMethod, HttpRequest, ResolvedProviderAuth};
 use nora_provider::usage::{header, parsing::*, request_json};
 use serde_json::{json, Value};
 use std::time::Duration;
+#[path = "usage/gate.rs"]
+mod gate;
 #[path = "usage/resets.rs"]
 pub mod resets;
 
@@ -11,6 +13,7 @@ pub fn parse(payload: &Value) -> Value {
     let mut balances = Vec::new();
     openai(payload, &mut items, &mut balances);
     let mut result = result(payload, items, balances);
+    gate::apply(payload, &mut result);
     result["resetCredits"] = resets::from_usage(payload);
     update_availability(&mut result);
     result

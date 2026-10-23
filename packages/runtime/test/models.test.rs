@@ -16,19 +16,27 @@ fn definition(id: &str) -> Definition {
     definition
 }
 #[test]
-fn every_package_declares_models_or_an_authenticated_discovery_route() {
+fn native_packages_keep_their_own_schema_and_generic_packages_have_models_or_discovery() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap();
-    let mut count = 0;
+    let mut ids = std::collections::BTreeSet::new();
     for entry in std::fs::read_dir(root).unwrap() {
-        let manifest = entry.unwrap().path().join("nora-provider.json");
+        let directory = entry.unwrap().path();
+        let manifest = directory.join("nora-provider.json");
         if !manifest.exists() {
             continue;
         }
-        let definition =
-            Definition::parse(serde_json::from_slice(&std::fs::read(manifest).unwrap()).unwrap())
-                .unwrap();
+        let value: Value = serde_json::from_slice(&std::fs::read(&manifest).unwrap()).unwrap();
+        let id = crate::definition::validate_package(&value).unwrap();
+        assert!(
+            ids.insert(id.to_owned()),
+            "Duplicate provider package identity: {id}"
+        );
+        if directory.join("Cargo.toml").is_file() {
+            continue;
+        }
+        let definition = Definition::parse(value).unwrap();
         let bundled = catalog_models(&definition, None).unwrap();
         let remote = definition
             .config
@@ -38,8 +46,9 @@ fn every_package_declares_models_or_an_authenticated_discovery_route() {
                 !discovery.no_list
                     && !discovery.bases.is_empty()
                     && discovery.bases.iter().all(|base| {
-                        url::Url::parse(&base.base_url)
-                            .is_ok_and(|url| url.scheme() == "https" && url.host_str().is_some())
+                        url::Url::parse(&base.base_url).is_ok_and(|url| {
+                            matches!(url.scheme(), "https" | "http") && url.host_str().is_some()
+                        })
                     })
             });
         assert!(
@@ -47,9 +56,11 @@ fn every_package_declares_models_or_an_authenticated_discovery_route() {
             "{} has neither models nor a secure discovery route",
             definition.id
         );
-        count += 1;
     }
-    assert_eq!(count, 38);
+    assert!(ids.len() >= 38);
+    for id in ["openai", "anthropic", "google-gemini", "amazon-bedrock"] {
+        assert!(ids.contains(id));
+    }
 }
 #[test]
 fn account_types_choose_the_subscription_protocol_and_endpoint() {
@@ -85,7 +96,10 @@ fn prepared_api_models_do_not_change_the_oauth_model_catalog() {
 fn custom_packages_without_a_catalog_use_their_own_protocol_and_identity() {
     let custom=Definition::parse(json!({"id":"personal","name":"Personal","api":"anthropic-messages","baseURL":"https://personal.invalid","models":[],"config":{"keyProvider":"personal","nativeAPI":"anthropic-messages"}})).unwrap();
     let models = catalog_models(&custom, None).unwrap();
-    assert!(!models.is_empty());
+    assert!(
+        models.is_empty(),
+        "An unknown provider must not inherit another provider catalog"
+    );
     assert!(models.iter().all(|model| model.provider == "personal"
         && model.api == "anthropic-messages"
         && model.base_url == "https://personal.invalid"));

@@ -1,0 +1,515 @@
+{
+  "apiVersion": 1,
+  "id": "tencent-cloud",
+  "name": "Tencent Cloud",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-completions",
+  "baseURL": "https://api.lkeap.cloud.tencent.com/plan/v3",
+  "aliases": [],
+  "authMethods": [
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "Plan · China",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        },
+        {
+          "id": "accessKeyID",
+          "key": "accessKeyID",
+          "type": "password",
+          "label": "SecretId (usage, optional)",
+          "required": false
+        },
+        {
+          "id": "secretAccessKey",
+          "key": "secretAccessKey",
+          "type": "password",
+          "label": "SecretKey (usage, optional)",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "profile-cn",
+      "type": "api",
+      "label": "Pay as you go · China",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        },
+        {
+          "id": "accessKeyID",
+          "key": "accessKeyID",
+          "type": "password",
+          "label": "SecretId (usage, optional)",
+          "required": false
+        },
+        {
+          "id": "secretAccessKey",
+          "key": "secretAccessKey",
+          "type": "password",
+          "label": "SecretKey (usage, optional)",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "profile-intl",
+      "type": "api",
+      "label": "Pay as you go · Global",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        },
+        {
+          "id": "accessKeyID",
+          "key": "accessKeyID",
+          "type": "password",
+          "label": "SecretId (usage, optional)",
+          "required": false
+        },
+        {
+          "id": "secretAccessKey",
+          "key": "secretAccessKey",
+          "type": "password",
+          "label": "SecretKey (usage, optional)",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "profile-enterprise",
+      "type": "api",
+      "label": "Enterprise plan · China",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        },
+        {
+          "id": "accessKeyID",
+          "key": "accessKeyID",
+          "type": "password",
+          "label": "SecretId (usage, optional)",
+          "required": false
+        },
+        {
+          "id": "secretAccessKey",
+          "key": "secretAccessKey",
+          "type": "password",
+          "label": "SecretKey (usage, optional)",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "profile-enterprise-intl",
+      "type": "api",
+      "label": "Enterprise plan · Global",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        },
+        {
+          "id": "accessKeyID",
+          "key": "accessKeyID",
+          "type": "password",
+          "label": "SecretId (usage, optional)",
+          "required": false
+        },
+        {
+          "id": "secretAccessKey",
+          "key": "secretAccessKey",
+          "type": "password",
+          "label": "SecretKey (usage, optional)",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "models": [
+    {
+      "id": "tc-code-latest"
+    },
+    {
+      "id": "glm-5.3"
+    },
+    {
+      "id": "glm-5.3-flash"
+    },
+    {
+      "id": "glm-5.2"
+    },
+    {
+      "id": "glm-5.1"
+    },
+    {
+      "id": "glm-5"
+    },
+    {
+      "id": "kimi-k3"
+    },
+    {
+      "id": "kimi-k2.7-code"
+    },
+    {
+      "id": "deepseek-v4-pro-202606"
+    },
+    {
+      "id": "deepseek-v4-flash-202605"
+    },
+    {
+      "id": "minimax-m3"
+    },
+    {
+      "id": "minimax-m2.7"
+    },
+    {
+      "id": "hy4-preview"
+    },
+    {
+      "id": "hy3"
+    }
+  ],
+  "config": {
+    "keyProvider": "tencent-cloud",
+    "catalog": "tencent-cloud",
+    "profiles": [
+      {
+        "id": "plan",
+        "name": "Plan · China",
+        "bases": [
+          {
+            "api": "openai-completions",
+            "baseURL": "https://api.lkeap.cloud.tencent.com/plan/v3"
+          },
+          {
+            "api": "anthropic-messages",
+            "baseURL": "https://api.lkeap.cloud.tencent.com/plan/anthropic"
+          }
+        ],
+        "models": [
+          {
+            "id": "tc-code-latest"
+          },
+          {
+            "id": "glm-5.3"
+          },
+          {
+            "id": "glm-5.3-flash"
+          },
+          {
+            "id": "glm-5.2"
+          },
+          {
+            "id": "glm-5.1"
+          },
+          {
+            "id": "glm-5"
+          },
+          {
+            "id": "kimi-k3"
+          },
+          {
+            "id": "kimi-k2.7-code"
+          },
+          {
+            "id": "deepseek-v4-pro-202606"
+          },
+          {
+            "id": "deepseek-v4-flash-202605"
+          },
+          {
+            "id": "minimax-m3"
+          },
+          {
+            "id": "minimax-m2.7"
+          },
+          {
+            "id": "hy4-preview"
+          },
+          {
+            "id": "hy3"
+          }
+        ],
+        "catalog": "tencent-cloud",
+        "noList": false,
+        "keyOptional": false,
+        "modelRoutes": [
+          {
+            "pattern": "*claude*",
+            "api": "anthropic-messages"
+          }
+        ],
+        "only": []
+      },
+      {
+        "id": "cn",
+        "name": "Pay as you go · China",
+        "bases": [
+          {
+            "api": "openai-completions",
+            "baseURL": "https://tokenhub.tencentmaas.com/v1"
+          },
+          {
+            "api": "openai-responses",
+            "baseURL": "https://tokenhub.tencentmaas.com/v1"
+          },
+          {
+            "api": "anthropic-messages",
+            "baseURL": "https://tokenhub.tencentmaas.com"
+          }
+        ],
+        "models": [],
+        "catalog": "tencent-tokenhub",
+        "noList": false,
+        "keyOptional": false,
+        "modelRoutes": [
+          {
+            "pattern": "*claude*",
+            "api": "anthropic-messages"
+          }
+        ],
+        "only": []
+      },
+      {
+        "id": "intl",
+        "name": "Pay as you go · Global",
+        "bases": [
+          {
+            "api": "openai-completions",
+            "baseURL": "https://tokenhub-intl.tencentmaas.com/v1"
+          },
+          {
+            "api": "openai-responses",
+            "baseURL": "https://tokenhub-intl.tencentmaas.com/v1"
+          },
+          {
+            "api": "anthropic-messages",
+            "baseURL": "https://tokenhub-intl.tencentmaas.com"
+          }
+        ],
+        "models": [],
+        "catalog": "tencent-tokenhub",
+        "noList": false,
+        "keyOptional": false,
+        "modelRoutes": [
+          {
+            "pattern": "*claude*",
+            "api": "anthropic-messages"
+          }
+        ],
+        "only": []
+      },
+      {
+        "id": "enterprise",
+        "name": "Enterprise plan · China",
+        "bases": [
+          {
+            "api": "openai-completions",
+            "baseURL": "https://tokenhub.tencentmaas.com/plan/v3"
+          },
+          {
+            "api": "openai-responses",
+            "baseURL": "https://tokenhub.tencentmaas.com/plan/v3"
+          },
+          {
+            "api": "anthropic-messages",
+            "baseURL": "https://tokenhub.tencentmaas.com/plan/anthropic"
+          }
+        ],
+        "models": [
+          {
+            "id": "auto"
+          },
+          {
+            "id": "hy4-preview"
+          },
+          {
+            "id": "glm-5.3"
+          },
+          {
+            "id": "glm-5.3-flash"
+          },
+          {
+            "id": "glm-5.2"
+          },
+          {
+            "id": "kimi-k3"
+          },
+          {
+            "id": "kimi-k2.7-code"
+          },
+          {
+            "id": "kimi-k2.7-code-highspeed"
+          },
+          {
+            "id": "kimi-k2.6"
+          },
+          {
+            "id": "minimax-m3"
+          },
+          {
+            "id": "minimax-m2.7"
+          },
+          {
+            "id": "deepseek-v4.1-flash"
+          },
+          {
+            "id": "deepseek-v4-pro"
+          },
+          {
+            "id": "deepseek-v4-pro-0813"
+          },
+          {
+            "id": "deepseek-v4-flash-0731"
+          },
+          {
+            "id": "deepseek-v4-pro-202606"
+          },
+          {
+            "id": "deepseek-v4-flash-202605"
+          },
+          {
+            "id": "mimo-v2.6-pro"
+          },
+          {
+            "id": "mimo-v2.6-flash"
+          }
+        ],
+        "catalog": "tencent-cloud",
+        "noList": false,
+        "keyOptional": false,
+        "modelRoutes": [
+          {
+            "pattern": "*claude*",
+            "api": "anthropic-messages"
+          }
+        ],
+        "only": []
+      },
+      {
+        "id": "enterprise-intl",
+        "name": "Enterprise plan · Global",
+        "bases": [
+          {
+            "api": "openai-completions",
+            "baseURL": "https://tokenhub-intl.tencentmaas.com/plan/v3"
+          },
+          {
+            "api": "openai-responses",
+            "baseURL": "https://tokenhub-intl.tencentmaas.com/plan/v3"
+          },
+          {
+            "api": "anthropic-messages",
+            "baseURL": "https://tokenhub-intl.tencentmaas.com/plan/anthropic"
+          }
+        ],
+        "models": [
+          {
+            "id": "auto"
+          },
+          {
+            "id": "hy4-preview"
+          },
+          {
+            "id": "glm-5.3"
+          },
+          {
+            "id": "glm-5.3-flash"
+          },
+          {
+            "id": "glm-5.2"
+          },
+          {
+            "id": "kimi-k3"
+          },
+          {
+            "id": "kimi-k2.7-code"
+          },
+          {
+            "id": "kimi-k2.7-code-highspeed"
+          },
+          {
+            "id": "minimax-m3"
+          },
+          {
+            "id": "deepseek-v4.1-flash"
+          },
+          {
+            "id": "deepseek-v4-pro"
+          },
+          {
+            "id": "deepseek-v4-pro-0813"
+          },
+          {
+            "id": "deepseek-v4-flash-0731"
+          },
+          {
+            "id": "deepseek-v4-pro-202606"
+          },
+          {
+            "id": "deepseek-v4-flash-202605"
+          },
+          {
+            "id": "mimo-v2.6-pro"
+          },
+          {
+            "id": "mimo-v2.6-flash"
+          }
+        ],
+        "catalog": "tencent-cloud",
+        "noList": false,
+        "keyOptional": false,
+        "modelRoutes": [
+          {
+            "pattern": "*claude*",
+            "api": "anthropic-messages"
+          }
+        ],
+        "only": []
+      }
+    ],
+    "connectionManaged": true,
+    "apiKeyAuth": "bearer",
+    "modelDiscovery": {
+      "defaultBaseURL": "https://api.lkeap.cloud.tencent.com/plan/v3",
+      "bases": [
+        {
+          "api": "openai-completions",
+          "baseURL": "https://api.lkeap.cloud.tencent.com/plan/v3"
+        },
+        {
+          "api": "anthropic-messages",
+          "baseURL": "https://api.lkeap.cloud.tencent.com/plan/anthropic"
+        }
+      ],
+      "noList": false
+    }
+  }
+}

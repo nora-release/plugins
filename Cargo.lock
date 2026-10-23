@@ -3,6 +3,47 @@
 version = 4
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
+name = "aead"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d122413f284cf2d62fb1b7db97e02edb8cda96d769b16e443a4f6195e35662b0"
+dependencies = [
+ "crypto-common",
+ "generic-array",
+]
+
+[[package]]
+name = "aes"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
+dependencies = [
+ "cfg-if",
+ "cipher",
+ "cpufeatures 0.2.17",
+]
+
+[[package]]
+name = "aes-gcm"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "831010a0f742e1209b3bcea8fab6a8e149051ba6099432c8cb2cc117dec3ead1"
+dependencies = [
+ "aead",
+ "aes",
+ "cipher",
+ "ctr",
+ "ghash",
+ "subtle",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -56,6 +97,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "base16ct"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c7f02d4ea65f2c1853089ffd8d2787bdbc63de2f0d29dedbcf8ccdfa0ccd4cf"
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -83,6 +130,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-padding"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8894febbff9f758034a5b8e12d87918f56dfc64a8e1fe757d65e29041538d93"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
+name = "bstr"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bb31b46c14244e20ee9984b11bf5c992b91fb6939fea616e3512c8baecdbe5f"
+dependencies = [
+ "memchr",
+ "serde_core",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -99,6 +165,15 @@ name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
+
+[[package]]
+name = "cbc"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26b52a9543ae338f279b96b0b9fed9c8093744685043739079ce85cd58f289a6"
+dependencies = [
+ "cipher",
+]
 
 [[package]]
 name = "cc"
@@ -157,10 +232,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "cipher"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
+dependencies = [
+ "crypto-common",
+ "inout",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
+
+[[package]]
+name = "cookie"
+version = "0.18.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a373e3602691c3cdea496d2f0ee5935151e6168fe87739483c463db1b2f2f87"
+dependencies = [
+ "time",
+ "version_check",
+]
 
 [[package]]
 name = "core-foundation-sys"
@@ -202,13 +297,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-bigint"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0dc92fb57ca44df6db8059111ab3af99a63d5d0f8375d9972e319a379c6bab76"
+dependencies = [
+ "generic-array",
+ "rand_core 0.6.4",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78c8292055d1c1df0cce5d180393dc8cce0abec0a7102adb6c7b1eef6016d60a"
 dependencies = [
  "generic-array",
+ "rand_core 0.6.4",
  "typenum",
+]
+
+[[package]]
+name = "ctr"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0369ee1ad671834580515889b80f2ea915f23b8be8d0daa4bbaf2ac5c7590835"
+dependencies = [
+ "cipher",
 ]
 
 [[package]]
@@ -229,6 +346,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "deranged"
+version = "0.5.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e9de72ce2ad1f90dc62fa25f0f430ef85eb4b0d8fa0be4f30373bc40a21d28e"
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -237,6 +360,7 @@ dependencies = [
  "block-buffer",
  "const-oid",
  "crypto-common",
+ "subtle",
 ]
 
 [[package]]
@@ -248,6 +372,40 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.6",
+]
+
+[[package]]
+name = "ecdsa"
+version = "0.16.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee27f32b5c5292967d2d4a9d7f1e0b0aed2c15daded5a60300e4abb9d8020bca"
+dependencies = [
+ "der",
+ "digest",
+ "elliptic-curve",
+ "rfc6979",
+ "signature",
+ "spki",
+]
+
+[[package]]
+name = "elliptic-curve"
+version = "0.13.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5e6043086bf7973472e0c7dff2142ea0b680d30e18d9cc40f267efbf222bd47"
+dependencies = [
+ "base16ct",
+ "crypto-bigint",
+ "digest",
+ "ff",
+ "generic-array",
+ "group",
+ "pem-rfc7468",
+ "pkcs8",
+ "rand_core 0.6.4",
+ "sec1",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -263,6 +421,12 @@ dependencies = [
  "scopeguard",
  "simdutf8",
 ]
+
+[[package]]
+name = "equivalent"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00d174d5400e5e8fd687ad1049e2f578285fa914201b1af7e8b112a4546bd826"
 
 [[package]]
 name = "errno"
@@ -287,10 +451,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
+name = "ff"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0b50bfb653653f9ca9095b427bed08ab8d75a137839d9ad64eb11810d5b6393"
+dependencies = [
+ "rand_core 0.6.4",
+ "subtle",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26b73573e6edcd2af0cdf47bd6cb58f0b3839491263c314eaad1ccf24430e1de"
+
+[[package]]
+name = "flate2"
+version = "1.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e634e2e0ebac1ee034020da1ca582e17ffe4e0f5e985823721e168928136dcb"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
+ "zlib-rs",
+]
+
+[[package]]
+name = "fnv"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "form_urlencoded"
@@ -397,6 +588,7 @@ checksum = "85649ca51fd72272d7821adaf274ad91c288277713d9c18820d8499a7ff69e9a"
 dependencies = [
  "typenum",
  "version_check",
+ "zeroize",
 ]
 
 [[package]]
@@ -427,6 +619,59 @@ dependencies = [
 ]
 
 [[package]]
+name = "ghash"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0d8a4362ccb29cb0b265253fb0a2728f592895ee6854fd9bc13f2ffda266ff1"
+dependencies = [
+ "opaque-debug",
+ "polyval",
+]
+
+[[package]]
+name = "globset"
+version = "0.4.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e47d37d2ae4464254884b60ab7071be2b876a9c35b696bd018ddcc76847309cd"
+dependencies = [
+ "aho-corasick",
+ "bstr",
+ "log",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
+name = "group"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0f9ef7462f7c099f518d754361858f86d8a07af53ba9af0fe635bbccb151a63"
+dependencies = [
+ "ff",
+ "rand_core 0.6.4",
+ "subtle",
+]
+
+[[package]]
+name = "h2"
+version = "0.4.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d29020232d6aa3fb1daca64c1127cf662cf97f254ae16c18c05b8ab635fc118"
+dependencies = [
+ "atomic-waker",
+ "bytes",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "http",
+ "indexmap",
+ "slab",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -436,12 +681,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+
+[[package]]
 name = "hashlink"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
 dependencies = [
- "hashbrown",
+ "hashbrown 0.14.5",
+]
+
+[[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hmac"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
+dependencies = [
+ "digest",
 ]
 
 [[package]]
@@ -493,6 +759,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-core",
+ "h2",
  "http",
  "http-body",
  "httparse",
@@ -670,6 +937,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "indexmap"
+version = "2.14.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc4e190f5d26ca7051642629da2c52fc03bde85a03197c99408dcd291734c855"
+dependencies = [
+ "equivalent",
+ "hashbrown 0.17.1",
+]
+
+[[package]]
+name = "inout"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
+dependencies = [
+ "block-padding",
+ "generic-array",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -701,9 +988,11 @@ checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
 dependencies = [
  "base64",
  "js-sys",
+ "pem",
  "ring",
  "serde",
  "serde_json",
+ "simple_asn1",
 ]
 
 [[package]]
@@ -726,6 +1015,18 @@ name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
+
+[[package]]
+name = "libredox"
+version = "0.1.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61ff90caf6077a803a240f62fdbe88645a890bbca49ef8174c3cb0404362171d"
+dependencies = [
+ "bitflags",
+ "libc",
+ "plain",
+ "redox_syscall",
+]
 
 [[package]]
 name = "libsqlite3-sys"
@@ -757,6 +1058,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
+name = "md-5"
+version = "0.10.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d89e7ee0cfbedfc4da3340218492196241d89eefb6dab27de5df917a6d2e78cf"
+dependencies = [
+ "cfg-if",
+ "digest",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -767,6 +1078,16 @@ name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+
+[[package]]
+name = "miniz_oxide"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b63fbc4a50860e98e7b2aa7804ded1db5cbc3aff9193adaff57a6931bf7c4b4c"
+dependencies = [
+ "adler2",
+ "simd-adler32",
+]
 
 [[package]]
 name = "mio"
@@ -833,6 +1154,7 @@ dependencies = [
  "bytes",
  "chrono",
  "futures",
+ "globset",
  "multer",
  "nora-ai",
  "nora-provider-auth",
@@ -858,6 +1180,31 @@ dependencies = [
  "nora-provider-plugin-sdk",
  "nora-provider-quota",
  "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-amazon-bedrock"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-amazon-bedrock-mantle"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-amazon-bedrock",
+ "nora-provider-plugin-sdk",
  "tokio",
 ]
 
@@ -910,6 +1257,73 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-bailian-decision"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-plugin-sdk",
+ "nora-provider-typesafe",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-cline"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "futures",
+ "hex",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-clinepass"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-cline",
+ "nora-provider-plugin-sdk",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-cloudflare-jev"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-plugin-sdk",
+ "nora-provider-typesafe",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-codearts"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "getrandom 0.2.17",
+ "hmac",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "p256",
+ "rand_core 0.6.4",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "nora-provider-codeassist"
 version = "1.2.0"
 dependencies = [
@@ -928,6 +1342,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-commandcode-plan"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "hex",
+ "libc",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "percent-encoding",
+ "rand 0.8.6",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-cursor"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "bytes",
+ "chrono",
+ "flate2",
+ "futures",
+ "h2",
+ "http",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "reqwest",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "nora-provider-deepseek"
 version = "1.2.0"
 dependencies = [
@@ -938,6 +1396,51 @@ dependencies = [
  "nora-provider-quota",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "nora-provider-devin"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "bytes",
+ "chrono",
+ "flate2",
+ "futures",
+ "libc",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "rand 0.8.6",
+ "reqwest",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "toml",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-factory"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "percent-encoding",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -974,6 +1477,41 @@ dependencies = [
  "nora-ai",
  "nora-provider",
  "nora-provider-plugin-sdk",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-google-vertex"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "jsonwebtoken",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "percent-encoding",
+ "rand 0.8.6",
+ "rsa",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-kimi-code"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-quota",
  "serde_json",
  "tokio",
  "url",
@@ -1029,6 +1567,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-mimo-app"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "bytes",
+ "chrono",
+ "cookie",
+ "futures",
+ "hex",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "rand 0.8.6",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "nora-provider-minimax"
 version = "1.2.0"
 dependencies = [
@@ -1051,6 +1610,37 @@ dependencies = [
  "nora-provider",
  "nora-provider-quota",
  "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-minimax-code"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "hex",
+ "md-5",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "rand 0.8.6",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-minimax-code-global"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-minimax-code",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
  "tokio",
 ]
 
@@ -1128,6 +1718,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-opencode-zen-free"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "futures",
+ "hex",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "rand 0.8.6",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-opendesign"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "futures",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "nora-provider-openrouter"
 version = "1.2.0"
 dependencies = [
@@ -1158,6 +1782,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-qoder"
+version = "1.2.0"
+dependencies = [
+ "aes",
+ "async-trait",
+ "base64",
+ "cbc",
+ "chrono",
+ "futures",
+ "md-5",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "rand 0.8.6",
+ "regex",
+ "rsa",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-qoder-cn"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-plugin-sdk",
+ "nora-provider-qoder",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-quota"
 version = "1.2.0"
 dependencies = [
@@ -1166,6 +1822,55 @@ dependencies = [
  "nora-ai",
  "nora-provider",
  "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-qwen-decision"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-plugin-sdk",
+ "nora-provider-typesafe",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-raccoon"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "hex",
+ "libc",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "num-bigint",
+ "rand 0.8.6",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-remote-magpie"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "libc",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
  "tokio",
  "url",
 ]
@@ -1223,6 +1928,81 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-subscription-core"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "hex",
+ "hmac",
+ "libc",
+ "md-5",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "percent-encoding",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-tencent-cloud"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "hex",
+ "hmac",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-quota",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-trae-cn"
+version = "1.2.0"
+dependencies = [
+ "aes",
+ "async-trait",
+ "base64",
+ "cbc",
+ "chrono",
+ "futures",
+ "libc",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "p256",
+ "rand 0.8.6",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "nora-provider-trae-global"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-plugin-sdk",
+ "nora-provider-trae-cn",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-typesafe"
 version = "1.2.0"
 dependencies = [
@@ -1232,9 +2012,66 @@ dependencies = [
  "nora-ai",
  "nora-provider",
  "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
  "serde_json",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "nora-provider-vercel-jev"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-plugin-sdk",
+ "nora-provider-typesafe",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-volcengine"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "hex",
+ "hmac",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "nora-provider-quota",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-workbuddy"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "getrandom 0.2.17",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "nora-provider-workbuddy-ai"
+version = "1.2.0"
+dependencies = [
+ "nora-provider-plugin-sdk",
+ "nora-provider-workbuddy",
+ "tokio",
 ]
 
 [[package]]
@@ -1269,6 +2106,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-zcode"
+version = "1.2.0"
+dependencies = [
+ "aes-gcm",
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "hex",
+ "iana-time-zone",
+ "libc",
+ "nora-ai",
+ "nora-provider-plugin-sdk",
+ "nora-provider-subscription-core",
+ "percent-encoding",
+ "rand 0.8.6",
+ "regex",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+ "uuid",
+ "whoami",
+]
+
+[[package]]
+name = "nora-provider-zed"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "futures",
+ "nora-ai",
+ "nora-provider",
+ "nora-provider-plugin-sdk",
+ "rand 0.8.6",
+ "reqwest",
+ "rsa",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "nora-provider-zhipu"
 version = "1.2.0"
 dependencies = [
@@ -1280,6 +2163,16 @@ dependencies = [
  "nora-provider-quota",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "num-bigint"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c89e69e7e0f03bea5ef08013795c25018e101932225a656383bd384495ecc367"
+dependencies = [
+ "num-integer",
+ "num-traits",
 ]
 
 [[package]]
@@ -1297,6 +2190,12 @@ dependencies = [
  "smallvec",
  "zeroize",
 ]
+
+[[package]]
+name = "num-conv"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "521739c6d2bac4aa25192232afe6841231376b2b26d4d9fae5ecf8ca5772e441"
 
 [[package]]
 name = "num-integer"
@@ -1332,6 +2231,34 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+
+[[package]]
+name = "opaque-debug"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
+
+[[package]]
+name = "p256"
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
+dependencies = [
+ "ecdsa",
+ "elliptic-curve",
+ "primeorder",
+ "sha2",
+]
+
+[[package]]
+name = "pem"
+version = "3.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d30c53c26bc5b31a98cd02d20f25a7c8567146caf63ed593a9d87b2775291be"
+dependencies = [
+ "base64",
+ "serde_core",
+]
 
 [[package]]
 name = "pem-rfc7468"
@@ -1400,6 +2327,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "plain"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "polyval"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d1fe60d06143b2430aa532c94cfe9e29783047f06c0d7fd359a9a51b729fa25"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.2.17",
+ "opaque-debug",
+ "universal-hash",
+]
+
+[[package]]
 name = "potential_utf"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1409,12 +2354,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "powerfmt"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a6394b9e965e73d0a289ee54f589087e2c676aedf60885baf52c76b771e4958"
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
+]
+
+[[package]]
+name = "primeorder"
+version = "0.13.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
+dependencies = [
+ "elliptic-curve",
 ]
 
 [[package]]
@@ -1554,6 +2514,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "redox_syscall"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "580c875845b41ecb1564ad1ae4703044cef774145e3d7a94dc2b3fa7c97868fd"
+dependencies = [
+ "bitflags",
+]
+
+[[package]]
 name = "regex"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1592,6 +2561,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
+ "h2",
  "http",
  "http-body",
  "http-body-util",
@@ -1621,6 +2591,16 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "webpki-roots 1.0.9",
+]
+
+[[package]]
+name = "rfc6979"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8dd2a808d456c4a54e300a23e9f5a67e122c3024119acbfd73e3bf664491cb2"
+dependencies = [
+ "hmac",
+ "subtle",
 ]
 
 [[package]]
@@ -1731,6 +2711,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "sec1"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3e97a565f76233a6003f9f5c54be1d9c5bdfa3eccfb189469f11ec4901c47dc"
+dependencies = [
+ "base16ct",
+ "der",
+ "generic-array",
+ "pkcs8",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1771,6 +2765,15 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "serde_spanned"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf41e0cfaf7226dca15e8197172c295a782857fcb97fad1808a166870dee75a3"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -1834,10 +2837,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "simd-adler32"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
+
+[[package]]
 name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "simple_asn1"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d585997b0ac10be3c5ee635f1bab02d512760d14b7c468801ac8a01d9ae5f1d"
+dependencies = [
+ "num-bigint",
+ "num-traits",
+ "thiserror 2.0.19",
+ "time",
+]
 
 [[package]]
 name = "siphasher"
@@ -1978,6 +2999,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "time"
+version = "0.3.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdb87b95ec50ddfa440816d227a17b2ccbdda963a316a727fda0fc4334f7d134"
+dependencies = [
+ "deranged",
+ "num-conv",
+ "powerfmt",
+ "serde_core",
+ "time-core",
+ "time-macros",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e1c906769ad99c88eaa54e728060edef082f8e358ff32030cb7c7d315e81109"
+
+[[package]]
+name = "time-macros"
+version = "0.2.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e689342a48d2ea927c87ea50cabf8594854bf940e9310208848d680d668ed85"
+dependencies = [
+ "num-conv",
+ "time-core",
+]
+
+[[package]]
 name = "tinystr"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2067,6 +3118,47 @@ dependencies = [
  "pin-project-lite",
  "tokio",
 ]
+
+[[package]]
+name = "toml"
+version = "0.8.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.6.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22cddaf88f4fbc13c51aebbf5f8eceb5c7c5a9da2ac40a13519eb5b0a0e8f11c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.22.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_write",
+ "winnow",
+]
+
+[[package]]
+name = "toml_write"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "tower"
@@ -2180,6 +3272,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "universal-hash"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
+dependencies = [
+ "crypto-common",
+ "subtle",
+]
+
+[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2246,6 +3348,12 @@ name = "wasi"
 version = "0.11.1+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+
+[[package]]
+name = "wasite"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8dad83b4f25e74f184f64c43b150b91efe7647395b42289f38e50566d82855b"
 
 [[package]]
 name = "wasm-bindgen"
@@ -2351,6 +3459,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "whoami"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d4a4db5077702ca3015d3d02d74974948aba2ad9e12ab7df718ee64ccd7e97d"
+dependencies = [
+ "libredox",
+ "wasite",
+ "web-sys",
 ]
 
 [[package]]
@@ -2495,6 +3614,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
+name = "winnow"
+version = "0.7.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df79d97927682d2fd8adb29682d1140b343be4ac0f08fd68b7765d9c059d3945"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2602,6 +3730,12 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "zlib-rs"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
 
 [[package]]
 name = "zmij"

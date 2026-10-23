@@ -18,6 +18,9 @@ pub mod usage;
 #[path = "media.rs"]
 mod media;
 
+#[path = "request.rs"]
+mod request;
+
 #[derive(Debug)]
 pub struct Xai;
 
@@ -319,6 +322,7 @@ impl ProviderAdapter for Xai {
     }
     async fn prepare_fetch(
         &self,
+        definition: &Definition,
         credentials: &Value,
         target: &mut Url,
         headers: &mut BTreeMap<String, String>,
@@ -337,6 +341,14 @@ impl ProviderAdapter for Xai {
             let mut changed = payload
                 .as_object_mut()
                 .is_some_and(|object| object.remove("metadata").is_some());
+            let x_search = target.path().ends_with("/responses")
+                && definition
+                    .config
+                    .extra
+                    .get("x_search")
+                    .and_then(Value::as_bool)
+                    == Some(true);
+            changed |= request::rewrite(&mut payload, x_search);
             if let Some(model) = payload
                 .get("model")
                 .and_then(Value::as_str)
@@ -452,3 +464,7 @@ pub fn grok_windows(mut model: Model, entry: &Value) -> Vec<Model> {
 #[cfg(test)]
 #[path = "../test/account_identity.test.rs"]
 mod account_identity_tests;
+
+#[cfg(test)]
+#[path = "../test/request.test.rs"]
+mod request_tests;

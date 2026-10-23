@@ -1,0 +1,115 @@
+{
+  "apiVersion": 1,
+  "id": "zcode",
+  "name": "ZCode",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "anthropic-messages",
+  "baseURL": "https://api.z.ai/api/anthropic/v1",
+  "aliases": [],
+  "authMethods": [
+    {
+      "id": "zai",
+      "type": "oauth",
+      "label": "Z.ai Coding Plan"
+    },
+    {
+      "id": "zai-team",
+      "type": "oauth",
+      "label": "Z.ai team Coding Plan"
+    },
+    {
+      "id": "bigmodel",
+      "type": "oauth",
+      "label": "BigModel Coding Plan"
+    },
+    {
+      "id": "bigmodel-team",
+      "type": "oauth",
+      "label": "BigModel team Coding Plan"
+    },
+    {
+      "id": "apiKey-zai",
+      "type": "apiKey",
+      "label": "Z.ai Coding Plan API key",
+      "fields": [
+        {
+          "id": "key",
+          "key": "key",
+          "label": "API key",
+          "type": "password",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "apiKey-bigmodel",
+      "type": "apiKey",
+      "label": "BigModel Coding Plan API key",
+      "fields": [
+        {
+          "id": "key",
+          "key": "key",
+          "label": "API key",
+          "type": "password",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "source",
+      "type": "source",
+      "label": "Use selected ZCode account files",
+      "fields": [
+        {
+          "id": "sourcePath",
+          "key": "sourcePath",
+          "type": "text",
+          "label": "ZCode credentials file",
+          "required": true,
+          "placeholder": "~/.zcode/v2/credentials.json"
+        },
+        {
+          "id": "settingsPath",
+          "key": "settingsPath",
+          "type": "text",
+          "label": "ZCode settings file (optional)",
+          "required": false,
+          "placeholder": "~/.zcode/v2/setting.json"
+        },
+        {
+          "id": "configPath",
+          "key": "configPath",
+          "type": "text",
+          "label": "ZCode provider config file (optional)",
+          "required": false,
+          "placeholder": "~/.zcode/v2/config.json"
+        },
+        {
+          "id": "providerConfigPath",
+          "key": "providerConfigPath",
+          "type": "text",
+          "label": "ZCode model rules file (optional)",
+          "required": false,
+          "placeholder": "zcode-builtin.json"
+        },
+        {
+          "id": "credentialSecret",
+          "key": "credentialSecret",
+          "type": "password",
+          "label": "Custom credential encryption secret (optional)",
+          "required": false,
+          "placeholder": ""
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "persistent": true,
+    "authTimeoutMs": 1200000
+  }
+}

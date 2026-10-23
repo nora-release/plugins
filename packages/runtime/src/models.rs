@@ -8,20 +8,26 @@ pub fn catalog_models_with_catalog(
     catalog: &ModelsCatalog,
 ) -> Result<Vec<Model>, String> {
     let default_catalog = if definition.config.catalog.is_empty() {
-        if definition.api == "anthropic-messages" {
-            "anthropic"
-        } else {
-            "openai"
-        }
+        &definition.id
     } else {
         &definition.config.catalog
     };
     let catalog_id = definition.adapter.catalog(credentials, default_catalog);
-    let mut models = catalog
-        .models_for(catalog_id)
-        .into_iter()
-        .cloned()
-        .collect::<Vec<_>>();
+    let mut models = Vec::new();
+    for catalog_id in catalog_id
+        .split(',')
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    {
+        for model in catalog.models_for(catalog_id) {
+            if !models
+                .iter()
+                .any(|existing: &Model| existing.id == model.id)
+            {
+                models.push(model.clone());
+            }
+        }
+    }
     if models.is_empty() {
         models = catalog
             .models_for(&definition.id)
@@ -44,10 +50,12 @@ pub fn catalog_models_with_catalog(
         if models.iter().any(|model| model.id == id) {
             continue;
         }
-        let mut model = catalog
-            .model(catalog_id, id)
-            .cloned()
-            .unwrap_or_else(|| Model::new(id, &definition.api, &definition.id));
+        let mut model = catalog.model(catalog_id, id).cloned().unwrap_or_else(|| {
+            let mut model = Model::new(id, &definition.api, &definition.id);
+            model.context_window = 0;
+            model.max_tokens = 0;
+            model
+        });
         if let Some(fields) = value.as_object() {
             let mut normalized = serde_json::to_value(&model).map_err(|error| error.to_string())?;
             normalized
@@ -55,6 +63,7 @@ pub fn catalog_models_with_catalog(
                 .ok_or("Invalid model profile")?
                 .extend(fields.clone());
             model = serde_json::from_value(normalized).map_err(|error| error.to_string())?;
+            crate::pricing::apply(value, &mut model);
         }
         if model.name.is_empty() {
             model.name = id.into();
@@ -63,6 +72,7 @@ pub fn catalog_models_with_catalog(
     }
     for model in &mut models {
         model.normalize_info();
+        crate::pricing::apply(&Value::Null, model);
         apply_media_metadata(&Value::Null, model);
     }
     models.sort_by(|left, right| {
@@ -75,7 +85,10 @@ pub fn catalog_models_with_catalog(
     for model in &mut models {
         configure_model(definition, credentials, model);
     }
-    models.retain(|model| definition.adapter.retain_model(credentials, model));
+    models.retain(|model| {
+        definition.adapter.retain_model(credentials, model)
+            && crate::profiles::retain_model(definition, model)
+    });
     Ok(models)
 }
 
@@ -197,6 +210,7 @@ pub fn configure_model(definition: &Definition, credentials: Option<&Value>, mod
             .insert("region".into(), JsonValue::string(&definition.base_url));
     }
     model.normalize_info();
+    crate::profiles::route_model(definition, model);
 }
 
 pub fn effective_endpoint(definition: &Definition, credentials: Option<&Value>) -> String {

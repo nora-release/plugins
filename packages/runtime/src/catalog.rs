@@ -78,11 +78,18 @@ pub fn write_catalog(
                 json!({"url":url.as_str(),"sha256":format!("{:x}",digest.finalize())}),
             );
         }
-        let provider = json!({
+        let mut provider = json!({
             "id":definition.id,"name":definition.name,"description":description,"version":version,
             "repository":format!("https://github.com/nora-release/plugins/tree/agent/router/packages/{}",definition.id),
             "packages":packages
         });
+        // Nora finds these sign-ins on a Mac before the provider is installed.
+        if let Some(sign_ins) = value
+            .get("localSignIns")
+            .filter(|sign_ins| sign_ins.as_array().is_some_and(|items| !items.is_empty()))
+        {
+            provider["localSignIns"] = sign_ins.clone();
+        }
         if providers.insert(definition.id, provider).is_some() {
             return Err("The provider catalog contains duplicate IDs".into());
         }

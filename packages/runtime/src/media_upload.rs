@@ -1,5 +1,5 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use futures::{stream, Stream, StreamExt};
 use nora_provider_plugin_sdk::{FetchRequest, PluginError, PluginResult};
 use serde_json::{Map, Value};
@@ -213,6 +213,7 @@ async fn body_stream(request: &FetchRequest) -> PluginResult<BodyStream> {
 }
 
 async fn parse_form(input: BodyStream, boundary: String) -> PluginResult<MediaForm> {
+    let input = prime_form_stream(input, &boundary).await?;
     let constraints = multer::Constraints::new().size_limit(
         multer::SizeLimit::new()
             .whole_stream(MAX_MEDIA_BODY_BYTES as u64)
@@ -273,6 +274,48 @@ async fn parse_form(input: BodyStream, boundary: String) -> PluginResult<MediaFo
         }
     }
     Ok(result)
+}
+
+async fn prime_form_stream(mut input: BodyStream, boundary: &str) -> PluginResult<BodyStream> {
+    let mut first = loop {
+        let chunk = input
+            .next()
+            .await
+            .ok_or_else(invalid_form)?
+            .map_err(|_| invalid_form())?;
+        if !chunk.is_empty() {
+            break chunk;
+        }
+    };
+    if first.len() > MAX_MEDIA_BODY_BYTES {
+        return Err(invalid_form());
+    }
+    // Multer 3.1 can report EOF without rechecking its buffer if the initial
+    // boundary arrives between its two polls of a previously pending stream.
+    let marker = format!("--{boundary}");
+    let contains_boundary = |bytes: &[u8]| {
+        bytes
+            .windows(marker.len())
+            .any(|window| window == marker.as_bytes())
+    };
+    if !contains_boundary(&first) {
+        let mut prefix = BytesMut::from(first.as_ref());
+        while !contains_boundary(&prefix) {
+            let chunk = input
+                .next()
+                .await
+                .ok_or_else(invalid_form)?
+                .map_err(|_| invalid_form())?;
+            if prefix.len().saturating_add(chunk.len()) > MAX_MEDIA_BODY_BYTES {
+                return Err(invalid_form());
+            }
+            prefix.extend_from_slice(&chunk);
+        }
+        first = prefix.freeze();
+    }
+    Ok(Box::pin(
+        stream::once(async move { Ok(first) }).chain(input),
+    ))
 }
 
 fn invalid_body() -> PluginError {

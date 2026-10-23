@@ -33,6 +33,22 @@ fn catalog_can_list_source_packages_without_claiming_a_download_exists() {
     let value: Value = serde_json::from_slice(&std::fs::read(output).unwrap()).unwrap();
     assert_eq!(value["providers"][0]["id"], "example");
     assert_eq!(value["providers"][0]["packages"], json!({}));
+    assert!(value["providers"][0].get("localSignIns").is_none());
+}
+
+#[test]
+fn catalog_carries_the_local_sign_ins_a_provider_declares() {
+    let fixture = Fixture::new();
+    let sign_ins =
+        json!([{"method":"desktop","label":"Example app","paths":["~/.example/auth.json"]}]);
+    std::fs::write(fixture.0.join("definitions/example/nora-provider.json"), json!({
+        "id":"example","name":"Example","version":"1.0.0","api":"openai-completions","baseURL":"https://example.test/v1",
+        "config":{"keyProvider":"example"},"localSignIns":sign_ins
+    }).to_string()).unwrap();
+    let output = fixture.0.join("providers.json");
+    write_catalog(&fixture.0.join("definitions"), &output, None).unwrap();
+    let value: Value = serde_json::from_slice(&std::fs::read(output).unwrap()).unwrap();
+    assert_eq!(value["providers"][0]["localSignIns"], sign_ins);
 }
 
 #[test]

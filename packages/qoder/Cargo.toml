@@ -1,0 +1,25 @@
+[package]
+name = "nora-provider-qoder"
+version = "1.2.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[dependencies]
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+async-trait = "0.1.89"
+aes = "0.8.4"
+base64 = "0.22.1"
+cbc = { version = "0.1.2", features = ["alloc", "block-padding"] }
+chrono = "0.4.44"
+futures = "0.3.32"
+md-5 = "0.10.6"
+rand = "0.8.5"
+regex = "1.13.1"
+rsa = { version = "0.9.8", features = ["pem"] }
+serde_json = "1.0.151"
+sha2 = "0.10.9"
+tokio = { version = "1.53.1", features = ["rt", "macros", "sync", "time", "fs", "process", "io-util"] }
+url = "2.5.8"
+uuid = { version = "1.23.3", features = ["v4"] }

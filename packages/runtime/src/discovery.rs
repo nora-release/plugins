@@ -154,18 +154,15 @@ pub(crate) fn supplement_models(
 fn add_default_route(result: &mut Value, definition: &Definition, credentials: Option<&Value>) {
     let mut route = Model::new("", &definition.api, &definition.id);
     models::configure_model(definition, credentials, &mut route);
-    result["defaultAPI"] = json!(result["models"]
-        .as_array()
-        .and_then(|models| models.first())
-        .and_then(|model| model.get("api"))
-        .and_then(Value::as_str)
-        .unwrap_or(&route.api));
-    result["defaultBaseURL"] = json!(result["models"]
-        .as_array()
-        .and_then(|models| models.first())
-        .and_then(|model| model.get("baseUrl"))
-        .and_then(Value::as_str)
-        .unwrap_or(&route.base_url));
+    result["defaultAPI"] = json!(route.api);
+    result["defaultBaseURL"] = json!(route.base_url);
+    let templates=definition.config.model_routes.iter().filter_map(|rule| {
+        let base=definition.config.model_discovery.as_ref()?.bases.iter().find(|base|base.api==rule.api)?;
+        Some(json!({"pattern":rule.pattern,"model":{"api":base.api,"baseUrl":base.base_url,"contextWindow":0,"maxTokens":0}}))
+    }).collect::<Vec<_>>();
+    if !templates.is_empty() {
+        result["modelTemplates"] = json!(templates);
+    }
 }
 
 pub fn configured_bases(definition: &Definition, credentials: Option<&Value>) -> Vec<ModelBase> {
@@ -299,6 +296,11 @@ fn signed_request(
             }
             Kind::Azure => {
                 headers.insert("api-key".into(), token.into());
+            }
+            Kind::Anthropic
+                if !crate::auth_headers::relay(definition, "anthropic-messages", url.as_str()) =>
+            {
+                headers.insert("x-api-key".into(), token.into());
             }
             _ if definition.adapter.bearer_model_list(resolved) => {
                 headers.insert("authorization".into(), format!("Bearer {token}"));
@@ -457,7 +459,9 @@ async fn fetch_routes_with_budget(
                             } else {
                                 base.base_url.clone()
                             };
+                            crate::profiles::route_model(definition, model);
                         }
+                        models.retain(|model| crate::profiles::retain_model(definition, model));
                         listed.insert(url.to_string(), models.clone());
                         current = Some(models);
                         break;
@@ -517,6 +521,7 @@ async fn fetch_pages(
             client,
             url.clone(),
             definition,
+            credentials,
             resolved,
             kind,
             &mut only_auth,
@@ -590,13 +595,26 @@ async fn request_json(
     client: &dyn HttpClient,
     url: Url,
     definition: &Definition,
+    credentials: &Value,
     resolved: &ResolvedProviderAuth,
     kind: Kind,
     only_auth: &mut Option<&'static str>,
 ) -> PluginResult<Value> {
+    let api = if kind == Kind::Anthropic {
+        "anthropic-messages"
+    } else {
+        "openai-completions"
+    };
+    if only_auth.is_none() && crate::auth_headers::relay(definition, api, url.as_str()) {
+        *only_auth = crate::auth_headers::choice(definition, credentials, url.as_str());
+    }
     let request = signed_request(url.clone(), definition, resolved, kind, *only_auth);
+    let may_retry = crate::auth_headers::retryable(definition, credentials, api, &request);
     let (mut status, mut body) = request_body(client, request).await?;
-    if only_auth.is_none() && kind == Kind::Anthropic && both_auth_refused(status, &body) {
+    if only_auth.is_none()
+        && may_retry
+        && crate::auth_headers::both_refused(status, &body.as_bytes()[..body.len().min(64 * 1024)])
+    {
         for only in ["x-api-key", "bearer"] {
             (status, body) = request_body(
                 client,
@@ -605,6 +623,7 @@ async fn request_json(
             .await?;
             if !matches!(status, 401 | 403) {
                 *only_auth = Some(only);
+                crate::auth_headers::remember(definition, credentials, url.as_str(), only).await;
                 break;
             }
         }
@@ -638,41 +657,6 @@ async fn request_body(
             PluginError::transport("The provider model list response stopped before it finished.")
         })?;
     Ok((status, body))
-}
-
-fn both_auth_refused(status: u16, body: &str) -> bool {
-    if status != 401 {
-        return false;
-    }
-    let body = body.to_ascii_lowercase();
-    body.contains("x-api-key")
-        && body.contains("authorization")
-        && [
-            "同时",
-            "并存",
-            "共存",
-            "只能使用一个",
-            "只能选择一个",
-            "只能有一个",
-            "cannot both",
-            "can't both",
-            "can not both",
-            "cannot be both",
-            "not both",
-            "together",
-            "at the same time",
-            "simultaneous",
-            "mutually exclusive",
-            "only one of",
-            "only one auth",
-            "only one header",
-            "both present",
-            "both be present",
-            "both provided",
-            "both be provided",
-        ]
-        .iter()
-        .any(|value| body.contains(value))
 }
 
 #[cfg(test)]

@@ -75,7 +75,7 @@ async fn kimi_requests_get_the_provider_identity_header_inside_the_plugin() {
 }
 
 #[tokio::test]
-async fn anthropic_compatible_packages_keep_their_declared_bearer_authentication() {
+async fn anthropic_relays_send_both_key_headers_unless_the_account_chooses_one() {
     for id in [
         "kimi-coding",
         "minimax",
@@ -85,7 +85,18 @@ async fn anthropic_compatible_packages_keep_their_declared_bearer_authentication
         "zai",
     ] {
         let definition = definition(id);
-        assert_eq!(definition.api, "anthropic-messages", "{id}");
+        let mut definition = definition;
+        if !definition.config.profiles.is_empty() {
+            definition = crate::profiles::configured(definition, None).unwrap();
+        }
+        let anthropic =
+            crate::discovery::configured_bases(&definition, Some(&json!({"type":"apiKey"})))
+                .into_iter()
+                .find(|base| base.api == "anthropic-messages");
+        assert!(
+            anthropic.is_some() || definition.api == "anthropic-messages",
+            "{id}"
+        );
         assert_eq!(
             definition.config.api_key_auth,
             Some(AuthScheme::Bearer),
@@ -94,7 +105,14 @@ async fn anthropic_compatible_packages_keep_their_declared_bearer_authentication
         let outgoing = build_request(
             &definition,
             request(
-                &format!("{}/v1/messages", definition.base_url.trim_end_matches('/')),
+                &format!(
+                    "{}/v1/messages",
+                    anthropic
+                        .as_ref()
+                        .map(|base| base.base_url.as_str())
+                        .unwrap_or(&definition.base_url)
+                        .trim_end_matches('/')
+                ),
                 json!({"type":"apiKey","access":"private-compatible-key"}),
             ),
         )
@@ -104,18 +122,15 @@ async fn anthropic_compatible_packages_keep_their_declared_bearer_authentication
             outgoing.headers["Authorization"], "Bearer private-compatible-key",
             "{id}"
         );
-        assert!(
-            !outgoing
-                .headers
-                .keys()
-                .any(|name| name.eq_ignore_ascii_case("x-api-key")),
+        assert_eq!(
+            outgoing.headers["x-api-key"], "private-compatible-key",
             "{id}"
         );
     }
 }
 
 #[tokio::test]
-async fn anthropic_and_custom_packages_keep_the_default_api_key_header() {
+async fn anthropic_uses_one_key_header_and_custom_relays_default_to_both() {
     let custom = Definition::parse(json!({
         "id":"custom-anthropic","name":"Custom Anthropic","api":"anthropic-messages",
         "baseURL":"https://custom.invalid","config":{"keyProvider":"custom"}
@@ -132,10 +147,14 @@ async fn anthropic_and_custom_packages_keep_the_default_api_key_header() {
         .await
         .unwrap();
         assert_eq!(outgoing.headers["x-api-key"], "private-header-key");
-        assert!(!outgoing
+        let bearer = outgoing
             .headers
-            .keys()
-            .any(|name| name.eq_ignore_ascii_case("authorization")));
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("authorization"));
+        assert_eq!(
+            bearer.map(|(_, value)| value.as_str()),
+            (definition.id != "anthropic").then_some("Bearer private-header-key")
+        );
     }
 }
 

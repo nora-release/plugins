@@ -1,0 +1,40 @@
+{
+  "apiVersion": 1,
+  "id": "cline",
+  "name": "Cline",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-completions",
+  "baseURL": "https://api.cline.bot/api/v1",
+  "aliases": [],
+  "authMethods": [
+    {
+      "id": "oauth",
+      "type": "oauth",
+      "label": "Cline account"
+    },
+    {
+      "id": "apiKey",
+      "type": "api",
+      "label": "Cline API key",
+      "fields": [
+        {
+          "id": "apiKey",
+          "key": "apiKey",
+          "label": "API key",
+          "type": "password",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "persistent": true,
+    "pinUpstream": false,
+    "authTimeoutMs": 600000
+  }
+}

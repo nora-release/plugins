@@ -220,6 +220,7 @@ impl ProviderAdapter for Copilot {
     }
     async fn prepare_fetch(
         &self,
+        _definition: &nora_provider::definition::Definition,
         _credentials: &Value,
         target: &mut Url,
         _headers: &mut BTreeMap<String, String>,

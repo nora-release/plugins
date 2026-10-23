@@ -1,0 +1,12 @@
+[package]
+name = "nora-provider-qwen-decision"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider-typesafe = { path = "../typesafe" }
+nora-provider-plugin-sdk.workspace = true
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+serde_json = "1"

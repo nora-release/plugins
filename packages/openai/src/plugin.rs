@@ -1,0 +1,138 @@
+use crate::{provider::usage::resets, provider::OpenAI};
+use async_trait::async_trait;
+use nora_ai::{OAuthProviderId, ReqwestHttpClient};
+use nora_provider::{auth, definition::Definition, BundledProvider};
+use nora_provider_plugin_sdk::{
+    CallContext, FetchRequest, FetchResponse, InitializeParams, NetworkProxy, PluginError,
+    PluginResult, ProviderPlugin,
+};
+use serde_json::Value;
+use std::sync::{Arc, RwLock};
+
+pub(crate) struct OpenAIPlugin {
+    inner: BundledProvider,
+    config: RwLock<Option<(Definition, Option<NetworkProxy>)>>,
+}
+
+impl Default for OpenAIPlugin {
+    fn default() -> Self {
+        Self {
+            inner: BundledProvider::new(OpenAI),
+            config: RwLock::new(None),
+        }
+    }
+}
+
+impl OpenAIPlugin {
+    async fn reset_context(
+        &self,
+        params: &Value,
+    ) -> PluginResult<(nora_ai::ResolvedProviderAuth, ReqwestHttpClient)> {
+        if params["confirmed"] != true
+            || params["account"].as_str().is_none_or(|account| {
+                account.is_empty()
+                    || account.len() > 128
+                    || account.trim() != account
+                    || account.chars().any(char::is_control)
+            })
+        {
+            return Err(PluginError::invalid(
+                "Confirm the action for a saved account before using a reset credit.",
+            ));
+        }
+        let (definition, default_proxy) = self
+            .config
+            .read()
+            .map_err(|_| PluginError::invalid("The provider configuration is unavailable."))?
+            .clone()
+            .ok_or_else(|| PluginError::invalid("Initialize OpenAI before using it."))?;
+        let value = params
+            .get("credentials")
+            .ok_or_else(|| PluginError::authentication("Connect a ChatGPT account."))?;
+        if auth::is_api(value) {
+            return Err(PluginError::unsupported("reset credits for an API key"));
+        }
+        let credentials = auth::decode(&definition, Some(value))?;
+        if credentials.provider != OAuthProviderId::OpenAICodex {
+            return Err(PluginError::authentication("Connect a ChatGPT account."));
+        }
+        let proxy: Option<NetworkProxy> =
+            serde_json::from_value(params.get("networkProxy").cloned().unwrap_or(Value::Null))
+                .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
+        let (_, resolved) = auth::resolve_with_network(
+            &definition,
+            value,
+            proxy.as_ref().or(default_proxy.as_ref()),
+        )
+        .await?;
+        let client =
+            nora_provider_plugin_sdk::http_client(proxy.as_ref().or(default_proxy.as_ref()))?;
+        let client = ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
+            nora_provider_plugin_sdk::before_http_request()
+                .await
+                .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+        });
+        Ok((resolved, client))
+    }
+}
+
+#[async_trait]
+impl ProviderPlugin for OpenAIPlugin {
+    async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
+        let mut definition = Definition::parse(params.manifest.clone())?;
+        definition.adapter = Arc::new(OpenAI);
+        let proxy: Option<NetworkProxy> = serde_json::from_value(
+            params
+                .manifest
+                .pointer("/config/networkProxy")
+                .cloned()
+                .unwrap_or(Value::Null),
+        )
+        .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
+        let result = self.inner.initialize(params).await?;
+        *self
+            .config
+            .write()
+            .map_err(|_| PluginError::invalid("The provider configuration is unavailable."))? =
+            Some((definition, proxy));
+        Ok(result)
+    }
+    async fn auth_methods(&self, context: CallContext) -> PluginResult<Value> {
+        self.inner.auth_methods(context).await
+    }
+    async fn discover_accounts(&self, context: CallContext) -> PluginResult<Value> {
+        self.inner.discover_accounts(context).await
+    }
+    async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
+        self.inner.accounts(context).await
+    }
+    async fn models(&self, context: CallContext) -> PluginResult<Value> {
+        self.inner.models(context).await
+    }
+    async fn usage(&self, context: CallContext) -> PluginResult<Value> {
+        self.inner.usage(context).await
+    }
+    async fn authorize(&self, params: Value) -> PluginResult<Value> {
+        self.inner.authorize(params).await
+    }
+    async fn callback(&self, params: Value) -> PluginResult<Value> {
+        self.inner.callback(params).await
+    }
+    async fn refresh(&self, params: Value) -> PluginResult<Value> {
+        self.inner.refresh(params).await
+    }
+    async fn fetch(&self, request: FetchRequest) -> PluginResult<FetchResponse> {
+        self.inner.fetch(request).await
+    }
+    async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        if method != "consumeReset" {
+            return self.inner.call(method, params).await;
+        }
+        let (auth, client) = self.reset_context(&params).await?;
+        resets::consume(&auth, &params["requestID"], &client).await
+    }
+}
+
+#[cfg(test)]
+#[path = "../test/plugin.test.rs"]
+mod tests;

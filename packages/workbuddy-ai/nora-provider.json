@@ -1,0 +1,44 @@
+{
+  "apiVersion": 1,
+  "id": "workbuddy-ai",
+  "name": "WorkBuddy AI",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-completions",
+  "baseURL": "https://www.workbuddy.ai/v2",
+  "authMethods": [
+    {
+      "id": "oauth",
+      "type": "oauth",
+      "label": "Sign in with WorkBuddy AI"
+    },
+    {
+      "id": "desktop",
+      "type": "oauth",
+      "label": "Use WorkBuddy AI desktop sign-in (read only)"
+    }
+  ],
+  "models": [],
+  "config": {
+    "sourceAuthMethods": [
+      {
+        "id": "desktop",
+        "type": "oauth",
+        "label": "Use WorkBuddy AI desktop sign-in (read only)"
+      }
+    ],
+    "authTimeoutMs": 420000
+  },
+  "localSignIns": [
+    {
+      "method": "desktop",
+      "label": "WorkBuddy AI",
+      "paths": [
+        "~/Library/Application Support/CodeBuddyExtension/Data/Public/auth/workbuddy-desktop-ai.info"
+      ]
+    }
+  ]
+}

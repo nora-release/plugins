@@ -1,6 +1,10 @@
 use nora_provider::usage::parsing::{number, timestamp};
 use serde_json::{json, Value};
 
+#[path = "resets/consume.rs"]
+mod consume;
+pub use consume::consume;
+
 pub fn unavailable(message: &str) -> Value {
     json!({"available":false,"grants":[],"message":message})
 }

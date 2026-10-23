@@ -206,7 +206,7 @@ fn decode(bytes: &[u8]) -> Result<ModelsCatalog, String> {
         }
     }
     if catalog.model_count() == 0 {
-        return Err("The model catalog response has no chat models.".into());
+        return Err("The model catalog response has no models.".into());
     }
     Ok(catalog)
 }
@@ -214,7 +214,7 @@ fn decode(bytes: &[u8]) -> Result<ModelsCatalog, String> {
 fn model_from_row(provider_id: &str, provider: &Value, key: &str, row: &Value) -> Option<Model> {
     row.as_object()?;
     let id = row.get("id").and_then(Value::as_str).unwrap_or(key);
-    if id.is_empty() || !is_chat_model(id, row) {
+    if id.is_empty() {
         return None;
     }
     let npm = row
@@ -255,11 +255,8 @@ fn model_from_row(provider_id: &str, provider: &Value, key: &str, row: &Value) -
         .map(str::to_string);
     model.info.tool_calling = row.get("tool_call").and_then(Value::as_bool);
     model.info.temperature = row.get("temperature").and_then(Value::as_bool);
-    let inputs = row.pointer("/modalities/input").and_then(Value::as_array);
-    model.input = vec![InputModality::Text];
-    if inputs.is_some_and(|inputs| inputs.iter().any(|input| input == "image")) {
-        model.input.push(InputModality::Image);
-    }
+    model.input = input_modalities(row);
+    apply_kind(row, &mut model);
     let input = positive_limit(row.pointer("/limit/input"));
     let context = positive_limit(row.pointer("/limit/context"));
     model.context_window = match (input, context) {
@@ -373,6 +370,109 @@ fn cost(row: &Value, field: &str) -> f64 {
         .and_then(Value::as_f64)
         .filter(|value| value.is_finite() && *value >= 0.0)
         .unwrap_or(0.0)
+}
+
+fn input_modalities(row: &Value) -> Vec<InputModality> {
+    let Some(inputs) = row
+        .pointer("/modalities/input")
+        .or_else(|| row.pointer("/architecture/input_modalities"))
+        .or_else(|| row.get("input_modalities"))
+        .and_then(Value::as_array)
+    else {
+        return vec![InputModality::Text];
+    };
+    let mut output = Vec::new();
+    for input in inputs.iter().filter_map(Value::as_str) {
+        let modality = match input.to_ascii_lowercase().as_str() {
+            "text" => InputModality::Text,
+            "image" => InputModality::Image,
+            "audio" => InputModality::Audio,
+            "video" => InputModality::Video,
+            "pdf" => InputModality::Pdf,
+            _ => continue,
+        };
+        if !output.contains(&modality) {
+            output.push(modality);
+        }
+    }
+    output
+}
+
+fn apply_kind(row: &Value, model: &mut Model) {
+    let kind = row
+        .get("kind")
+        .or_else(|| row.pointer("/info/nativeKind"))
+        .or_else(|| row.pointer("/capabilities/type"))
+        .or_else(|| row.get("type"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|kind| {
+            !kind.is_empty() && kind.len() <= 128 && !kind.chars().any(char::is_control)
+        });
+    model.info.native_kind = kind.map(str::to_owned);
+    let kind = kind.unwrap_or("").to_ascii_lowercase();
+    let non_chat = match kind.as_str() {
+        "image" | "image_generation" | "image-generation" => {
+            model.info.image_output = Some(true);
+            true
+        }
+        "video" | "video_generation" | "video-generation" => {
+            model.info.video_output = Some(true);
+            true
+        }
+        "embedding" | "embeddings" => {
+            model.info.embedding = Some(true);
+            true
+        }
+        "decision" => {
+            model.info.decision = Some(true);
+            true
+        }
+        "audio" | "audio_generation" | "speech" | "tts" | "text_to_speech" | "text-to-speech"
+        | "transcription" | "asr" | "rerank" | "reranking" | "moderation" | "completion" => true,
+        _ => false,
+    };
+    if kind.is_empty() && model.id.to_ascii_lowercase().contains("embed") {
+        model.info.embedding = Some(true);
+    }
+    let explicit_chat = row
+        .pointer("/info/chat")
+        .or_else(|| row.get("chat"))
+        .or_else(|| row.pointer("/capabilities/completion_chat"))
+        .and_then(Value::as_bool)
+        .or_else(|| (kind == "chat").then_some(true));
+    let outputs = row
+        .pointer("/modalities/output")
+        .or_else(|| row.pointer("/architecture/output_modalities"))
+        .or_else(|| row.get("output_modalities"))
+        .and_then(Value::as_array);
+    let text_output = outputs
+        .filter(|outputs| !outputs.is_empty())
+        .map(|outputs| outputs.iter().any(|output| output == "text"));
+    model.info.chat = if non_chat || explicit_chat == Some(false) {
+        Some(false)
+    } else {
+        explicit_chat
+            .or_else(|| (kind == "chat").then_some(true))
+            .or(text_output)
+    };
+    if outputs.is_some_and(|outputs| {
+        outputs
+            .iter()
+            .any(|output| output == "embedding" || output == "embeddings")
+    }) {
+        model.info.embedding = Some(true);
+    }
+    crate::models::apply_media_metadata(row, model);
+    if model.info.embedding == Some(true) && explicit_chat != Some(true) {
+        model.info.chat = Some(false);
+    }
+    if model.info.chat.is_none() && !is_chat_model(&model.id, row) {
+        model.info.chat = Some(false);
+    }
+    if model.info.chat == Some(false) {
+        model.info.tool_calling = Some(false);
+    }
 }
 
 fn is_chat_model(id: &str, row: &Value) -> bool {

@@ -299,7 +299,7 @@ fn invalid_questions_and_private_body_sources_never_become_upstream_requests() {
     for value in [
         json!({"model":"m","state":{},"questions":{}}),
         json!({"model":"m","state":{},"questions":{"q":{"type":"chat"}}}),
-        json!({"model":"m","state":"text","questions":{"q":{"type":"choice"}}}),
+        json!({"model":"m","questions":{"q":{"type":"choice"}}}),
         json!({"model":"m","state":{},"questions":{"q":{"type":"noul"}},"bodyFile":{"path":"/private"}}),
     ] {
         assert!(validate_body(&request(value)).is_err());

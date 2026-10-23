@@ -146,7 +146,14 @@ pub async fn build_request(
     headers.extend(definition.config.headers.clone());
     definition
         .adapter
-        .prepare_fetch(value, &mut target, &mut headers, &mut body, &mut resolved)
+        .prepare_fetch(
+            definition,
+            value,
+            &mut target,
+            &mut headers,
+            &mut body,
+            &mut resolved,
+        )
         .await?;
     for (key, value) in &definition.config.query_params {
         target.query_pairs_mut().append_pair(key, value);
@@ -191,6 +198,17 @@ pub async fn build_request(
                 headers.insert(name, value);
             },
         );
+        let api = request_api(definition, value, target.as_str());
+        crate::auth_headers::apply(
+            definition,
+            value,
+            &api,
+            target.as_str(),
+            resolved.token.as_deref().unwrap_or_default(),
+            &mut headers,
+        );
+        crate::adapter::merge_headers(&mut headers, definition.config.headers.clone());
+        crate::adapter::merge_headers(&mut headers, crate::account_headers::read(value)?);
     }
     Ok(HttpRequest {
         method,
@@ -198,6 +216,34 @@ pub async fn build_request(
         headers,
         body,
     })
+}
+
+pub(crate) fn request_api(definition: &Definition, credentials: &Value, target: &str) -> String {
+    let Ok(target) = url::Url::parse(target) else {
+        return definition.api.clone();
+    };
+    if target.path().ends_with("/messages") || target.path().ends_with("/messages/count_tokens") {
+        return "anthropic-messages".into();
+    }
+    if target.path().ends_with("/chat/completions") {
+        return "openai-completions".into();
+    }
+    if target.path().ends_with("/responses") {
+        return "openai-responses".into();
+    }
+    discovery::configured_bases(definition, Some(credentials))
+        .into_iter()
+        .filter_map(|base| Some((base.api, url::Url::parse(&base.base_url).ok()?)))
+        .filter(|(_, base)| {
+            base.origin() == target.origin()
+                && (target.path() == base.path().trim_end_matches('/')
+                    || target
+                        .path()
+                        .starts_with(&format!("{}/", base.path().trim_end_matches('/'))))
+        })
+        .max_by_key(|(_, base)| base.path().len())
+        .map(|(api, _)| api)
+        .unwrap_or_else(|| definition.api.clone())
 }
 
 fn parse_aws(raw: &str) -> Option<AwsSigV4Credentials> {

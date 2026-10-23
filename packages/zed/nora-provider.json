@@ -1,0 +1,25 @@
+{
+  "apiVersion": 1,
+  "id": "zed",
+  "name": "Zed",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "anthropic-messages",
+  "baseURL": "https://cloud.zed.dev/v1",
+  "authMethods": [
+    {
+      "id": "browser",
+      "type": "oauth",
+      "label": "Sign in to Zed"
+    }
+  ],
+  "models": [],
+  "config": {
+    "catalog": "",
+    "description": "Zed subscription models through the Zed cloud native provider envelopes. Zed publishes plan metadata rather than remaining-token quotas.",
+    "authTimeoutMs": 660000
+  }
+}

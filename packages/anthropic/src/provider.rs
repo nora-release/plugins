@@ -19,6 +19,7 @@ impl ProviderAdapter for Anthropic {
     }
     async fn prepare_fetch(
         &self,
+        _definition: &nora_provider::definition::Definition,
         credentials: &Value,
         _target: &mut Url,
         _headers: &mut BTreeMap<String, String>,

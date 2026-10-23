@@ -13,6 +13,32 @@ struct Renewal {
     next: Credential,
 }
 
+impl SourceState {
+    fn resume(&mut self) -> PluginResult<Option<SourceSession>> {
+        let Some(pending) = self.pending.as_mut() else {
+            return Ok(None);
+        };
+        match pending.session.state(&pending.next)? {
+            DiskState::Changed | DiskState::SignedOut => {
+                self.pending = None;
+                self.verified = None;
+                return Ok(None);
+            }
+            DiskState::Original => pending.session.replace_refreshed(&pending.next)?,
+            DiskState::Written => pending.session.reconcile_refreshed(&pending.next)?,
+        }
+        // Only an unwritten rotation is pending. Once durable, the source can
+        // be renewed again even if its optional identity service stays down.
+        Ok(self.pending.take().map(|pending| pending.session))
+    }
+
+    fn persist(&mut self, session: SourceSession, next: Credential) -> PluginResult<SourceSession> {
+        // Keep the rotated token before any fallible write or further await.
+        self.pending = Some(Renewal { session, next });
+        self.resume()?.ok_or_else(session::expired)
+    }
+}
+
 fn fresh(credential: &Credential) -> bool {
     credential.expires <= 0 || credential.fresh()
 }
@@ -75,98 +101,89 @@ impl Kiro {
             .map_err(|_| {
                 PluginError::transport("The local Kiro sign-in is busy. Try again shortly.")
             })?;
-        if let Some(pending) = state.pending.as_ref() {
-            match pending.session.state(&pending.next)? {
-                DiskState::Changed | DiskState::SignedOut => {
-                    state.pending = None;
+        let mut force = force;
+        let mut rejected = rejected.map(str::to_owned);
+        let mut retry_source = None;
+        let mut renewed = false;
+        loop {
+            let opened = match state.resume()? {
+                Some(source) => Some(source),
+                None => open(kind, path).await?,
+            };
+            let Some(mut source) = opened else {
+                return if retry_source.is_some() {
+                    Err(session::expired())
+                } else {
+                    Ok(None)
+                };
+            };
+            let mut credential = source.credential().clone();
+            if retry_source
+                .take()
+                .is_some_and(|previous| previous != key(&credential, None))
+            {
+                return Err(session::expired());
+            }
+            source.select_identity(expected)?;
+            let rejected_current = force
+                && rejected
+                    .as_deref()
+                    .is_none_or(|access| access == credential.access);
+            if !fresh(&credential) || rejected_current {
+                renewed = true;
+                state.verified = None;
+                let original_access = credential.access.clone();
+                if *kind == SourceKind::Cli && self.owner.owns(Path::new(&selected)) {
+                    // The owner may save before returning an error. Always reread it.
+                    let _ = self.owner.renew(proxy.as_ref()).await;
+                    credential = source.reload()?.ok_or_else(session::expired)?;
+                }
+                if !fresh(&credential) || (rejected_current && credential.access == original_access)
+                {
+                    let next = network::refresh(client, &credential).await?;
+                    source = state.persist(source, next)?;
+                    credential = source.credential().clone();
+                }
+            }
+            match verify(
+                &mut source,
+                &credential,
+                client,
+                expected,
+                state.verified.as_ref(),
+            )
+            .await
+            {
+                Ok((fingerprint, credential)) => {
+                    state.verified = Some((fingerprint, credential.clone()));
+                    return Ok(Some(credential));
+                }
+                Err(error)
+                    if !renewed
+                        && credential.method != "apikey"
+                        && network::authentication_rejected(&error) =>
+                {
+                    // Reopen under the source lock before renewing. A source that
+                    // switched while unlocked must never be renewed as this account.
+                    retry_source = Some(key(&credential, None));
+                    rejected = Some(credential.access);
+                    force = true;
                     state.verified = None;
                 }
-                DiskState::Original | DiskState::Written => {}
+                Err(error) => return Err(error),
             }
         }
-        if state.pending.is_some() {
-            return finish(&mut state, client, expected).await.map(Some);
-        }
-        let path = path.to_owned();
-        let selected_kind = kind.clone();
-        let opened = tokio::task::spawn_blocking(move || {
-            SourceSession::open(&selected_kind, &path, &crate::source::lock_root())
-        })
-        .await
-        .map_err(|_| session::expired())??;
-        let Some(mut source) = opened else {
-            return Ok(None);
-        };
-        if let Some(expected) = expected {
-            source.bind_identity(expected)?;
-        }
-        let mut credential = source.credential().clone();
-        let original_access = credential.access.clone();
-        let renew = !fresh(&credential)
-            || (force && rejected.is_none_or(|access| access == credential.access));
-        if renew && *kind == SourceKind::Cli && self.owner.owns(Path::new(&selected)) {
-            // The owner may successfully save before returning an error. Always reread it.
-            let _ = self.owner.renew(proxy.as_ref()).await;
-            credential = source.reload()?.ok_or_else(session::expired)?;
-            if let Some(expected) = expected {
-                source.bind_identity(expected)?;
-            }
-        }
-        let owner_changed = credential.access != original_access;
-        let renew = !fresh(&credential)
-            || (force
-                && !owner_changed
-                && rejected.is_none_or(|access| access == credential.access));
-        if renew {
-            let next = network::refresh(client, &credential).await?;
-            // Keep both the source lock and the rotated token before any further await.
-            // A later RPC can retry verification/save without spending the old refresh token.
-            state.pending = Some(Renewal {
-                session: source,
-                next,
-            });
-            return finish(&mut state, client, expected).await.map(Some);
-        }
-        let (fingerprint, credential) = verify(
-            &mut source,
-            &credential,
-            client,
-            expected,
-            state.verified.as_ref(),
-        )
-        .await?;
-        state.verified = Some((fingerprint, credential.clone()));
-        Ok(Some(credential))
     }
 }
 
-async fn finish(
-    state: &mut SourceState,
-    client: &dyn HttpClient,
-    requested: Option<&Value>,
-) -> PluginResult<Credential> {
-    let pending = state.pending.as_mut().ok_or_else(session::expired)?;
-    let written = match pending.session.state(&pending.next)? {
-        DiskState::Original => false,
-        DiskState::Written => true,
-        DiskState::Changed | DiskState::SignedOut => return Err(session::expired()),
-    };
-    if !written {
-        // Kiro has already rotated the original source's token. Persist it
-        // before optional profile services can fail or the process exits.
-        pending.session.replace_refreshed(&pending.next)?;
-    }
-    let (fingerprint, credential) = verify(
-        &mut pending.session,
-        &pending.next,
-        client,
-        requested,
-        state.verified.as_ref(),
-    )
-    .await?;
-    state.pending = None;
-    state.verified = Some((fingerprint, credential.clone()));
-    Ok(credential)
+async fn open(kind: &SourceKind, path: &str) -> PluginResult<Option<SourceSession>> {
+    let kind = kind.clone();
+    let path = path.to_owned();
+    tokio::task::spawn_blocking(move || {
+        SourceSession::open(&kind, &path, &crate::source::lock_root())
+    })
+    .await
+    .map_err(|_| session::expired())?
 }
 
 async fn verify(
@@ -179,15 +196,19 @@ async fn verify(
     source.release_for_verification(durable)?;
     let fingerprint = key(durable, expected);
     let mut credential = durable.clone();
-    if let Some((_, cached)) = cached.filter(|(key, _)| key == &fingerprint) {
+    let identified = if let Some((_, cached)) = cached.filter(|(key, _)| key == &fingerprint) {
         credential = cached.clone();
+        Ok(())
     } else {
         // Identity lookup can fill a profile or fail after doing so. Keep the
         // durable token unchanged for source checks and renewal retries.
-        network::identify(client, &mut credential).await?;
+        network::identify(client, &mut credential).await.map(|_| ())
+    };
+    if source.state(durable)? != DiskState::Written {
+        return Err(session::expired());
     }
-    if source.state(durable)? != DiskState::Written
-        || credential.account_identity().is_none()
+    identified?;
+    if credential.account_identity().is_none()
         || expected.is_some_and(|saved| !credential.matches_saved_identity(saved))
     {
         return Err(session::expired());

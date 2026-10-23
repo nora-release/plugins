@@ -331,7 +331,7 @@ async fn an_invalid_local_catalog_is_replaced_only_by_a_valid_download() {
 }
 
 #[test]
-fn models_dev_rows_preserve_each_models_protocol_and_exclude_non_chat_models() {
+fn models_dev_rows_preserve_each_models_protocol_and_keep_non_chat_models_separate() {
     let value = json!({
         "relay": {
             "npm":"@ai-sdk/openai-compatible",
@@ -353,7 +353,17 @@ fn models_dev_rows_preserve_each_models_protocol_and_exclude_non_chat_models() {
         }
     });
     let catalog = decode(&serde_json::to_vec(&value).unwrap()).unwrap();
-    assert_eq!(catalog.model_count(), 4);
+    assert_eq!(catalog.model_count(), 7);
+    let embedding = catalog.model("relay", "text-embed").unwrap();
+    assert_eq!(embedding.info.chat, Some(false));
+    assert_eq!(embedding.info.embedding, Some(true));
+    assert_eq!(
+        catalog.model("relay", "voice").unwrap().info.chat,
+        Some(false)
+    );
+    let image = catalog.model("relay", "gpt-image-new").unwrap();
+    assert_eq!(image.info.chat, Some(false));
+    assert_eq!(image.info.image_output, Some(true));
     let claude = catalog.model("relay", "claude-new").unwrap();
     assert_eq!(claude.api, "anthropic-messages");
     assert_eq!(claude.base_url, "https://relay.example/messages");
@@ -371,6 +381,150 @@ fn models_dev_rows_preserve_each_models_protocol_and_exclude_non_chat_models() {
     assert_eq!(
         catalog.model("relay", "no-limits").unwrap().context_window,
         0
+    );
+}
+
+#[test]
+fn actual_models_dev_rows_keep_pdf_and_video_inputs() {
+    // Exact rows from Magpie's models.dev 2026-10-09 fixture, without adding
+    // capabilities or inferred limits to its catalog entries.
+    let catalog = decode(include_bytes!(
+        "fixtures/models-dev-multimodal-2026-10-09.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        catalog.model("anthropic", "claude-sonnet-5").unwrap().input,
+        vec![
+            InputModality::Text,
+            InputModality::Image,
+            InputModality::Pdf
+        ]
+    );
+    assert_eq!(
+        catalog.model("kimi-code-plan-global", "k3").unwrap().input,
+        vec![
+            InputModality::Text,
+            InputModality::Image,
+            InputModality::Video
+        ]
+    );
+}
+
+#[test]
+fn all_supported_input_modalities_survive_in_the_sources_order_without_adding_text() {
+    let value = json!({"vendor":{"models":{
+        "omni":{"id":"omni","modalities":{"input":["pdf","audio","video","image","text","audio"],"output":["text","audio"]}},
+        "audio-chat":{"id":"audio-chat","modalities":{"input":["audio"],"output":["text","audio"]}},
+        "video-understanding":{"id":"video-understanding","modalities":{"input":["video"],"output":["text"]}},
+        "pdf-only":{"id":"pdf-only","modalities":{"input":["pdf"],"output":["text"]}}
+    }}});
+    let catalog = decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+    assert_eq!(
+        catalog.model("vendor", "omni").unwrap().input,
+        vec![
+            InputModality::Pdf,
+            InputModality::Audio,
+            InputModality::Video,
+            InputModality::Image,
+            InputModality::Text
+        ]
+    );
+    for (id, input) in [
+        ("audio-chat", InputModality::Audio),
+        ("video-understanding", InputModality::Video),
+        ("pdf-only", InputModality::Pdf),
+    ] {
+        let model = catalog.model("vendor", id).unwrap();
+        assert_eq!(model.input, vec![input]);
+        assert_eq!(model.info.chat, Some(true));
+    }
+}
+
+#[test]
+fn native_kinds_and_explicit_non_chat_flags_override_text_output_guesses() {
+    let value = json!({"vendor":{"models":{
+        "vectors":{"kind":"embedding","modalities":{"output":["text"]}},
+        "draw":{"kind":"image_generation","modalities":{"output":["text","image"]}},
+        "film":{"kind":"video","modalities":{"output":["video"]}},
+        "listen":{"kind":"transcription","modalities":{"input":["audio"],"output":["text"]}},
+        "speak":{"kind":"speech","modalities":{"input":["text"],"output":["audio"]}},
+        "sort":{"capabilities":{"type":"rerank"},"modalities":{"output":["text"]}},
+        "decide":{"kind":"decision","modalities":{"output":["text"]}},
+        "explicit":{"capabilities":{"completion_chat":false},"modalities":{"output":["text"]}},
+        "unknown":{"kind":"future-inference-kind","modalities":{"output":["text"]}},
+        "chat-with-audio-name":{"kind":"chat","modalities":{"output":["text"]}}
+    }}});
+    let catalog = decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+    assert_eq!(catalog.model_count(), 10);
+    for (id, kind) in [
+        ("vectors", "embedding"),
+        ("draw", "image_generation"),
+        ("film", "video"),
+        ("listen", "transcription"),
+        ("speak", "speech"),
+        ("sort", "rerank"),
+        ("decide", "decision"),
+    ] {
+        let model = catalog.model("vendor", id).unwrap();
+        assert_eq!(model.info.native_kind.as_deref(), Some(kind));
+        assert_eq!(model.info.chat, Some(false), "{id}");
+        assert_eq!(model.info.tool_calling, Some(false));
+        assert!(
+            model.provider_options.is_empty(),
+            "Metadata must not enter requests"
+        );
+    }
+    assert_eq!(
+        catalog.model("vendor", "vectors").unwrap().info.embedding,
+        Some(true)
+    );
+    assert_eq!(
+        catalog.model("vendor", "draw").unwrap().info.image_output,
+        Some(true)
+    );
+    assert_eq!(
+        catalog.model("vendor", "film").unwrap().info.video_output,
+        Some(true)
+    );
+    assert_eq!(
+        catalog.model("vendor", "decide").unwrap().info.decision,
+        Some(true)
+    );
+    assert_eq!(
+        catalog.model("vendor", "listen").unwrap().input,
+        vec![InputModality::Audio]
+    );
+    assert_eq!(
+        catalog.model("vendor", "explicit").unwrap().info.chat,
+        Some(false)
+    );
+    assert_eq!(
+        catalog
+            .model("vendor", "unknown")
+            .unwrap()
+            .info
+            .native_kind
+            .as_deref(),
+        Some("future-inference-kind")
+    );
+    assert_eq!(
+        catalog
+            .model("vendor", "chat-with-audio-name")
+            .unwrap()
+            .info
+            .chat,
+        Some(true)
+    );
+}
+
+#[test]
+fn a_catalog_containing_only_non_chat_services_is_valid() {
+    let value = json!({"vendor":{"models":{"speech-service":{"kind":"speech","modalities":{"input":["text"],"output":["audio"]}}}}});
+    let catalog = decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+    assert_eq!(catalog.model_count(), 1);
+    assert_eq!(
+        catalog.model("vendor", "speech-service").unwrap().info.chat,
+        Some(false)
     );
 }
 

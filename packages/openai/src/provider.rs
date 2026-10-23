@@ -255,6 +255,7 @@ impl ProviderAdapter for OpenAI {
     }
     async fn prepare_fetch(
         &self,
+        _definition: &Definition,
         credentials: &Value,
         target: &mut Url,
         headers: &mut BTreeMap<String, String>,

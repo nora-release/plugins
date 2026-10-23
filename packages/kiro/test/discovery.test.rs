@@ -206,7 +206,7 @@ async fn cli_and_owned_magpie_login_share_the_verified_user_identity_and_return_
 }
 
 #[tokio::test]
-async fn detected_magpie_login_is_reported_when_identity_service_is_temporarily_unavailable() {
+async fn discovery_preserves_a_safe_service_error_without_creating_an_unverified_account() {
     let directory = Directory::new();
     let path = directory.0.join("plugin-auth.json");
     let original=json!({"kiro#owned":{"type":"oauth","access":"private-magpie-access","refresh":"private-magpie-refresh","expires":session::now()+3_600_000,"method":"social","profileArn":fixture::PROFILE}}).to_string();
@@ -226,9 +226,40 @@ async fn detected_magpie_login_is_reported_when_identity_service_is_temporarily_
     .unwrap();
     assert_eq!(result["accounts"], json!([]));
     assert_eq!(result["errors"][0]["sourceID"], "magpieSource");
-    assert_eq!(result["errors"][0]["detected"], true);
+    assert_eq!(result["errors"][0]["code"], "kiro_http_503");
+    assert_eq!(result["errors"][0]["message"], "Kiro returned HTTP 503.");
     assert!(!result.to_string().contains("private-"));
     assert_eq!(std::fs::read_to_string(path).unwrap(), original);
+}
+
+#[tokio::test]
+async fn rejected_renewal_reports_the_authentication_error_without_creating_or_erasing_an_account()
+{
+    for status in [401, 403] {
+        let directory = Directory::new();
+        directory.cli(
+            "private-expired-access",
+            fixture::PROFILE,
+            session::now() - 1,
+        );
+        let sources = vec![directory.sources().remove(0)];
+        let before = std::fs::read(&sources[0].path).unwrap();
+        let client = fixture::Client::new(vec![fixture::Reply::raw(
+            status,
+            b"private-auth-response".to_vec(),
+        )]);
+        let result = discover_at(&sources, &client).await.unwrap();
+        assert_eq!(result["accounts"], json!([]));
+        assert_eq!(result["errors"][0]["sourceID"], "cliSource");
+        assert_eq!(result["errors"][0]["code"], format!("kiro_http_{status}"));
+        assert_eq!(
+            result["errors"][0]["message"],
+            format!("Kiro returned HTTP {status}.")
+        );
+        assert!(!result.to_string().contains("private-"));
+        assert_eq!(client.requests.lock().unwrap().len(), 1);
+        assert_eq!(std::fs::read(&sources[0].path).unwrap(), before);
+    }
 }
 
 #[tokio::test]

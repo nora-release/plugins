@@ -39,6 +39,15 @@
   ],
   "models": [],
   "config": {
+    "options": [
+      {
+        "id": "x_search",
+        "type": "boolean",
+        "label": "Native X search",
+        "description": "Offers X search to Grok when tools are automatic. Keeps existing search filters and explicit tool choices. Grok decides whether to search.",
+        "default": false
+      }
+    ],
     "catalog": "xai",
     "keyProvider": "xai-api-key",
     "oauthProvider": "xai",

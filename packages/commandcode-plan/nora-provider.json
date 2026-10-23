@@ -1,0 +1,63 @@
+{
+  "apiVersion": 1,
+  "id": "commandcode-plan",
+  "name": "Command Code Plan",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-completions",
+  "baseURL": "https://api.commandcode.ai/provider/v1",
+  "aliases": [],
+  "authMethods": [
+    {
+      "id": "oauth",
+      "type": "oauth",
+      "label": "Command Code account"
+    },
+    {
+      "id": "apiKey",
+      "type": "apiKey",
+      "label": "Command Code API key",
+      "fields": [
+        {
+          "id": "key",
+          "key": "key",
+          "type": "password",
+          "label": "API key",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "source",
+      "label": "Use selected Command Code CLI account",
+      "fields": [
+        {
+          "id": "sourcePath",
+          "key": "sourcePath",
+          "type": "text",
+          "label": "Command Code account file",
+          "required": true,
+          "placeholder": "~/.commandcode/auth.json"
+        }
+      ]
+    }
+  ],
+  "models": [],
+  "config": {
+    "persistent": true,
+    "options": [
+      {
+        "label": "Zero Data Retention",
+        "type": "boolean",
+        "default": false,
+        "description": "Requests upstreams that keep no prompts or replies. They can cost more, and an unavailable upstream returns an error.",
+        "id": "zdr"
+      }
+    ],
+    "authTimeoutMs": 600000
+  }
+}

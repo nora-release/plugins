@@ -1,8 +1,12 @@
 mod pricing;
+pub mod profiles;
+mod request_metadata;
 extern crate self as nora_provider;
 
+mod account_headers;
 pub mod adapter;
 pub mod auth;
+mod auth_headers;
 pub mod catalog;
 pub mod definition;
 pub mod discovery;

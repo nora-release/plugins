@@ -2,14 +2,16 @@
   "apiVersion": 1,
   "id": "azure-openai-responses",
   "name": "Azure OpenAI Responses",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "runtime": {
     "entry": "provider",
     "type": "native"
   },
   "api": "azure-openai-responses",
   "baseURL": "https://YOUR-RESOURCE.openai.azure.com",
-  "aliases": [],
+  "aliases": [
+    "azure"
+  ],
   "authMethods": [
     {
       "id": "apiKey",

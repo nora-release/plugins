@@ -1,0 +1,23 @@
+[package]
+name = "nora-provider-mimo-app"
+version = "1.2.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[dependencies]
+nora-provider-subscription-core = { path = "../subscription-core" }
+nora-provider-plugin-sdk.workspace = true
+tokio = { version = "1", features = ["rt", "macros", "sync", "time", "net", "io-util"] }
+nora-ai.workspace = true
+async-trait = "0.1"
+base64 = "0.22"
+bytes = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+cookie = "0.18"
+futures = "0.3"
+hex = "0.4"
+rand = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "socks"] }
+serde_json = "1"
+url = "2"

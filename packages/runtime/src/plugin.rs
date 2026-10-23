@@ -235,11 +235,13 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
-        Ok(json!(self.definition()?.auth_methods))
+        Ok(json!(crate::account_headers::methods(&self.definition()?)))
     }
 
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
-        let definition = self.definition()?;
+        let mut definition =
+            crate::profiles::configured(self.definition()?, context.credentials.as_ref())?;
+        definition.request_account = Some(context.account.clone());
         let data_directory = self
             .data_directory
             .read()
@@ -320,7 +322,7 @@ impl ProviderPlugin for BundledProvider {
         let Some(value) = context.credentials.as_ref() else {
             return Ok(json!({"accounts":[]}));
         };
-        let definition = self.definition()?;
+        let definition = crate::profiles::configured(self.definition()?, Some(value))?;
         let credentials = auth::decode(&definition, Some(value))?;
         let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
         let client = self.client(proxy.as_ref())?;
@@ -375,25 +377,41 @@ impl ProviderPlugin for BundledProvider {
         if method == "oauth" {
             return self.start_login(&definition, client, proxy).await;
         }
-        if method != "apiKey" {
+        let profile = crate::profiles::by_method(&definition, method);
+        if method != "apiKey" && profile.is_none() {
             return Err(PluginError::unsupported(method));
         }
+        let optional = profile.map_or(definition.config.key_optional, |profile| {
+            profile.key_optional
+        });
         let inputs = params
             .get("inputs")
             .or_else(|| params.get("fields"))
             .unwrap_or(&params);
-        let key = inputs
+        let supplied = inputs
             .get("apiKey")
             .or_else(|| inputs.get("key"))
-            .or_else(|| inputs.get("access"))
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty() && !value.contains(['\r', '\n']))
-            .ok_or_else(|| PluginError::authentication("Enter an API key for this provider."))?;
+            .or_else(|| inputs.get("access"));
+        let key = match supplied {
+            Some(Value::String(value))
+                if !value.contains(['\r', '\n', '\0'])
+                    && (optional || !value.trim().is_empty()) =>
+            {
+                value.trim()
+            }
+            None if optional => "",
+            _ => {
+                return Err(PluginError::authentication(
+                    "Enter a valid API key for this provider.",
+                ))
+            }
+        };
         let mut credentials = OAuthCredentials::api_key(OAuthProviderId::ApiKey, key);
         definition
             .adapter
             .configure_api_credentials(inputs, &mut credentials)?;
+        crate::profiles::assign(&definition, method, inputs, &mut credentials)?;
+        crate::account_headers::assign(&definition, inputs, &mut credentials)?;
         credentials
             .extras
             .insert("baseUrl".into(), JsonValue::string(&definition.base_url));
@@ -402,9 +420,11 @@ impl ProviderPlugin for BundledProvider {
                 .extras
                 .insert("name".into(), JsonValue::string(label));
         }
-        Ok(
-            json!({"ok":true,"credentials":auth::encode(&credentials,&definition.config.key_provider,false)}),
-        )
+        let mut saved = auth::encode(&credentials, &definition.config.key_provider, false);
+        if profile.is_some() {
+            saved["authMethod"] = json!(method);
+        }
+        Ok(json!({"ok":true,"credentials":saved}))
     }
 
     async fn callback(&self, params: Value) -> PluginResult<Value> {
@@ -433,7 +453,8 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn refresh(&self, params: Value) -> PluginResult<Value> {
-        let definition = self.definition()?;
+        let definition =
+            crate::profiles::configured(self.definition()?, params.get("credentials"))?;
         let proxy = self.params_proxy(&params)?;
         let client = self.client(proxy.as_ref())?;
         let value = params
@@ -465,7 +486,8 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
-        let definition = self.definition()?;
+        let definition =
+            crate::profiles::configured(self.definition()?, context.credentials.as_ref())?;
         let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
         let client = self.client(proxy.as_ref())?;
         let value = context
@@ -510,7 +532,10 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn fetch(&self, mut request: FetchRequest) -> PluginResult<FetchResponse> {
-        let definition = self.definition()?;
+        let mut definition =
+            crate::profiles::configured(self.definition()?, request.credentials.as_ref())?;
+        definition.request_account = Some(request.account.clone());
+        crate::request_metadata::apply(&definition, &mut request)?;
         request.network_proxy = self.effective_proxy(request.network_proxy.as_ref())?;
         let client = self.client(request.network_proxy.as_ref())?;
         if let Some(response) = definition
@@ -530,12 +555,15 @@ impl ProviderPlugin for BundledProvider {
         {
             return crate::transport_file::fetch(&definition, request).await;
         }
+        let credentials = request
+            .credentials
+            .clone()
+            .ok_or_else(|| PluginError::authentication("Connect a provider account."))?;
         let request = transport::build_request(&definition, request).await?;
+        let api = transport::request_api(&definition, &credentials, &request.url);
         let secrets = transport::request_secrets(&request);
-        let response = client
-            .stream(request)
-            .await
-            .map_err(|_| PluginError::transport("The provider endpoint could not be reached."))?;
+        let response =
+            crate::auth_headers::send(&client, &definition, &credentials, &api, request).await?;
         transport::finish_response(response, secrets).await
     }
 

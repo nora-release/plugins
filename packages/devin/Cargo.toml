@@ -1,0 +1,29 @@
+[package]
+name = "nora-provider-devin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-ai.workspace = true
+nora-provider-plugin-sdk.workspace = true
+nora-provider = { path = "../runtime" }
+nora-provider-subscription-core = { path = "../subscription-core" }
+async-trait = "0.1"
+base64 = "0.22"
+chrono = "0.4"
+flate2 = "1"
+futures = "0.3"
+rand = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "socks"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros", "net", "io-util", "sync", "time"] }
+toml = "0.8"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+libc = "0.2"
+
+[dev-dependencies]
+bytes = "1"

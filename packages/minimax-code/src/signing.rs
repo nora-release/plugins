@@ -77,6 +77,10 @@ pub(crate) fn signed(
         ("user_id", if user.is_empty() { "0" } else { user }),
         ("client", "mcode"),
     ]);
+    if path.starts_with("/minimax-cloud/api/v1/signin/") {
+        url.query_pairs_mut()
+            .append_pair("timezone_id", "Asia/Shanghai");
+    }
     let suffix = format!("{}?{}", url.path(), url.query().unwrap_or(""));
     let bytes = body
         .map(serde_json::to_string)

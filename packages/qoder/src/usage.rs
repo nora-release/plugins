@@ -212,7 +212,22 @@ fn stamp(at: u64) -> String {
 pub(crate) async fn checkin(
     provider: &Qoder,
     client: &dyn HttpClient,
+    credentials: Value,
+) -> PluginResult<Value> {
+    checkin_with_status(provider, client, credentials, false).await
+}
+pub(crate) async fn checkin_status(
+    provider: &Qoder,
+    client: &dyn HttpClient,
+    credentials: Value,
+) -> PluginResult<Value> {
+    checkin_with_status(provider, client, credentials, true).await
+}
+async fn checkin_with_status(
+    provider: &Qoder,
+    client: &dyn HttpClient,
     mut credentials: Value,
+    status_only: bool,
 ) -> PluginResult<Value> {
     let machine = if provider.site == Site::International {
         machine(provider, text(&credentials, "uid")).await?
@@ -232,79 +247,107 @@ pub(crate) async fn checkin(
     let campaigns = value
         .get("campaigns")
         .and_then(Value::as_array)
-        .filter(|campaigns| campaigns.len() <= 1000)
-        .ok_or_else(|| transport("Qoder returned no valid campaigns list."))?;
-    let campaigns = campaigns
+        .filter(|c| c.len() <= 1000)
+        .ok_or_else(|| transport("Qoder returned no valid campaigns list."))?
         .iter()
-        .filter(|campaign| text(campaign, "actionType") == "CLAIM_BENEFIT")
+        .filter(|c| text(c, "actionType") == "CLAIM_BENEFIT")
         .collect::<Vec<_>>();
-    let campaign = campaigns
+    let current = now();
+    let when = |v: &Value| {
+        number(v)
+            .filter(|n| *n >= 0.0 && *n <= i64::MAX as f64)
+            .map(|n| {
+                if n > 1e12 {
+                    n as u64
+                } else {
+                    (n * 1000.0) as u64
+                }
+            })
+    };
+    let active = |c: &&Value| {
+        when(&c["startAt"]).is_some_and(|at| at <= current)
+            && when(&c["endAt"]).is_some_and(|at| at > current)
+    };
+    let until = campaigns
+        .iter()
+        .filter(|c| active(c))
+        .filter_map(|c| when(&c["endAt"]))
+        .min();
+    let finish = |mut result: Value| {
+        if let Some(until) = until {
+            result["validUntil"] = json!(stamp(until));
+        }
+        result
+    };
+    let claimable = campaigns
         .iter()
         .copied()
-        .find(|campaign| text(campaign, "claimStatus") == "CLAIMABLE");
-    let Some(campaign) = campaign else {
-        let done = campaigns.iter().copied().find(|campaign| {
-            text(campaign, "claimStatus") == "CLAIMED"
-                && campaign
-                    .get("startAt")
-                    .and_then(number)
-                    .is_none_or(|at| at * 1000.0 <= now() as f64)
-                && campaign
-                    .get("endAt")
-                    .and_then(number)
-                    .is_none_or(|at| at * 1000.0 > now() as f64)
-        });
-        return if let Some(done) = done {
-            Ok(outcome(
+        .filter(|c| text(c, "claimStatus") == "CLAIMABLE")
+        .collect::<Vec<_>>();
+    if status_only && !claimable.is_empty() {
+        return Ok(finish(json!({"outcome":"ready","retrySafe":true})));
+    }
+    if claimable.is_empty() {
+        if let Some(done) = campaigns
+            .iter()
+            .find(|c| text(c, "claimStatus") == "CLAIMED" && active(c))
+        {
+            return Ok(finish(outcome(
                 "done",
                 done.pointer("/benefit/amount").and_then(number),
-            ))
-        } else if campaigns.is_empty() {
+            )));
+        }
+        return if campaigns.is_empty() {
             Ok(outcome("inactive", None))
         } else {
-            Err(transport("Qoder has not offered today's credits yet."))
+            Ok(json!({"outcome":"failed","retrySafe":true}))
         };
-    };
-    let id = campaign
-        .get("campaignId")
-        .filter(|id| !id.is_null())
-        .map(|id| {
-            id.as_str()
-                .map(str::to_owned)
-                .unwrap_or_else(|| id.to_string())
-        })
-        .filter(|id| !id.is_empty() && id.len() <= 512)
-        .ok_or_else(|| transport("Qoder's claimable campaign has no identity."))?;
-    let path = format!("{CAMPAIGNS}/{}/claim", crate::site::encode_path(&id));
-    let claimed = page(
-        provider,
-        client,
-        &mut credentials,
-        &path,
-        HttpMethod::Post,
-        Some(json!({})),
-        &machine,
-    )
-    .await?;
-    let state = claimed
-        .get("status")
-        .or_else(|| claimed.pointer("/data/status"))
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    if state != "CLAIMED" {
-        return Err(transport(format!(
-            "Qoder did not confirm the credit claim ({state})."
-        )));
     }
-    Ok(outcome(
-        "claimed",
-        claimed
+    let mut reward = 0.0;
+    let mut has_reward = false;
+    for campaign in claimable {
+        let id = campaign
+            .get("campaignId")
+            .filter(|v| v.is_string() || v.is_number())
+            .map(|v| {
+                v.as_str()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| v.to_string())
+            })
+            .filter(|v| !v.trim().is_empty() && v.len() <= 512 && !v.chars().any(char::is_control))
+            .ok_or_else(|| transport("Qoder's claimable campaign has no identity."))?;
+        let path = format!("{CAMPAIGNS}/{}/claim", crate::site::encode_path(&id));
+        let claimed = page(
+            provider,
+            client,
+            &mut credentials,
+            &path,
+            HttpMethod::Post,
+            Some(json!({})),
+            &machine,
+        )
+        .await?;
+        let state = claimed
+            .get("status")
+            .or_else(|| claimed.pointer("/data/status"))
+            .and_then(Value::as_str);
+        if state != Some("CLAIMED") {
+            return Err(transport("Qoder did not confirm the credit claim."));
+        }
+        if let Some(amount) = claimed
             .pointer("/benefit/amount")
             .or_else(|| claimed.pointer("/data/benefit/amount"))
             .or_else(|| campaign.pointer("/benefit/amount"))
-            .and_then(number),
-    ))
+            .and_then(number)
+            .filter(|n| *n >= 0.0)
+        {
+            has_reward = true;
+            reward += amount;
+        }
+    }
+    Ok(finish(outcome("claimed", has_reward.then_some(reward))))
 }
+
 fn outcome(value: &str, credit: Option<f64>) -> Value {
     let mut result = json!({"outcome":value});
     if let Some(credit) = credit.filter(|credit| *credit > 0.0) {

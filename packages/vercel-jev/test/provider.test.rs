@@ -8,6 +8,9 @@ fn manifest() -> Value {
 }
 fn params(manifest: Value) -> InitializeParams {
     InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "vercel-jev".into(),
         plugin_directory: PathBuf::new(),

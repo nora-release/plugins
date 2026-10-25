@@ -1,4 +1,5 @@
 use super::*;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 struct DiscoveredAccount {
@@ -44,7 +45,9 @@ impl ProviderAdapter for DiscoveredAccount {
 
 async fn fixture(adapter: impl ProviderAdapter) -> BundledProvider {
     let plugin = BundledProvider::new(adapter);
-    plugin.initialize(InitializeParams {
+    plugin.initialize(InitializeParams { subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: API_VERSION,
         plugin_id: "fixture".into(),
         plugin_directory: PathBuf::new(),
@@ -56,6 +59,7 @@ async fn fixture(adapter: impl ProviderAdapter) -> BundledProvider {
 
 fn context() -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: String::new(),
         credentials: None,
         network_proxy: None,
@@ -132,7 +136,7 @@ async fn account_enrichment_returns_private_credentials_separately_from_the_publ
             Ok(())
         }
     }
-    let result = fixture(Profile).await.accounts(CallContext {
+    let result = fixture(Profile).await.accounts(CallContext { subscription_accounts_enabled: true,
         account:"saved-account".into(), network_proxy:None,
         credentials:Some(json!({"provider":"xAI","type":"oauth","access":"private-token","refresh":"private-refresh"})),
     }).await.unwrap();

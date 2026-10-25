@@ -36,6 +36,9 @@ async fn plugin(directory: &Directory) -> OpenAIPlugin {
     let plugin = OpenAIPlugin::default();
     plugin
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: nora_provider_plugin_sdk::API_VERSION,
             plugin_id: "openai".into(),
             plugin_directory: directory.0.clone(),
@@ -142,6 +145,7 @@ async fn wrapper_keeps_api_authorization_account_profiles_and_usage_methods_avai
     assert_eq!(authorized["credentials"]["access"], "fixture-api-key");
     assert_eq!(authorized["credentials"]["type"], "apiKey");
     let context = CallContext {
+        subscription_accounts_enabled: true,
         account: "saved-api".into(),
         credentials: Some(authorized["credentials"].clone()),
         network_proxy: None,

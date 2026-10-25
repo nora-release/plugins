@@ -295,7 +295,9 @@ fn token(value: &Value, refresh: &str) -> PluginResult<Value> {
 impl ProviderPlugin for MiniMaxCode {
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
         self.site()?;
-        self.core.initialize(params)
+        let mut result = self.core.initialize(params)?;
+        result["capabilities"]["sdkFeatures"] = json!({"accountAutomation":1});
+        Ok(result)
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
         Ok(self.core.config()?.manifest["authMethods"].clone())
@@ -433,6 +435,7 @@ impl ProviderPlugin for MiniMaxCode {
                 .or_else(|| core::text(&identity["name"]))
                 .map(|v| json!(v))
                 .unwrap_or_else(|| json!("MiniMax Code account"));
+            crate::identity::assign(site, &mut credentials)?;
             return Ok(json!({"ok":true,"credentials":credentials}));
         }
         Err(PluginError::authentication(
@@ -493,6 +496,18 @@ impl ProviderPlugin for MiniMaxCode {
             &site.base(),
             "remote",
         ))
+    }
+    async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
+        let Some(mut credentials) = context.credentials else {
+            return Ok(json!([]));
+        };
+        let previous = credentials.clone();
+        crate::identity::assign(self.site()?, &mut credentials)?;
+        let mut result = json!({"accounts":[{"id":context.account,"email":credentials["email"],"name":credentials["name"],"configured":credentials["type"]=="oauth"}]});
+        if previous != credentials {
+            result["credentials"] = credentials;
+        }
+        Ok(result)
     }
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
         let client = self.core.client(context.network_proxy.as_ref())?;
@@ -603,9 +618,14 @@ impl ProviderPlugin for MiniMaxCode {
         })
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
-        if method != "checkin" {
+        if !matches!(method, "checkin" | "checkinStatus") {
             return Err(PluginError::unsupported(method));
         }
+        self.checkin(params, method == "checkinStatus").await
+    }
+}
+impl MiniMaxCode {
+    async fn checkin(&self, params: Value, status_only: bool) -> PluginResult<Value> {
         let client = self.core.params_client(&params)?;
         let old = params.get("credentials").ok_or_else(|| {
             PluginError::authentication("Connect MiniMax Code before checking in.")
@@ -664,6 +684,7 @@ impl ProviderPlugin for MiniMaxCode {
         match today["status"].as_u64().unwrap_or(0) {
             3 => Ok(json!({"outcome":"done","credit":today["points"],"streak":streak(index+1)})),
             4 => Ok(json!({"outcome":"ineligible"})),
+            2 if status_only => Ok(json!({"outcome":"ready","retrySafe":true})),
             2 => {
                 let claim = self
                     .account(
@@ -694,6 +715,7 @@ impl ProviderPlugin for MiniMaxCode {
         }
     }
 }
+
 #[cfg(test)]
 #[path = "../test/provider.test.rs"]
 mod tests;

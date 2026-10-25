@@ -39,6 +39,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "options": [
       {
         "id": "x_search",

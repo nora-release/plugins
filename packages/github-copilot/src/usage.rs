@@ -35,15 +35,21 @@ pub async fn fetch(
     let Some(github_token) = github_token else {
         return Ok(unavailable("Copilot usage requires the GitHub OAuth account token, which is separate from its chat token."));
     };
-    let request = HttpRequest::new(
+    let host = match auth.metadata.get("githubHost") {
+        Some(host) => host
+            .as_str()
+            .and_then(nora_provider_auth::copilot_identity::normalize_host)
+            .ok_or_else(|| "The GitHub account host is invalid.".to_string())?,
+        None => String::new(),
+    };
+    let mut request = HttpRequest::new(
         HttpMethod::Get,
-        "https://api.github.com/copilot_internal/user",
+        nora_provider_auth::copilot_identity::api_url(&host, "/copilot_internal/user"),
     )
-    .with_header("authorization", format!("token {github_token}"))
-    .with_header("editor-version", "vscode/1.107.0")
-    .with_header("editor-plugin-version", "copilot-chat/0.35.0")
-    .with_header("user-agent", "GitHubCopilotChat/0.35.0")
-    .with_header("x-github-api-version", "2025-04-01");
+    .with_header("authorization", format!("token {github_token}"));
+    request
+        .headers
+        .extend(nora_provider_auth::copilot_client::editor_headers());
     let request = request.with_header("accept", "application/json");
     let payload = request_json(client, request, Duration::from_secs(20)).await?;
     Ok(parse(&payload))
@@ -89,6 +95,9 @@ fn copilot(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
             continue;
         }
         let limit = number(&quota["entitlement"]);
+        if !exhausted_pool && limit.is_some_and(|limit| limit <= 0.0) {
+            continue;
+        }
         let remaining = number(&quota["quota_remaining"]).or_else(|| number(&quota["remaining"]));
         let percent = if exhausted_pool {
             Some(100.0)

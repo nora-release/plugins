@@ -1,11 +1,51 @@
 use crate::{auth, definition::Definition, discovery};
 use futures::StreamExt;
 use nora_ai::{
-    AuthScheme, AwsSigV4, AwsSigV4Credentials, HttpMethod, HttpRequest, HttpStreamingResponse,
+    AuthScheme, AwsSigV4, AwsSigV4Credentials, HttpClient, HttpMethod, HttpRequest,
+    HttpStreamingResponse,
 };
 use nora_provider_plugin_sdk::{FetchRequest, FetchResponse, PluginError, PluginResult};
 use serde_json::Value;
 use std::collections::BTreeMap;
+
+pub(crate) async fn send(
+    client: &dyn HttpClient,
+    definition: &Definition,
+    credentials: &Value,
+    api: &str,
+    request: HttpRequest,
+) -> PluginResult<HttpStreamingResponse> {
+    #[derive(serde::Deserialize)]
+    struct ModelName {
+        model: String,
+    }
+    let observed_statuses = definition.adapter.observed_error_statuses(credentials);
+    let model = if observed_statuses.is_empty() {
+        None
+    } else {
+        request
+            .body
+            .as_deref()
+            .and_then(|body| serde_json::from_slice::<ModelName>(body).ok())
+            .map(|name| name.model)
+            .filter(|id| !id.is_empty() && id.len() <= 512)
+    };
+    definition
+        .adapter
+        .before_send(definition, credentials, &request, client)
+        .await?;
+    let mut response =
+        crate::auth_headers::send(client, definition, credentials, api, request).await?;
+    if observed_statuses.contains(&response.status) {
+        if let Some(model) = model {
+            let body = crate::http_response::error_prefix(&mut response).await;
+            definition
+                .adapter
+                .observe_response_error(credentials, &model, response.status, &body);
+        }
+    }
+    Ok(response)
+}
 
 pub fn request_secrets(request: &HttpRequest) -> Vec<String> {
     let mut secrets = Vec::new();
@@ -100,7 +140,7 @@ pub async fn build_request(
         auth::resolve_with_network(definition, value, request.network_proxy.as_ref()).await?;
     let mut target = url::Url::parse(&request.url)
         .map_err(|_| PluginError::invalid("The provider request address is invalid."))?;
-    let endpoint = discovery::configured_bases(definition, Some(value))
+    let endpoint = discovery::resolved_bases(definition, value, &resolved)
         .into_iter()
         .filter_map(|base| url::Url::parse(&base.base_url).ok())
         .find(|endpoint| {
@@ -115,6 +155,9 @@ pub async fn build_request(
         ));
     }
     let endpoint = endpoint.expect("The configured endpoint was checked above");
+    if auth::is_api(value) && definition.config.api_key_auth.is_none() {
+        resolved.scheme = auth::api_key_scheme(&request_api(definition, value, target.as_str()));
+    }
     let method = match request.method.to_ascii_uppercase().as_str() {
         "GET" => HttpMethod::Get,
         "POST" => HttpMethod::Post,
@@ -124,6 +167,7 @@ pub async fn build_request(
         _ => return Err(PluginError::invalid("The provider HTTP method is invalid.")),
     };
     let mut body = request.decode_body()?;
+    let session = crate::extra_body::session(&request, body.as_deref());
     let mut headers = request
         .headers
         .into_iter()
@@ -132,6 +176,7 @@ pub async fn build_request(
                 name.to_ascii_lowercase().as_str(),
                 "authorization"
                     | "x-api-key"
+                    | "x-goog-api-key"
                     | "api-key"
                     | "host"
                     | "content-length"
@@ -155,6 +200,7 @@ pub async fn build_request(
             &mut resolved,
         )
         .await?;
+    crate::extra_body::apply(definition, value, target.path(), &session, &mut body);
     for (key, value) in &definition.config.query_params {
         target.query_pairs_mut().append_pair(key, value);
     }
@@ -210,6 +256,9 @@ pub async fn build_request(
         crate::adapter::merge_headers(&mut headers, definition.config.headers.clone());
         crate::adapter::merge_headers(&mut headers, crate::account_headers::read(value)?);
     }
+    definition
+        .adapter
+        .finalize_fetch(value, &target, &mut headers, &mut body)?;
     Ok(HttpRequest {
         method,
         url: target.into(),

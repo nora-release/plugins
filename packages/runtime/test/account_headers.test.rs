@@ -66,6 +66,7 @@ async fn account_headers_are_applied_privately_after_auth_and_never_added_to_mod
     let definition = definition();
     let credentials = json!({"type":"apiKey","access":"key","extras":{"noraAccountHeaders":{"anthropic-workspace-id":"workspace-one"},"authHeader":"bearer"}});
     let request = nora_provider_plugin_sdk::FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials.clone()),
         network_proxy: None,
@@ -96,6 +97,9 @@ async fn declared_native_authentication_fields_persist_headers_in_only_the_autho
     let manifest = json!({"id":"header-lifecycle","name":"Headers","api":"anthropic-messages","baseURL":"https://relay.invalid/v1","authMethods":[{"id":"apiKey","type":"api","fields":[{"id":"apiKey","key":"apiKey","type":"password"}]}],"config":{"keyProvider":"headers","headerHints":["anthropic-workspace-id"]}});
     plugin
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "header-lifecycle".into(),
             plugin_directory: "/tmp/header-lifecycle".into(),

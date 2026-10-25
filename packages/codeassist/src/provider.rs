@@ -15,7 +15,7 @@ struct Config {
     methods: Value,
 }
 pub struct CodeAssist {
-    app: App,
+    pub(crate) app: App,
     config: RwLock<Option<Config>>,
     pending: Mutex<BTreeMap<String, auth::Pending>>,
     tokens: Mutex<BTreeMap<String, session::Tokens>>,
@@ -70,7 +70,7 @@ impl CodeAssist {
                 .map_err(|_| invalid("The Code Assist network proxy is invalid."))?;
         self.client(proxy.as_ref())
     }
-    async fn client_version(&self, client: &dyn HttpClient) -> String {
+    pub(crate) async fn client_version(&self, client: &dyn HttpClient) -> String {
         if self.app != App::Antigravity {
             return String::new();
         }
@@ -175,7 +175,7 @@ impl CodeAssist {
         cache.insert(key, tokens.clone());
         Ok(tokens)
     }
-    async fn project(
+    pub(crate) async fn project(
         &self,
         tokens: &session::Tokens,
         client: &dyn HttpClient,
@@ -294,6 +294,21 @@ impl CodeAssist {
 }
 #[async_trait]
 impl ProviderPlugin for CodeAssist {
+    async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        match method {
+            "inspectAccountImport" => account_import::inspect(self.app, &params),
+            "importAccount" => {
+                account_import::import(
+                    self,
+                    &params,
+                    self.params_client(&params)?.as_ref(),
+                    &nora_provider::account_import::HostPersistence,
+                )
+                .await
+            }
+            _ => Err(PluginError::unsupported(method)),
+        }
+    }
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
         if params.api_version != API_VERSION
             || params.plugin_id != self.app.id()
@@ -323,7 +338,9 @@ impl ProviderPlugin for CodeAssist {
                 proxy,
                 methods: params.manifest["authMethods"].clone(),
             });
-        Ok(json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true}}))
+        Ok(
+            json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true,"sdkFeatures":{"accountImport":1}}}),
+        )
     }
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
         Ok(self.config()?.methods)
@@ -409,6 +426,7 @@ impl ProviderPlugin for CodeAssist {
             return Ok(json!({"changed":false}));
         }
         let mut credentials = session::saved(&tokens, self.app, None);
+        nora_provider::account_import::preserve_metadata(value, &mut credentials);
         if let Some(plan) = value.get("plan") {
             credentials["plan"] = plan.clone();
         }

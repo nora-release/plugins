@@ -43,7 +43,7 @@ fn paid_overage_only_excludes_personal_premium_allowances() {
 
 #[test]
 fn an_exhausted_organization_pool_counts_but_zero_entitlement_does_not() {
-    for (unlimited, expected) in [(true, true), (false, false)] {
+    for unlimited in [true, false] {
         let usage = parse(&json!({
             "copilot_plan": "enterprise",
             "quota_snapshots": {"premium_interactions": {
@@ -54,6 +54,35 @@ fn an_exhausted_organization_pool_counts_but_zero_entitlement_does_not() {
                 "overage_permitted": true
             }}
         }));
-        assert_eq!(usage["items"][0]["countsForRouting"], expected);
+        if unlimited {
+            assert_eq!(usage["items"][0]["countsForRouting"], true);
+            assert_eq!(usage["items"][0]["usedPercent"], 100.0);
+        } else {
+            assert!(usage["items"].as_array().unwrap().is_empty());
+            assert!(usage["balances"].as_array().unwrap().is_empty());
+        }
     }
+}
+
+#[test]
+fn free_accounts_do_not_show_a_premium_allowance_they_have_never_had() {
+    let usage = parse(&json!({
+        "copilot_plan": "free",
+        "access_type_sku": "free_limited_copilot",
+        "quota_snapshots": {
+            "chat": {"entitlement":"200", "percent_remaining":98.7, "has_quota":false},
+            "completions": {"entitlement":"4000", "percent_remaining":100, "has_quota":false},
+            "premium_interactions": {"entitlement":"0", "percent_remaining":0, "has_quota":false}
+        }
+    }));
+    let items = usage["items"].as_array().unwrap();
+    assert_eq!(items.len(), 2);
+    assert_eq!(items[0]["id"], "chat");
+    assert!((items[0]["usedPercent"].as_f64().unwrap() - 1.3).abs() < 1e-9);
+    assert_eq!(items[1]["id"], "completions");
+    assert!(usage["balances"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|balance| balance["id"] != "premium_interactions"));
 }

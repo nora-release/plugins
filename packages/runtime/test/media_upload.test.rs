@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 fn request(bytes: &[u8], content_type: &str) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: None,
         network_proxy: None,

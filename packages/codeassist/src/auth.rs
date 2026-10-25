@@ -105,6 +105,7 @@ pub(crate) async fn exchange(
     fields: &[(&str, &str)],
     client: &dyn HttpClient,
 ) -> PluginResult<Value> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let body = {
         let mut form = url::form_urlencoded::Serializer::new(String::new());
         form.extend_pairs(fields.iter().copied());
@@ -150,6 +151,13 @@ pub(crate) async fn identify(
     tokens: &mut session::Tokens,
     client: &dyn HttpClient,
 ) -> PluginResult<()> {
+    identify_with_identity(tokens, client).await.map(|_| ())
+}
+
+pub(crate) async fn identify_with_identity(
+    tokens: &mut session::Tokens,
+    client: &dyn HttpClient,
+) -> PluginResult<Value> {
     let user = json_request(
         client,
         HttpRequest::new(HttpMethod::Get, USER_INFO)
@@ -167,7 +175,10 @@ pub(crate) async fn identify(
             .to_lowercase()
     ));
     tokens.name = text(user.get("name"), 512).unwrap_or_default().into();
-    Ok(())
+    Ok(match text(user.get("id"), 512) {
+        Some(id) => json!({"issuer":"https://accounts.google.com","subject":id}),
+        None => json!({"issuer":"urn:nora:google-email","subject":tokens.email.to_lowercase()}),
+    })
 }
 
 pub(crate) async fn json_request(

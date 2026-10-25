@@ -71,6 +71,7 @@ fn credentials() -> Value {
 }
 fn context() -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(credentials()),
         network_proxy: None,
@@ -78,6 +79,7 @@ fn context() -> CallContext {
 }
 fn request(url: &str, method: &str, body: &[u8]) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(credentials()),
         network_proxy: None,
@@ -213,6 +215,9 @@ async fn nonofficial_addresses_and_methods_are_refused_before_any_network_reques
     let mut manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
     manifest["baseURL"] = json!("https://foreign.invalid/coding/v1");
     let init = InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: API_VERSION,
         plugin_id: "kimi-work".into(),
         plugin_directory: "/synthetic/plugin".into(),
@@ -334,6 +339,7 @@ async fn selecting_a_desktop_source_saves_only_a_reference_and_reads_each_live_t
     provider.fetch(chat).await.unwrap();
     let usage = provider
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "desktop".into(),
             credentials: Some(account.clone()),
             network_proxy: None,
@@ -352,6 +358,7 @@ async fn selecting_a_desktop_source_saves_only_a_reference_and_reads_each_live_t
     selected.write("different-user", "different-work", "different-membership");
     assert!(provider
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "desktop".into(),
             credentials: Some(account),
             network_proxy: None

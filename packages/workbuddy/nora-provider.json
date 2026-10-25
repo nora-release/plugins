@@ -30,7 +30,22 @@
         "label": "Use WorkBuddy desktop sign-in (read only)"
       }
     ],
-    "authTimeoutMs": 420000
+    "authTimeoutMs": 420000,
+    "accountAutomation": {
+      "version": 1,
+      "checkin": {
+        "method": "checkin",
+        "statusMethod": "checkinStatus",
+        "timeZone": "Asia/Shanghai",
+        "authMethods": [
+          "oauth",
+          "desktop"
+        ]
+      }
+    },
+    "accountActions": [
+      "checkin"
+    ]
   },
   "localSignIns": [
     {

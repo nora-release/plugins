@@ -28,6 +28,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "openrouter",
     "keyProvider": "openrouter",
     "legacy": {

@@ -5,18 +5,41 @@ use nora_ai::{
 };
 use nora_provider::{adapter::is_oauth, ProviderAdapter};
 use nora_provider_auth::{
-    copilot_editors, copilot_identity, GitHubCopilotOAuthProvider, OAuthLogin, OAuthLoginCallbacks,
+    copilot_client, copilot_editors, copilot_identity, GitHubCopilotOAuthProvider, OAuthLogin,
+    OAuthLoginCallbacks,
 };
+use nora_provider_plugin_sdk::model_resolution::{ModelResolution, ResolveModelRequest};
 use nora_provider_plugin_sdk::{NetworkProxy, PluginError, PluginResult};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use url::Url;
 
+#[path = "auto.rs"]
+mod auto;
+#[path = "refusals.rs"]
+mod refusals;
+#[path = "terms.rs"]
+mod terms;
 #[path = "usage.rs"]
 pub mod usage;
 
 #[derive(Debug)]
-pub struct Copilot;
+pub struct Copilot {
+    auto: auto::Resolver,
+    terms: terms::Approvals,
+    refused: std::sync::Arc<refusals::Refusals>,
+}
+
+impl Default for Copilot {
+    fn default() -> Self {
+        let refused = std::sync::Arc::new(refusals::Refusals::default());
+        Self {
+            auto: auto::Resolver::new(refused.clone()),
+            terms: terms::Approvals::default(),
+            refused,
+        }
+    }
+}
 
 #[async_trait]
 impl ProviderAdapter for Copilot {
@@ -29,6 +52,38 @@ impl ProviderAdapter for Copilot {
         client: &dyn HttpClient,
     ) -> Result<OAuthCredentials, OAuthError> {
         OAuthLogin::login_github_copilot(callbacks, client).await
+    }
+    async fn login_with_inputs(
+        &self,
+        callbacks: OAuthLoginCallbacks,
+        inputs: Value,
+        client: &dyn HttpClient,
+    ) -> Result<OAuthCredentials, OAuthError> {
+        let host = match inputs.get("host") {
+            None | Some(Value::Null) => String::new(),
+            Some(Value::String(host)) => {
+                copilot_identity::normalize_host(host).ok_or_else(|| {
+                    OAuthError::InvalidResponse(
+                        "Copilot signs in on github.com or an enterprise's <name>.ghe.com.".into(),
+                    )
+                })?
+            }
+            _ => {
+                return Err(OAuthError::InvalidResponse(
+                    "The GitHub account host is invalid.".into(),
+                ))
+            }
+        };
+        let mut config = nora_provider_auth::GitHubCopilotLoginConfig::default();
+        if !host.is_empty() {
+            config.device_code_url = format!("https://{host}/login/device/code");
+            config.access_token_url = format!("https://{host}/login/oauth/access_token");
+            config.copilot_token_url =
+                copilot_identity::api_url(&host, "/copilot_internal/v2/token");
+            config.github_user_url = copilot_identity::api_url(&host, "/user");
+            config.github_host = host;
+        }
+        OAuthLogin::login_github_copilot_with_config(config, callbacks, client).await
     }
     async fn refresh(
         &self,
@@ -67,6 +122,44 @@ impl ProviderAdapter for Copilot {
     }
     fn supports_account_discovery(&self) -> bool {
         true
+    }
+    fn supports_model_resolution(&self) -> bool {
+        true
+    }
+    async fn resolve_model(
+        &self,
+        definition: &nora_provider::definition::Definition,
+        request: ResolveModelRequest,
+        auth: &ResolvedProviderAuth,
+        client: &dyn HttpClient,
+    ) -> PluginResult<Option<ModelResolution>> {
+        self.auto.resolve(definition, request, auth, client).await
+    }
+    fn supplemental_models(
+        &self,
+        definition: &nora_provider::definition::Definition,
+        credentials: Option<&Value>,
+    ) -> Vec<Model> {
+        if !is_oauth(credentials) {
+            return Vec::new();
+        }
+        let mut model = Model::new("auto", "github-copilot-chat", &definition.id);
+        model.name = "Auto".into();
+        model.input = vec![nora_ai::InputModality::Text, nora_ai::InputModality::Image];
+        model.context_window = 0;
+        model.max_tokens = 0;
+        model.info.chat = Some(true);
+        model.info.tool_calling = Some(true);
+        nora_provider::models::configure_model(definition, credentials, &mut model);
+        vec![model]
+    }
+    fn fallback_models(
+        &self,
+        _definition: &nora_provider::definition::Definition,
+        credentials: Option<&Value>,
+        _catalog: &nora_ai::ModelsCatalog,
+    ) -> Option<Vec<Model>> {
+        is_oauth(credentials).then(Vec::new)
     }
     async fn discover_accounts(
         &self,
@@ -123,27 +216,28 @@ impl ProviderAdapter for Copilot {
         Ok(auth)
     }
     fn enrich_auth(&self, credentials: &OAuthCredentials, auth: &mut ResolvedProviderAuth) {
+        if auth.base_url.is_none() {
+            if let Ok(host) = copilot_identity::host(credentials) {
+                if !host.is_empty() {
+                    auth.base_url = Some(format!("https://copilot-api.{host}"));
+                }
+            }
+        }
         if credentials
             .extras
             .get("noraCopilotCLI")
             .is_some_and(|value| value.as_value() == &Value::Bool(true))
         {
-            auth.headers.extend(BTreeMap::from([
-                ("editor-version".into(), "copilot/1.0.88".into()),
-                (
-                    "copilot-integration-id".into(),
-                    "copilot-developer-cli".into(),
-                ),
-                ("x-github-api-version".into(), "2026-07-01".into()),
-                ("user-agent".into(), "copilot/1.0.88".into()),
-            ]));
+            nora_provider::adapter::merge_headers(&mut auth.headers, copilot_client::cli_headers());
         } else {
-            auth.headers
-                .extend(nora_ai::copilot_editor_headers("vscode-chat"));
+            nora_provider::adapter::merge_headers(&mut auth.headers, copilot_client::api_headers());
         }
         if let Some(token) = credentials.refresh_token.as_deref() {
             auth.metadata
                 .insert("githubOAuthToken".into(), JsonValue::string(token));
+        }
+        if let Some(host) = credentials.extras.get("githubHost") {
+            auth.metadata.insert("githubHost".into(), host.clone());
         }
     }
     fn endpoint(&self, credentials: Option<&Value>) -> Option<String> {
@@ -154,6 +248,19 @@ impl ProviderAdapter for Copilot {
             .and_then(|value| value.pointer("/extras/endpoint"))
             .and_then(Value::as_str)
             .map(str::to_string)
+            .or_else(|| {
+                credentials
+                    .and_then(|value| value.pointer("/extras/githubHost"))
+                    .and_then(Value::as_str)
+                    .and_then(copilot_identity::normalize_host)
+                    .filter(|host| !host.is_empty())
+                    .map(|host| format!("https://copilot-api.{host}"))
+            })
+    }
+    fn live_endpoint(&self, credentials: &Value, auth: &ResolvedProviderAuth) -> Option<String> {
+        is_oauth(Some(credentials))
+            .then(|| auth.base_url.clone())
+            .flatten()
     }
     fn model_api(&self, credentials: Option<&Value>, native_api: &str) -> Option<String> {
         if !is_oauth(credentials) {
@@ -186,33 +293,34 @@ impl ProviderAdapter for Copilot {
         {
             return;
         }
-        nora_provider::adapter::merge_headers(
-            headers,
-            nora_ai::copilot_editor_headers("vscode-chat"),
-        );
+        nora_provider::adapter::merge_headers(headers, copilot_client::api_headers());
     }
     fn bearer_model_list(&self, _auth: &ResolvedProviderAuth) -> bool {
         true
     }
-    fn model_visible(&self, entry: &Value, id: &str, _credentials: &Value) -> bool {
-        visible(entry, id)
+    fn model_visible(&self, entry: &Value, id: &str, credentials: &Value) -> bool {
+        visible(entry, id) && !self.refused.account(credentials).contains(id)
+    }
+    fn observed_error_statuses(&self, credentials: &Value) -> &'static [u16] {
+        if is_oauth(Some(credentials)) {
+            &[400]
+        } else {
+            &[]
+        }
+    }
+    fn observe_response_error(&self, credentials: &Value, model: &str, status: u16, body: &[u8]) {
+        if is_oauth(Some(credentials)) && status == 400 && refusals::model_refused(body) {
+            self.refused.account(credentials).remember(model);
+        }
     }
     fn enrich_model(&self, entry: &Value, model: &mut Model, _credentials: &Value) {
-        if let Some(endpoints) = entry.get("supported_endpoints").and_then(Value::as_array) {
-            model.api = if endpoints
-                .iter()
-                .any(|value| value.as_str() == Some("/v1/messages"))
-            {
-                "github-copilot-anthropic-messages"
-            } else if endpoints
-                .iter()
-                .any(|value| matches!(value.as_str(), Some("/responses" | "ws:/responses")))
-            {
-                "github-copilot-openai-responses"
-            } else {
-                "github-copilot-chat"
-            }
-            .into();
+        let endpoints = entry
+            .get("supported_endpoints")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        if let Some(api) = model_api(endpoints) {
+            model.api = api.into();
         }
     }
     fn preserve_model_api(&self, _credentials: &Value) -> bool {
@@ -232,6 +340,18 @@ impl ProviderAdapter for Copilot {
             if let Some(prefix) = path.strip_suffix(suffix) {
                 target.set_path(&format!("{prefix}{}", suffix.trim_start_matches("/v1")));
             }
+        }
+        Ok(())
+    }
+    async fn before_send(
+        &self,
+        _definition: &nora_provider::definition::Definition,
+        credentials: &Value,
+        request: &nora_ai::HttpRequest,
+        client: &dyn HttpClient,
+    ) -> PluginResult<()> {
+        if is_oauth(Some(credentials)) {
+            self.terms.before_send(request, client).await;
         }
         Ok(())
     }
@@ -290,6 +410,10 @@ fn visible(entry: &Value, id: &str) -> bool {
         return false;
     }
     if entry.pointer("/policy/state").and_then(Value::as_str) != Some("enabled")
+        && entry
+            .pointer("/policy/terms")
+            .and_then(Value::as_str)
+            .is_none_or(|terms| terms.is_empty())
         && !(entry.get("policy").is_none()
             && entry.get("model_picker_enabled").and_then(Value::as_bool) == Some(true))
     {
@@ -300,14 +424,37 @@ fn visible(entry: &Value, id: &str) -> bool {
         .and_then(Value::as_array)
         .filter(|values| !values.is_empty())
     {
-        if !endpoints.iter().any(|value| {
-            matches!(
-                value.as_str(),
-                Some("/v1/messages" | "/chat/completions" | "/responses" | "ws:/responses")
-            )
-        }) {
+        if model_api(endpoints).is_none() {
             return false;
         }
     }
     true
 }
+
+fn model_api(endpoints: &[Value]) -> Option<&'static str> {
+    if endpoints.is_empty() {
+        return Some("github-copilot-chat");
+    }
+    let normalized = endpoints
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|endpoint| {
+            let endpoint = endpoint.trim_end_matches('/');
+            endpoint.strip_prefix("/v1").unwrap_or(endpoint)
+        })
+        .collect::<Vec<_>>();
+    for (endpoint, api) in [
+        ("/messages", "github-copilot-anthropic-messages"),
+        ("/responses", "github-copilot-openai-responses"),
+        ("/chat/completions", "github-copilot-chat"),
+    ] {
+        if normalized.contains(&endpoint) {
+            return Some(api);
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+#[path = "../test/login.test.rs"]
+mod login_tests;

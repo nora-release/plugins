@@ -48,6 +48,9 @@ fn setup(replies: Vec<crate::test_support::Response>) -> (Mimo, Arc<Fixture>, Ar
     plugin
         .core
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "mimo-app".into(),
             plugin_directory: PathBuf::new(),
@@ -68,7 +71,7 @@ fn credentials() -> Value {
     )
 }
 fn request() -> FetchRequest {
-    FetchRequest{account:"one".into(),credentials:Some(credentials()),network_proxy:None,url:format!("{}/route/chat/completions",auth::base("SGP").unwrap()),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"Bearer untrusted".into()),("cookie".into(),"untrusted=one".into())]),metadata:BTreeMap::new(),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"mimo-pro","messages":[{"role":"user","content":"hello"}],"top_p":0.4,"stop":["END"],"tools":[{"type":"function","function":{"name":"read","parameters":{"type":"object"}}}]})).unwrap())),body_file:None}
+    FetchRequest{ subscription_accounts_enabled: true,account:"one".into(),credentials:Some(credentials()),network_proxy:None,url:format!("{}/route/chat/completions",auth::base("SGP").unwrap()),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"Bearer untrusted".into()),("cookie".into(),"untrusted=one".into())]),metadata:BTreeMap::new(),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"mimo-pro","messages":[{"role":"user","content":"hello"}],"top_p":0.4,"stop":["END"],"tools":[{"type":"function","function":{"name":"read","parameters":{"type":"object"}}}]})).unwrap())),body_file:None}
 }
 async fn body(response: FetchResponse) -> Value {
     use futures::StreamExt;
@@ -299,6 +302,7 @@ async fn usage_separates_the_app_week_from_token_plan_api_credits() {
     platform_cookie(&plugin).await;
     let value = plugin
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -343,6 +347,7 @@ async fn model_presets_are_honest_and_auto_alias_changes_only_the_top_level_mode
     )]);
     let models = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: String::new(),
             credentials: None,
             network_proxy: None,

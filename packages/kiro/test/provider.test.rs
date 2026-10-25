@@ -30,6 +30,9 @@ async fn provider(replies: Vec<fixture::Reply>) -> (Kiro, Arc<fixture::Client>, 
     provider.persistence = saver.clone();
     provider
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: API_VERSION,
             plugin_id: "kiro".into(),
             plugin_directory: Default::default(),
@@ -42,13 +45,14 @@ async fn provider(replies: Vec<fixture::Reply>) -> (Kiro, Arc<fixture::Client>, 
 }
 fn context(credentials: Value) -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(credentials),
         network_proxy: None,
     }
 }
 fn fetch(credentials: Value) -> FetchRequest {
-    FetchRequest{account:"work".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",session::BASE),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"caller-secret".into())]),metadata:BTreeMap::from([("reasoningEffort".into(),"high".into()),("sessionID".into(),"private-session".into())]),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"auto","stream":true,"messages":[{"role":"user","content":"hello"}]})).unwrap())),body_file:None}
+    FetchRequest{ subscription_accounts_enabled: true,account:"work".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",session::BASE),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"caller-secret".into())]),metadata:BTreeMap::from([("reasoningEffort".into(),"high".into()),("sessionID".into(),"private-session".into())]),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"auto","stream":true,"messages":[{"role":"user","content":"hello"}]})).unwrap())),body_file:None}
 }
 #[tokio::test]
 async fn startup_and_disconnected_catalog_do_not_read_or_import_accounts() {

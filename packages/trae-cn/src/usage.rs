@@ -164,6 +164,21 @@ pub(crate) async fn checkin(
     client: &dyn HttpClient,
     credentials: &Value,
 ) -> PluginResult<Value> {
+    checkin_with_status(provider, client, credentials, false).await
+}
+pub(crate) async fn checkin_status(
+    provider: &Trae,
+    client: &dyn HttpClient,
+    credentials: &Value,
+) -> PluginResult<Value> {
+    checkin_with_status(provider, client, credentials, true).await
+}
+async fn checkin_with_status(
+    provider: &Trae,
+    client: &dyn HttpClient,
+    credentials: &Value,
+    status_only: bool,
+) -> PluginResult<Value> {
     if provider.site != Site::China {
         return Ok(json!({"outcome":"inactive"}));
     }
@@ -182,11 +197,17 @@ pub(crate) async fn checkin(
     )
     .await?;
     check(provider.site, status, &value)?;
+    if value["enable"].as_bool().is_none() && value["checked_in"].as_bool().is_none() {
+        return Err(transport("Trae returned no valid check-in status."));
+    }
     if value.get("checked_in").and_then(Value::as_bool) == Some(true) {
         return Ok(outcome("done", value.get("credits").and_then(number)));
     }
     if value.get("enable").and_then(Value::as_bool) != Some(true) {
         return Ok(outcome("inactive", None));
+    }
+    if status_only {
+        return Ok(json!({"outcome":"ready","retrySafe":true}));
     }
     let (status, claimed) = json_request(
         client,
@@ -201,18 +222,23 @@ pub(crate) async fn checkin(
         },
     )
     .await?;
-    let (code, message) = error_of(&claimed);
+    let (code, _) = error_of(&claimed);
     if ["9095", "9074"].contains(&code.as_str()) {
-        let mut result = outcome("ineligible", None);
-        result["message"] = json!(if code == "9074" {
-            format!("{message} — check in using the Trae CN app.")
-        } else {
-            message
-        });
-        return Ok(result);
+        return Ok(outcome(
+            if code == "9074" {
+                "own-app"
+            } else {
+                "ineligible"
+            },
+            None,
+        ));
     }
     check(provider.site, status, &claimed)?;
-    if !claimed.is_object() {
+    if !claimed.is_object()
+        || claimed.get("credits").and_then(number).is_none()
+            && claimed.get("extra_credits").and_then(number).is_none()
+            && claimed["checked_in"] != true
+    {
         return Err(transport("Trae did not confirm the daily credit claim."));
     }
     let credits = claimed.get("credits").and_then(number).unwrap_or(0.0)

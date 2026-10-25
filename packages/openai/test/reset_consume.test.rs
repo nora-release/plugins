@@ -89,6 +89,70 @@ fn assert_redacted(error: PluginError) {
     }
 }
 
+fn usage_payload(used: f64) -> Value {
+    json!({"plan_type":"pro","rate_limit":{"allowed":used<100.0,
+        "primary_window":{"used_percent":0,"limit_window_seconds":18000},
+        "secondary_window":{"used_percent":used,"limit_window_seconds":604800,"reset_at":(Utc::now()+chrono::Duration::days(3)).timestamp()}},
+        "rate_limit_reset_credits":{"available_count":2}})
+}
+#[tokio::test]
+async fn expiring_execution_rereads_windows_and_keeps_the_grant_if_a_weekly_reset_just_emptied_them(
+) {
+    let client = Client::new([
+        Reply::Json(200, usage_payload(0.0)),
+        Reply::Json(200, credits()),
+    ]);
+    let result = consume_checked(
+        &auth(),
+        &json!({"requestID":REQUEST_ID,"reason":"expiring","offerID":"first"}),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(result["outcome"], "nothing_to_reset");
+    assert_eq!(client.requests().len(), 2);
+    assert!(client
+        .requests()
+        .iter()
+        .all(|r| r.method == HttpMethod::Get));
+}
+#[tokio::test]
+async fn weekly_execution_confirms_the_same_earliest_offer_and_positive_effect() {
+    let client = Client::new([
+        Reply::Json(200, usage_payload(100.0)),
+        Reply::Json(200, credits()),
+        Reply::Json(200, credits()),
+        Reply::Json(200, json!({"code":"reset","windows_reset":2})),
+    ]);
+    let result = consume_checked(
+        &auth(),
+        &json!({"requestID":REQUEST_ID,"reason":"week","offerID":"first"}),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(result["windowsReset"], 2);
+    assert_eq!(client.requests().len(), 4);
+    let requests = client.requests();
+    assert_eq!(requests[3].method, HttpMethod::Post);
+    assert_eq!(
+        serde_json::from_slice::<Value>(requests[3].body.as_ref().unwrap()).unwrap()["credit_id"],
+        "first"
+    );
+    let client = Client::new([Reply::Json(200, credits())]);
+    assert_eq!(
+        consume_checked(
+            &auth(),
+            &json!({"requestID":REQUEST_ID,"reason":"hand","offerID":"old-offer"}),
+            &client
+        )
+        .await
+        .unwrap()["outcome"],
+        "nothing_to_reset"
+    );
+    assert_eq!(client.requests().len(), 1);
+}
+
 #[tokio::test]
 async fn reset_reads_and_consumes_only_the_selected_chatgpt_account_with_one_request_id() {
     let client = Client::new([

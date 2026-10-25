@@ -42,6 +42,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "zhipuai",
     "keyProvider": "zai",
     "legacy": {

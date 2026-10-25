@@ -219,13 +219,14 @@ pub(crate) async fn callback(provider: &Trae, params: Value) -> PluginResult<Val
         .await
         .remove(text(&params, "session"))
         .ok_or_else(|| invalid("The Trae sign-in expired. Start again."))?;
-    let result = tokio::time::timeout(
+    let mut result = tokio::time::timeout(
         Duration::from_millis(pending.deadline.saturating_sub(now())),
         &mut pending.result,
     )
     .await
     .map_err(|_| invalid("The Trae sign-in timed out."))?
     .map_err(|_| invalid("The Trae sign-in stopped."))??;
+    crate::identity::assign(provider.site, &mut result)?;
     Ok(json!({"ok":true,"credentials":result}))
 }
 fn parsed(value: &Value) -> Value {

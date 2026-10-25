@@ -26,8 +26,14 @@ pub(crate) async fn fetch(
         .credentials
         .clone()
         .ok_or_else(|| PluginError::authentication("Connect a provider account."))?;
-    let client = nora_provider_plugin_sdk::http_client(request.network_proxy.as_ref())?;
+    let proxy = request.network_proxy.clone();
     let outgoing = transport::build_request(definition, request).await?;
+    let client = crate::network_client::raw_for_url(
+        definition,
+        proxy.as_ref(),
+        crate::auth::is_api(&credentials),
+        &outgoing.url,
+    )?;
     if outgoing.body.is_some() {
         return Err(PluginError::unsupported(
             "streaming uploads that require a rewritten provider request",
@@ -35,8 +41,13 @@ pub(crate) async fn fetch(
     }
     let secrets = transport::request_secrets(&outgoing);
     let api = transport::request_api(definition, &credentials, &outgoing.url);
-    let response =
-        crate::auth_headers::send_with(definition, &credentials, &api, outgoing, |outgoing| {
+    let response = crate::auth_headers::send_with(
+        definition,
+        &credentials,
+        &api,
+        outgoing,
+        &mut None,
+        |outgoing| {
             let client = client.clone();
             let file = file.clone();
             async move {
@@ -78,8 +89,9 @@ pub(crate) async fn fetch(
                     })),
                 })
             }
-        })
-        .await?;
+        },
+    )
+    .await?;
     transport::finish_response(response, secrets).await
 }
 

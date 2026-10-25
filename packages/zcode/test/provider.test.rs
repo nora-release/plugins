@@ -79,6 +79,9 @@ fn setup(replies: Vec<Reply>) -> (Zcode, Arc<Client>, Arc<Store>) {
     plugin
         .core
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "zcode".into(),
             plugin_directory: PathBuf::new(),
@@ -100,7 +103,7 @@ fn credentials(key: &str, token: &str) -> Value {
     json!({"provider":"zcode","type":"oauth","authMethod":"zai","access":key,"uid":"user-one","state":{"site":"zai","base":Site::Zai.base(),"key":key,"jwt":token,"device":"device-one","plan":"Plan"}})
 }
 fn request(credentials: Value, model: &str) -> FetchRequest {
-    FetchRequest{account:"one".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",Site::Zai.base()),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"Bearer untrusted".into())]),metadata:BTreeMap::new(),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":model,"max_tokens":100,"system":"my system","messages":[{"role":"user","content":"hello"}],"tools":[{"name":"read","input_schema":{"type":"object"}}],"top_p":0.5,"stop_sequences":["END"]})).unwrap())),body_file:None}
+    FetchRequest{ subscription_accounts_enabled: true,account:"one".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",Site::Zai.base()),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"Bearer untrusted".into())]),metadata:BTreeMap::new(),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":model,"max_tokens":100,"system":"my system","messages":[{"role":"user","content":"hello"}],"tools":[{"name":"read","input_schema":{"type":"object"}}],"top_p":0.5,"stop_sequences":["END"]})).unwrap())),body_file:None}
 }
 async fn decode(response: FetchResponse) -> Value {
     let bytes = response
@@ -389,6 +392,7 @@ async fn usage_keeps_dual_pools_separate_and_only_advertises_read_only_claim_hin
     .await;
     let value = plugin
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(stored),
             network_proxy: None,
@@ -492,6 +496,7 @@ async fn live_model_rules_are_fetched_without_forwarding_account_credentials_to_
     ]);
     let value = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials("key.secret", "")),
             network_proxy: None,

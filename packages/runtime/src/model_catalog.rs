@@ -48,6 +48,10 @@ pub(crate) fn cached(data_directory: &Path) -> PluginResult<ModelsCatalog> {
     read_catalog(&data_directory.join("models.json")).map_err(PluginError::transport)
 }
 
+pub(crate) fn saved(data_directory: &Path) -> PluginResult<ModelsCatalog> {
+    read_catalog(&data_directory.join("models.json")).map_err(PluginError::transport)
+}
+
 async fn load_at(
     client: &dyn HttpClient,
     data_directory: &Path,
@@ -252,6 +256,11 @@ fn model_from_row(provider_id: &str, provider: &Value, key: &str, row: &Value) -
     model.info.release_date = row
         .get("release_date")
         .and_then(Value::as_str)
+        .map(str::to_string);
+    model.info.canonical_model_id = row
+        .get("canonical_model_id")
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty() && id.len() <= 512 && !id.chars().any(char::is_control))
         .map(str::to_string);
     model.info.tool_calling = row.get("tool_call").and_then(Value::as_bool);
     model.info.temperature = row.get("temperature").and_then(Value::as_bool);

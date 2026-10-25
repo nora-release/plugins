@@ -30,7 +30,7 @@ fn legacy_devices_get_one_stable_account_specific_cn_shape() {
 async fn checkin_uses_growth_headers_and_treats_device_refusals_as_ineligible() {
     for (code, outcome) in [
         ("0", "claimed"),
-        ("9074", "ineligible"),
+        ("9074", "own-app"),
         ("9095", "ineligible"),
     ] {
         let client = Client::new(vec![
@@ -56,6 +56,38 @@ async fn checkin_uses_growth_headers_and_treats_device_refusals_as_ineligible() 
         );
         assert!(requests[0].headers["user-agent"].contains("TRAE-SOLO-CN/0.1.69"));
         assert!(!requests[0].headers.contains_key("x-cloudide-token"));
+    }
+}
+
+#[tokio::test]
+async fn status_only_confirms_done_or_ready_without_a_claim_and_rejects_empty_success() {
+    for (value, outcome) in [
+        (json!({"code":0,"enable":true,"checked_in":false}), "ready"),
+        (
+            json!({"code":0,"enable":true,"checked_in":true,"credits":3}),
+            "done",
+        ),
+    ] {
+        let client = Client::new(vec![(200, value)]);
+        let provider = configured(Site::China, client.clone());
+        let status = checkin_status(&provider, client.as_ref(), &credentials())
+            .await
+            .unwrap();
+        assert_eq!(status["outcome"], outcome);
+        if outcome == "ready" {
+            assert_eq!(status["retrySafe"], true);
+        }
+        assert_eq!(client.requests.lock().unwrap().len(), 1);
+    }
+    for claim in [json!({}), json!({"code":0})] {
+        let client = Client::new(vec![
+            (200, json!({"code":0,"enable":true,"credits":1})),
+            (200, claim),
+        ]);
+        let provider = configured(Site::China, client.clone());
+        assert!(checkin(&provider, client.as_ref(), &credentials())
+            .await
+            .is_err());
     }
 }
 #[tokio::test]

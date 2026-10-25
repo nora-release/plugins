@@ -1,20 +1,22 @@
 use crate::{auth, definition::Definition, discovery, transport, ProviderAdapter};
 use async_trait::async_trait;
-use nora_ai::{
-    HttpClient, JsonValue, OAuthCredentials, OAuthError, OAuthProviderId, ReqwestHttpClient,
-};
+use nora_ai::{HttpClient, JsonValue, OAuthCredentials, OAuthError, OAuthProviderId};
 use nora_provider_auth::OAuthLoginCallbacks;
+use nora_provider_plugin_sdk::model_resolution::{ModelResolution, ResolveModelRequest};
 use nora_provider_plugin_sdk::{
     CallContext, FetchRequest, FetchResponse, InitializeParams, NetworkProxy, PluginError,
     PluginResult, ProviderPlugin, API_VERSION,
 };
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
+
+#[path = "plugin_configuration.rs"]
+mod configuration;
+use configuration::Configuration;
 
 struct PendingLogin(JoinHandle<Result<OAuthCredentials, OAuthError>>);
 impl Drop for PendingLogin {
@@ -47,9 +49,7 @@ fn valid_account_identity(identity: &Value) -> bool {
 #[derive(Default)]
 pub struct BundledProvider {
     adapter: Option<Arc<dyn ProviderAdapter>>,
-    definition: RwLock<Option<Definition>>,
-    data_directory: RwLock<PathBuf>,
-    network_proxy: RwLock<Option<NetworkProxy>>,
+    configuration: RwLock<Option<Arc<Configuration>>>,
     logins: Mutex<BTreeMap<String, PendingLogin>>,
 }
 
@@ -75,53 +75,20 @@ impl BundledProvider {
         Ok(credentials)
     }
 
-    fn definition(&self) -> PluginResult<Definition> {
-        self.definition
+    fn configuration(&self) -> PluginResult<Arc<Configuration>> {
+        self.configuration
             .read()
             .map_err(|_| PluginError::invalid("The provider configuration is unavailable."))?
             .clone()
             .ok_or_else(|| PluginError::invalid("Initialize the provider before using it."))
     }
 
-    fn effective_proxy(&self, proxy: Option<&NetworkProxy>) -> PluginResult<Option<NetworkProxy>> {
-        let default = self
-            .network_proxy
-            .read()
-            .map_err(|_| PluginError::invalid("The network proxy configuration is unavailable."))?;
-        let proxy = proxy.or(default.as_ref()).cloned();
-        if let Some(proxy) = &proxy {
-            proxy.validate()?;
-        }
-        Ok(proxy)
-    }
-
-    fn client(&self, proxy: Option<&NetworkProxy>) -> PluginResult<ReqwestHttpClient> {
-        let proxy = self.effective_proxy(proxy)?;
-        nora_provider_plugin_sdk::http_client(proxy.as_ref()).map(|client| {
-            ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
-                nora_provider_plugin_sdk::before_http_request()
-                    .await
-                    .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
-            })
-        })
-    }
-
-    fn params_proxy(&self, params: &Value) -> PluginResult<Option<NetworkProxy>> {
-        let proxy: Option<NetworkProxy> =
-            serde_json::from_value(params.get("networkProxy").cloned().unwrap_or(Value::Null))
-                .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
-        self.effective_proxy(proxy.as_ref())
-    }
-
-    fn params_client(&self, params: &Value) -> PluginResult<ReqwestHttpClient> {
-        self.client(self.params_proxy(params)?.as_ref())
-    }
-
     async fn start_login(
         &self,
         definition: &Definition,
-        client: ReqwestHttpClient,
+        client: crate::network_client::Client,
         proxy: Option<NetworkProxy>,
+        inputs: Value,
     ) -> PluginResult<Value> {
         if definition.config.oauth_provider.is_none() {
             return Err(PluginError::unsupported("oauth"));
@@ -145,7 +112,7 @@ impl BundledProvider {
             })
         });
         let mut pending = PendingLogin(tokio::spawn(async move {
-            adapter.login(callbacks, &client).await
+            adapter.login_with_inputs(callbacks, inputs, &client).await
         }));
         let mut instructions = Vec::new();
         let url=tokio::time::timeout(Duration::from_secs(40),async {
@@ -167,7 +134,7 @@ impl BundledProvider {
         let url = match url {
             Ok(url) => url,
             Err(credentials) => {
-                let client = self.client(proxy.as_ref())?;
+                let client = crate::network_client::Client::new(None, proxy.as_ref(), false)?;
                 let credentials = self
                     .enriched_credentials(definition, credentials, &client, proxy.as_ref())
                     .await?;
@@ -191,68 +158,79 @@ impl BundledProvider {
 
 #[async_trait]
 impl ProviderPlugin for BundledProvider {
+    fn model_resolution(&self) -> bool {
+        self.adapter
+            .as_ref()
+            .is_some_and(|adapter| adapter.supports_model_resolution())
+    }
+
+    async fn resolve_model(
+        &self,
+        request: ResolveModelRequest,
+    ) -> PluginResult<Option<ModelResolution>> {
+        let configuration = self.configuration()?;
+        let value = request.context.credentials.as_ref().ok_or_else(|| {
+            PluginError::authentication("Connect a provider account before selecting a model.")
+        })?;
+        let definition = configuration.account_definition(Some(value))?;
+        if !definition.adapter.supports_model_resolution() {
+            return Ok(None);
+        }
+        let proxy = configuration.effective_proxy(request.context.network_proxy.as_ref())?;
+        let client = configuration.request_client(&definition, proxy.as_ref(), Some(value))?;
+        let (_, resolved) = auth::resolve_with_network(&definition, value, proxy.as_ref()).await?;
+        definition
+            .adapter
+            .resolve_model(&definition, request, &resolved, &client)
+            .await
+    }
+
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
-        if params.api_version != API_VERSION {
-            return Err(PluginError::invalid(
-                "Unsupported provider plugin API version.",
-            ));
-        }
-        let proxy: Option<NetworkProxy> = serde_json::from_value(
-            params
-                .manifest
-                .pointer("/config/networkProxy")
-                .cloned()
-                .unwrap_or(Value::Null),
-        )
-        .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
-        if let Some(proxy) = &proxy {
-            proxy.validate()?;
-        }
-        *self.network_proxy.write().map_err(|_| {
-            PluginError::invalid("The network proxy configuration is unavailable.")
-        })? = proxy;
-        let mut definition = Definition::parse(params.manifest)?;
-        if let Some(adapter) = &self.adapter {
-            if adapter.id().is_some_and(|id| id != definition.id) {
-                return Err(PluginError::invalid(
-                    "The provider executable does not match its manifest.",
-                ));
-            }
-            definition.adapter = adapter.clone();
-        }
-        *self
-            .data_directory
-            .write()
-            .map_err(|_| PluginError::invalid("The provider data directory is unavailable."))? =
-            params.data_directory;
-        let account_discovery = definition.adapter.supports_account_discovery();
-        *self
+        let configuration = Configuration::parse(params, self.adapter.as_ref())?;
+        let account_discovery = configuration
             .definition
+            .adapter
+            .supports_account_discovery();
+        let mut sdk_features = json!({"connectionOverrides":1});
+        if configuration
+            .definition
+            .adapter
+            .account_import_kind()
+            .is_some()
+        {
+            sdk_features["accountImport"] = json!(1);
+        }
+        *self
+            .configuration
             .write()
             .map_err(|_| PluginError::invalid("The provider configuration is unavailable."))? =
-            Some(definition);
-        Ok(json!({"apiVersion":API_VERSION,"capabilities":{"accountDiscovery":account_discovery}}))
+            Some(Arc::new(configuration));
+        Ok(
+            json!({"apiVersion":API_VERSION,"capabilities":{"accountDiscovery":account_discovery,"modelMetadata":true,"sdkFeatures":sdk_features}}),
+        )
     }
 
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
-        Ok(json!(crate::account_headers::methods(&self.definition()?)))
+        Ok(json!(crate::account_headers::methods(
+            &self.configuration()?.definition
+        )))
     }
 
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
-        let mut definition =
-            crate::profiles::configured(self.definition()?, context.credentials.as_ref())?;
+        let configuration = self.configuration()?;
+        let mut definition = configuration.account_definition(context.credentials.as_ref())?;
         definition.request_account = Some(context.account.clone());
-        let data_directory = self
-            .data_directory
-            .read()
-            .map_err(|_| PluginError::invalid("The provider data directory is unavailable."))?
-            .clone();
-        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
-        let client = self.client(proxy.as_ref())?;
+        let data_directory = &configuration.data_directory;
+        let proxy = configuration.effective_proxy(context.network_proxy.as_ref())?;
+        let client = configuration.request_client(
+            &definition,
+            proxy.as_ref(),
+            context.credentials.as_ref(),
+        )?;
         discovery::discover_with_network(
             &definition,
             context.credentials.as_ref(),
-            &data_directory,
+            data_directory,
             &client,
             proxy.as_ref(),
         )
@@ -260,9 +238,10 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn discover_accounts(&self, context: CallContext) -> PluginResult<Value> {
-        let definition = self.definition()?;
-        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
-        let client = self.client(proxy.as_ref())?;
+        let configuration = self.configuration()?;
+        let definition = configuration.installed_definition.clone();
+        let proxy = configuration.effective_proxy(context.network_proxy.as_ref())?;
+        let client = configuration.client(proxy.as_ref())?;
         let found = definition
             .adapter
             .discover_accounts(&client, proxy.as_ref())
@@ -319,13 +298,18 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
+        let configuration = self.configuration()?;
         let Some(value) = context.credentials.as_ref() else {
             return Ok(json!({"accounts":[]}));
         };
-        let definition = crate::profiles::configured(self.definition()?, Some(value))?;
+        let definition = configuration.account_definition(Some(value))?;
         let credentials = auth::decode(&definition, Some(value))?;
-        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
-        let client = self.client(proxy.as_ref())?;
+        let proxy = configuration.effective_proxy(context.network_proxy.as_ref())?;
+        let client = configuration.request_client(
+            &definition,
+            proxy.as_ref(),
+            context.credentials.as_ref(),
+        )?;
         let credentials = self
             .enriched_credentials(&definition, credentials, &client, proxy.as_ref())
             .await?;
@@ -346,20 +330,23 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
-        let definition = self.definition()?;
-        let proxy = self.params_proxy(&params)?;
-        let client = self.client(proxy.as_ref())?;
+        let configuration = self.configuration()?;
+        let definition = configuration.definition.clone();
+        let proxy = configuration.params_proxy(&params)?;
+        let client = configuration.client(proxy.as_ref())?;
         let method = params
             .get("authMethodID")
             .or_else(|| params.get("method"))
             .and_then(Value::as_str)
             .unwrap_or("apiKey");
-        if definition
+        let signed_in_definition = configuration.installed_definition.clone();
+        if signed_in_definition
             .config
             .source_auth_methods
             .iter()
             .any(|source| source.get("id").and_then(Value::as_str) == Some(method))
         {
+            let definition = signed_in_definition;
             let credentials = definition
                 .adapter
                 .authorize_source(method, &client, proxy.as_ref())
@@ -375,7 +362,14 @@ impl ProviderPlugin for BundledProvider {
             );
         }
         if method == "oauth" {
-            return self.start_login(&definition, client, proxy).await;
+            let inputs = params
+                .get("inputs")
+                .or_else(|| params.get("fields"))
+                .cloned()
+                .unwrap_or_else(|| json!({}));
+            return self
+                .start_login(&signed_in_definition, client, proxy, inputs)
+                .await;
         }
         let profile = crate::profiles::by_method(&definition, method);
         if method != "apiKey" && profile.is_none() {
@@ -441,9 +435,10 @@ impl ProviderPlugin for BundledProvider {
             .map_err(|_| {
                 PluginError::authentication("The provider sign-in failed. Start again.")
             })?;
-        let definition = self.definition()?;
-        let proxy = self.params_proxy(&params)?;
-        let client = self.client(proxy.as_ref())?;
+        let configuration = self.configuration()?;
+        let definition = configuration.installed_definition.clone();
+        let proxy = configuration.params_proxy(&params)?;
+        let client = configuration.client(proxy.as_ref())?;
         let credentials = self
             .enriched_credentials(&definition, credentials, &client, proxy.as_ref())
             .await?;
@@ -453,10 +448,10 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn refresh(&self, params: Value) -> PluginResult<Value> {
-        let definition =
-            crate::profiles::configured(self.definition()?, params.get("credentials"))?;
-        let proxy = self.params_proxy(&params)?;
-        let client = self.client(proxy.as_ref())?;
+        let configuration = self.configuration()?;
+        let definition = configuration.account_definition(params.get("credentials"))?;
+        let proxy = configuration.params_proxy(&params)?;
+        let client = configuration.client(proxy.as_ref())?;
         let value = params
             .get("credentials")
             .ok_or_else(|| PluginError::authentication("Connect a provider account."))?;
@@ -486,10 +481,14 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
-        let definition =
-            crate::profiles::configured(self.definition()?, context.credentials.as_ref())?;
-        let proxy = self.effective_proxy(context.network_proxy.as_ref())?;
-        let client = self.client(proxy.as_ref())?;
+        let configuration = self.configuration()?;
+        let definition = configuration.account_definition(context.credentials.as_ref())?;
+        let proxy = configuration.effective_proxy(context.network_proxy.as_ref())?;
+        let client = configuration.request_client(
+            &definition,
+            proxy.as_ref(),
+            context.credentials.as_ref(),
+        )?;
         let value = context
             .credentials
             .as_ref()
@@ -501,13 +500,17 @@ impl ProviderPlugin for BundledProvider {
             .get("accountId")
             .or_else(|| credentials.extras.get("userId"))
             .and_then(|value| value.as_str());
-        let mut usage = tokio::time::timeout(
-            Duration::from_secs(30),
-            definition.adapter.usage(&resolved, account, &client),
-        )
-        .await
-        .map_err(|_| PluginError::transport("The provider did not return its usage in time"))?
-        .map_err(PluginError::transport)?;
+        let mut usage = if crate::endpoint_overrides::applies(&definition, value) {
+            crate::endpoint_overrides::balance(&definition, value, &resolved, &client).await?
+        } else {
+            tokio::time::timeout(
+                Duration::from_secs(30),
+                definition.adapter.usage(&resolved, account, &client),
+            )
+            .await
+            .map_err(|_| PluginError::transport("The provider did not return its usage in time"))?
+            .map_err(PluginError::transport)?
+        };
         if let Some(value) = usage.as_object_mut() {
             let profile = value.entry("account").or_insert_with(|| json!({}));
             if !profile.is_object() {
@@ -532,12 +535,16 @@ impl ProviderPlugin for BundledProvider {
     }
 
     async fn fetch(&self, mut request: FetchRequest) -> PluginResult<FetchResponse> {
-        let mut definition =
-            crate::profiles::configured(self.definition()?, request.credentials.as_ref())?;
+        let configuration = self.configuration()?;
+        let mut definition = configuration.account_definition(request.credentials.as_ref())?;
         definition.request_account = Some(request.account.clone());
         crate::request_metadata::apply(&definition, &mut request)?;
-        request.network_proxy = self.effective_proxy(request.network_proxy.as_ref())?;
-        let client = self.client(request.network_proxy.as_ref())?;
+        request.network_proxy = configuration.effective_proxy(request.network_proxy.as_ref())?;
+        let client = configuration.request_client(
+            &definition,
+            request.network_proxy.as_ref(),
+            request.credentials.as_ref(),
+        )?;
         if let Some(response) = definition
             .adapter
             .fetch_override(&definition, &request, &client)
@@ -562,28 +569,45 @@ impl ProviderPlugin for BundledProvider {
         let request = transport::build_request(&definition, request).await?;
         let api = transport::request_api(&definition, &credentials, &request.url);
         let secrets = transport::request_secrets(&request);
-        let response =
-            crate::auth_headers::send(&client, &definition, &credentials, &api, request).await?;
+        let response = transport::send(&client, &definition, &credentials, &api, request).await?;
         transport::finish_response(response, secrets).await
     }
 
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        let configuration = self.configuration()?;
+        if method == "modelMetadata" {
+            let directory = &configuration.data_directory;
+            return crate::model_metadata::cached(directory, &params);
+        }
+        if matches!(method, "inspectAccountImport" | "importAccount") {
+            let kind = configuration
+                .installed_definition
+                .adapter
+                .account_import_kind()
+                .ok_or_else(|| PluginError::unsupported(method))?;
+            if method == "inspectAccountImport" {
+                return crate::account_import::inspect(kind, &params);
+            }
+            return crate::account_import::import_login(
+                kind,
+                &params,
+                &configuration.params_client(&params)?,
+                &crate::account_import::HostPersistence,
+            )
+            .await;
+        }
         if method != "maintain" {
             return Err(PluginError::unsupported(method));
         }
-        let directory = self
-            .data_directory
-            .read()
-            .map_err(|_| PluginError::invalid("The provider data directory is unavailable."))?
-            .clone();
+        let directory = &configuration.data_directory;
         if !directory.is_absolute() {
             return Err(PluginError::invalid(
                 "The provider data directory is unavailable.",
             ));
         }
-        let client = self.params_client(&params)?;
-        let before = crate::model_catalog::cached(&directory).ok();
-        let after = crate::model_catalog::load(&client, &directory).await?;
+        let client = configuration.params_client(&params)?;
+        let before = crate::model_catalog::cached(directory).ok();
+        let after = crate::model_catalog::load(&client, directory).await?;
         Ok(json!({"ok":true,"modelsChanged":before.as_ref()!=Some(&after)}))
     }
 }
@@ -599,3 +623,11 @@ mod network_tests;
 #[cfg(test)]
 #[path = "../test/account_discovery.test.rs"]
 mod account_discovery_tests;
+
+#[cfg(test)]
+#[path = "../test/mixed_accounts.test.rs"]
+mod mixed_accounts_tests;
+
+#[cfg(test)]
+#[path = "../test/profile_connections.test.rs"]
+mod profile_connection_tests;

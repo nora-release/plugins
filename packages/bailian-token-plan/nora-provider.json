@@ -65,6 +65,8 @@
     }
   ],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "keyProvider": "bailian-token-plan",
     "catalog": "bailian-token-plan",
     "profiles": [

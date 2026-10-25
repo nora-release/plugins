@@ -15,6 +15,7 @@ fn plans() -> Reply {
 }
 fn context(stored: &Value) -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(stored.clone()),
         network_proxy: None,

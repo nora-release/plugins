@@ -71,6 +71,9 @@ fn setup(values: Vec<(u16, Value)>) -> (MiniMaxCode, Arc<Client>, Arc<Store>) {
     });
     let core = Core::with_dependencies("minimax-code", client.clone(), store.clone());
     core.initialize(InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "minimax-code".into(),
         plugin_directory: PathBuf::new(),
@@ -159,6 +162,7 @@ async fn refused_account_model_listing_retries_the_real_public_model_configurati
     ]);
     let result = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -180,6 +184,7 @@ async fn quota_refusals_are_retryable_and_native_tools_are_unchanged() {
     let body = json!({"model":"MiniMax-M3","messages":[{"role":"user","content":"Hello"}],"tools":[{"name":"read","input_schema":{"type":"object"}}],"stop_sequences":["END"]});
     let result = plugin
         .fetch(FetchRequest {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -391,6 +396,26 @@ async fn repeated_minimax_storage_failures_keep_the_same_pair_until_the_host_acc
 
 fn checkin_week(today: u64, today_status: u64) -> Value {
     json!({"base_resp":{"status_code":0},"data":{"days":(1..=7).map(|day| json!({"day_no":day,"points":10,"status":if day < today {3} else if day == today {today_status} else {1},"is_today":day == today})).collect::<Vec<_>>()}})
+}
+
+#[tokio::test]
+async fn status_only_checks_the_vendor_day_without_claiming_or_guessing_a_reward() {
+    for (status, outcome) in [(2, "ready"), (3, "done"), (4, "ineligible")] {
+        let (plugin, client, _) = setup(vec![(200, checkin_week(3, status))]);
+        let result = plugin
+            .call("checkinStatus", json!({"credentials":credentials()}))
+            .await
+            .unwrap();
+        assert_eq!(result["outcome"], outcome);
+        if outcome == "ready" {
+            assert_eq!(result["retrySafe"], true);
+            assert!(result.get("credit").is_none());
+        }
+        let requests = client.requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert!(requests[0].url.contains("timezone_id=Asia%2FShanghai"));
+        assert_eq!(requests[0].method, HttpMethod::Get);
+    }
 }
 
 #[tokio::test]

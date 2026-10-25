@@ -39,6 +39,9 @@ fn default_sources(
 }
 
 pub(super) fn default_cli_path() -> Option<PathBuf> {
+    if !nora_provider_plugin_sdk::subscription_accounts_enabled() {
+        return None;
+    }
     let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
     let home = PathBuf::from(home);
     if !home.is_absolute() {
@@ -51,6 +54,7 @@ pub(super) fn default_cli_path() -> Option<PathBuf> {
 }
 
 pub(super) async fn discover(provider: &Kiro, context: CallContext) -> PluginResult<Value> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)

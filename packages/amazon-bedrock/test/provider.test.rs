@@ -46,6 +46,9 @@ async fn configured(mantle: bool, client: Arc<Client>) -> Bedrock {
     let provider = Bedrock::with_dependencies(mantle, client, Arc::new(Store));
     provider
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: provider.core.id.into(),
             plugin_directory: PathBuf::from("/tmp/bedrock"),
@@ -63,6 +66,7 @@ async fn configured(mantle: bool, client: Arc<Client>) -> Bedrock {
 }
 fn context() -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         credentials: Some(json!({"key":"ABSK-own-key","region":"us-east-1"})),
         ..Default::default()
     }
@@ -144,6 +148,7 @@ async fn bearer_templates_distinguish_messages_responses_and_open_weight_chat() 
 async fn aws_templates_and_discovered_models_keep_the_account_region_and_converse_protocol() {
     let provider = configured(false, Client::new(vec![])).await;
     let context = CallContext {
+        subscription_accounts_enabled: true,
         credentials: Some(
             json!({"access":json!({"accessKeyId":"AKIA-own","secretAccessKey":"private-secret"}).to_string(),"region":"eu-west-1"}),
         ),

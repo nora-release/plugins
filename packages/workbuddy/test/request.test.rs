@@ -5,6 +5,7 @@ use futures::StreamExt;
 
 fn request(body: Value) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "member".into(),
         credentials: Some(
             json!({"type":"oauth","access":"access","uid":"member","domain":"tenant.example","enterpriseId":"team"}),

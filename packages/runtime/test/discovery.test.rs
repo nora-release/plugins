@@ -307,7 +307,7 @@ fn codex_model_query_and_identity_headers_share_the_selected_version() {
     let url = crate::openai_provider::model_urls_with_version("https://chatgpt.com", "0.170.2")
         .unwrap()
         .remove(0);
-    let request = signed_request(url, &definition, &resolved(), Kind::OpenAI, None);
+    let request = signed_request(url, &definition, &resolved(), Kind::OpenAI, None, false);
     assert!(request.url.contains("client_version=0.170.2"));
     assert_eq!(request.headers["version"], "0.170.2");
     assert!(request.headers["user-agent"].starts_with("codex_cli_rs/0.170.2 ("));
@@ -653,6 +653,110 @@ async fn copilot_only_lists_picker_models_the_account_can_use_and_keeps_protocol
         client.requests.lock().unwrap()[0].headers["copilot-integration-id"],
         "vscode-chat"
     );
+    assert_eq!(
+        client.requests.lock().unwrap()[0].headers["x-github-api-version"],
+        "2026-01-09"
+    );
+}
+
+#[tokio::test]
+async fn copilot_uses_only_offered_http_apis_and_normalizes_their_version_prefix() {
+    let mut definition = definition("openai-completions", "https://copilot.test");
+    definition.config.oauth_provider = Some("github-copilot".into());
+    definition.adapter = crate::test_adapter("github-copilot");
+    let entries = [
+        ("messages", json!(["/messages/"])),
+        ("responses", json!(["/v1/responses/"])),
+        ("chat", json!(["/v1/chat/completions/"])),
+        ("websocket-only", json!(["ws:/responses"])),
+        (
+            "websocket-and-chat",
+            json!(["ws:/responses", "/chat/completions"]),
+        ),
+        ("no-endpoints", Value::Null),
+        ("empty-endpoints", json!([])),
+    ]
+    .into_iter()
+    .map(|(id, endpoints)| {
+        let mut entry = json!({"id":id,"model_picker_enabled":true,"capabilities":{"type":"chat"}});
+        if !endpoints.is_null() {
+            entry["supported_endpoints"] = endpoints;
+        }
+        entry
+    })
+    .collect::<Vec<_>>();
+    let client = client(vec![Reply::json(json!({"data":entries}))]);
+    let result = fetch_routes(
+        &definition,
+        &api_credentials(),
+        &resolved(),
+        &catalog(),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        result
+            .models
+            .iter()
+            .map(|model| (model.id.as_str(), model.api.as_str()))
+            .collect::<Vec<_>>(),
+        [
+            ("messages", "github-copilot-anthropic-messages"),
+            ("responses", "github-copilot-openai-responses"),
+            ("chat", "github-copilot-chat"),
+            ("websocket-and-chat", "github-copilot-chat"),
+            ("no-endpoints", "github-copilot-chat"),
+            ("empty-endpoints", "github-copilot-chat"),
+        ]
+    );
+    assert_eq!(client.requests.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn copilot_accounts_with_no_manual_choices_still_offer_the_real_auto_route() {
+    let mut definition = definition("openai-completions", "https://copilot.test");
+    definition.config.oauth_provider = Some("github-copilot".into());
+    definition.adapter = crate::test_adapter("github-copilot");
+    let credentials =
+        json!({"type":"oauth","access":"private-token","credentialProvider":"gitHubCopilot"});
+    let client = client(vec![Reply::json(json!({"data":[]}))]);
+    let mut remote = fetch_routes(&definition, &credentials, &resolved(), &catalog(), &client)
+        .await
+        .unwrap();
+    supplement_models(&definition, Some(&credentials), &mut remote.models);
+    assert_eq!(remote.models.len(), 1);
+    assert_eq!(remote.models[0].id, "auto");
+    assert_eq!(remote.models[0].api, "github-copilot-chat");
+    assert!(remote.models[0].provider_options.is_empty());
+    assert!(remote.failed_parts.is_empty());
+    let fallback = preset(&definition, Some(&credentials), &catalog(), None).unwrap();
+    assert_eq!(fallback["models"].as_array().unwrap().len(), 1);
+    assert_eq!(fallback["models"][0]["id"], "auto");
+}
+
+#[tokio::test]
+async fn copilot_model_reads_use_the_current_session_endpoint_instead_of_a_saved_previous_one() {
+    let mut definition = definition("openai-completions", "https://saved.example.invalid");
+    definition.config.oauth_provider = Some("github-copilot".into());
+    definition.adapter = crate::test_adapter("github-copilot");
+    let credentials = json!({"type":"oauth","access":"private-token","credentialProvider":"gitHubCopilot", "extras":{"endpoint":"https://saved.example.invalid"}});
+    let mut current = resolved();
+    current.base_url = Some("https://current.example.invalid".into());
+    let client = client(vec![Reply::json(
+        json!({"data":[{"id":"current-model","model_picker_enabled":true,"capabilities":{"type":"chat"}}]}),
+    )]);
+    let result = fetch_routes(&definition, &credentials, &current, &catalog(), &client)
+        .await
+        .unwrap();
+    let requested = Url::parse(&client.requests.lock().unwrap()[0].url).unwrap();
+    assert_eq!(requested.host_str(), Some("current.example.invalid"));
+    assert_eq!(requested.path(), "/models");
+    assert_eq!(result.models[0].base_url, "https://current.example.invalid");
+    let api_bases = resolved_bases(&definition, &api_credentials(), &current);
+    assert!(api_bases
+        .iter()
+        .all(|base| base.base_url == "https://saved.example.invalid"));
 }
 
 #[tokio::test]
@@ -702,4 +806,95 @@ async fn a_connected_provider_error_returns_its_safe_fallback_and_visible_error(
     assert_eq!(result["models"], json!([]));
     assert!(result["modelError"].as_str().unwrap().contains("503"));
     assert!(!result.to_string().contains("private-token"));
+}
+
+#[tokio::test]
+async fn explicit_models_url_is_asked_alone_keeps_inference_routes_and_never_leaks_queries() {
+    let mut definition = definition("openai-completions", "https://chat.invalid/v1");
+    definition.config.models_url =
+        "https://catalog.invalid/private/list?secret=query-private".into();
+    definition.config.model_discovery = Some(crate::definition::ModelDiscovery {
+        default_base_url: definition.base_url.clone(),
+        bases: vec![
+            ModelBase {
+                api: "openai-completions".into(),
+                base_url: definition.base_url.clone(),
+            },
+            ModelBase {
+                api: "anthropic-messages".into(),
+                base_url: "https://claude.invalid".into(),
+            },
+        ],
+        no_list: false,
+    });
+    let client = client(vec![Reply::json(json!({"data":[{"id":"live-model"}]}))]);
+    let result = fetch_routes(
+        &definition,
+        &api_credentials(),
+        &resolved(),
+        &catalog(),
+        &client,
+    )
+    .await
+    .unwrap();
+    assert_eq!(client.requests.lock().unwrap().len(), 1);
+    assert_eq!(
+        client.requests.lock().unwrap()[0].url,
+        definition.config.models_url
+    );
+    assert_eq!(result.models[0].base_url, definition.base_url);
+    assert!(result.failed_parts.is_empty());
+    assert!(!serde_json::to_string(&result.models)
+        .unwrap()
+        .contains("query-private"));
+    let failed = MockClient {
+        requests: Mutex::new(Vec::new()),
+        replies: Mutex::new(vec![Reply::status(404)].into()),
+        stall_at: None,
+    };
+    let result = fetch_routes(
+        &definition,
+        &api_credentials(),
+        &resolved(),
+        &catalog(),
+        &failed,
+    )
+    .await
+    .err()
+    .unwrap();
+    assert!(!result.to_string().contains("query-private"));
+    assert_eq!(failed.requests.lock().unwrap().len(), 1);
+}
+#[tokio::test]
+async fn model_list_custom_auth_header_and_user_headers_override_all_generated_headers() {
+    let mut definition = definition("anthropic-messages", "https://relay.invalid");
+    definition.config.models_url = "https://catalog.invalid/list".into();
+    definition.config.api_key_auth = Some(nora_ai::AuthScheme::ApiKeyHeader {
+        name: "X-Private-Key".into(),
+    });
+    definition
+        .config
+        .headers
+        .insert("x-private-key".into(), "explicit-override".into());
+    definition
+        .config
+        .headers
+        .insert("Anthropic-Version".into(), "configured-version".into());
+    let credentials = json!({"type":"apiKey","access":"private-token","extras":{"noraAccountHeaders":{"X-Private-Key":"account-override"}}});
+    let client = client(vec![Reply::json(json!({"data":[{"id":"live-model"}]}))]);
+    fetch_routes(&definition, &credentials, &resolved(), &catalog(), &client)
+        .await
+        .unwrap();
+    let requests = client.requests.lock().unwrap();
+    let header = |name: &str| {
+        requests[0]
+            .headers
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str())
+    };
+    assert_eq!(header("x-private-key"), Some("account-override"));
+    assert_eq!(header("anthropic-version"), Some("configured-version"));
+    assert_eq!(header("authorization"), None);
+    assert_eq!(header("x-api-key"), None);
 }

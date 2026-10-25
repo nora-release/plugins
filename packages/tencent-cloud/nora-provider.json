@@ -197,6 +197,8 @@
     }
   ],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "keyProvider": "tencent-cloud",
     "catalog": "tencent-cloud",
     "profiles": [

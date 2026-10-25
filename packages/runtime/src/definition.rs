@@ -26,6 +26,18 @@ pub struct Definition {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
+    #[serde(default, rename = "modelsURL")]
+    pub models_url: String,
+    #[serde(default, rename = "balanceURL")]
+    pub balance_url: String,
+    #[serde(default)]
+    pub balance_path: String,
+    #[serde(default)]
+    pub balance_method: String,
+    #[serde(default)]
+    pub balance_token: String,
+    #[serde(default, rename = "insecureTLS")]
+    pub insecure_tls: bool,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
     #[serde(default)]
@@ -102,6 +114,7 @@ impl Definition {
         }
         crate::profiles::validate(&definition)?;
         crate::account_headers::validate(&definition)?;
+        crate::endpoint_overrides::validate(&definition)?;
         Ok(definition)
     }
 }
@@ -169,10 +182,11 @@ pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
         return Err("No provider manifests were found.".into());
     }
     for path in definitions {
-        let value: Value =
+        let mut value: Value =
             serde_json::from_slice(&std::fs::read(path).map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())?;
-        let id = validate_package(&value)?;
+        let id = validate_package(&value)?.to_owned();
+        crate::build_capabilities::declare(&mut value);
         let directory = output.join(id);
         std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
         std::fs::write(
@@ -187,3 +201,7 @@ pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
 #[cfg(test)]
 #[path = "../test/definition.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/upstream_status.test.rs"]
+mod upstream_status_tests;

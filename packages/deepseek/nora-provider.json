@@ -28,6 +28,16 @@
   ],
   "models": [],
   "config": {
+    "upstreamStatus": {
+      "vendor": "deepseek",
+      "name": "DeepSeek",
+      "page": "https://status.deepseek.com",
+      "hosts": [
+        "api.deepseek.com"
+      ]
+    },
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "deepseek",
     "keyProvider": "deepseek",
     "legacy": {

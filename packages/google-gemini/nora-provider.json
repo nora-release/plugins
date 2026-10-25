@@ -30,6 +30,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "google",
     "keyProvider": "google-api-key",
     "legacy": {

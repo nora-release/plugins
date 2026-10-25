@@ -28,6 +28,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "minimax",
     "keyProvider": "minimax",
     "legacy": {

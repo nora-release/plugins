@@ -2,6 +2,7 @@
 //! Browser accounts and explicit desktop sources use the supplier's own API.
 
 mod auth;
+mod checkin;
 mod models;
 mod request;
 mod stream;
@@ -164,7 +165,14 @@ impl ProviderPlugin for WorkBuddy {
                 .cloned()
                 .unwrap_or(json!([])),
         });
-        Ok(json!({"apiVersion":API_VERSION,"capabilities":{"accountDiscovery":true}}))
+        let features = if self.site == Site::China {
+            json!({"accountAutomation":1})
+        } else {
+            json!({})
+        };
+        Ok(
+            json!({"apiVersion":API_VERSION,"capabilities":{"accountDiscovery":true,"sdkFeatures":features}}),
+        )
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
         Ok(self.config()?.methods)
@@ -224,6 +232,20 @@ impl ProviderPlugin for WorkBuddy {
     async fn fetch(&self, request: FetchRequest) -> PluginResult<FetchResponse> {
         request::fetch(self, request).await
     }
+    async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        if !matches!(method, "checkin" | "checkinStatus") {
+            return Err(PluginError::unsupported(method));
+        }
+        let credentials = params.get("credentials").ok_or_else(signed_out)?;
+        let client = self.params_client(&params)?;
+        checkin::run(
+            self,
+            client.as_ref(),
+            credentials,
+            method == "checkinStatus",
+        )
+        .await
+    }
 }
 
 fn invalid(message: &str) -> PluginError {
@@ -280,12 +302,12 @@ async fn bytes(
 }
 async fn envelope(response: HttpStreamingResponse) -> PluginResult<Value> {
     let (status, _, body) = bytes(response, 8 * 1024 * 1024).await?;
-    let value: Value = serde_json::from_slice(&body)
-        .map_err(|_| PluginError::transport("WorkBuddy returned invalid JSON."))?;
-    let code = number(value.get("code").unwrap_or(&Value::Null)).unwrap_or(0.0) as i64;
     if status == 401 {
         return Err(signed_out());
     }
+    let value: Value = serde_json::from_slice(&body)
+        .map_err(|_| PluginError::transport("WorkBuddy returned invalid JSON."))?;
+    let code = number(value.get("code").unwrap_or(&Value::Null)).unwrap_or(0.0) as i64;
     if !(200..300).contains(&status) || code != 0 {
         return Err(PluginError::new(
             format!("workbuddy_{code}"),

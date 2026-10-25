@@ -3,7 +3,10 @@ use serde_json::{json, Value};
 
 #[path = "resets/consume.rs"]
 mod consume;
-pub use consume::consume;
+pub use consume::consume_checked;
+#[path = "resets/prepare.rs"]
+mod prepare;
+pub use prepare::prepare;
 
 pub fn unavailable(message: &str) -> Value {
     json!({"available":false,"grants":[],"message":message})

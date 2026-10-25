@@ -1,3 +1,6 @@
+#[path = "fast.rs"]
+pub(crate) mod fast;
+
 use async_trait::async_trait;
 use nora_ai::{HttpClient, ResolvedProviderAuth};
 use nora_provider::{adapter::is_oauth, ProviderAdapter};
@@ -13,6 +16,9 @@ pub struct Anthropic;
 impl ProviderAdapter for Anthropic {
     fn id(&self) -> Option<&'static str> {
         Some("anthropic")
+    }
+    fn account_import_kind(&self) -> Option<nora_provider::account_import::LoginKind> {
+        Some(nora_provider::account_import::LoginKind::Claude)
     }
     fn remote_models(&self, credentials: Option<&Value>) -> bool {
         !is_oauth(credentials)
@@ -32,6 +38,19 @@ impl ProviderAdapter for Anthropic {
                 "Claude subscriptions must use the installed Claude Code transport.",
             ));
         }
+        Ok(())
+    }
+    fn finalize_fetch(
+        &self,
+        credentials: &Value,
+        target: &Url,
+        headers: &mut BTreeMap<String, String>,
+        body: &mut Option<Vec<u8>>,
+    ) -> PluginResult<()> {
+        if is_oauth(Some(credentials)) {
+            return Ok(());
+        }
+        fast::finalize(target, headers, body);
         Ok(())
     }
     async fn usage(

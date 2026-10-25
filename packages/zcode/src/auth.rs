@@ -346,6 +346,7 @@ pub(crate) async fn sign_in(
     }))
 }
 pub(crate) fn read_json(path: &str) -> PluginResult<(PathBuf, Value)> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let path = if let Some(rest) = path.strip_prefix("~/") {
         std::env::var_os("HOME")
             .map(PathBuf::from)
@@ -444,6 +445,7 @@ pub(crate) fn decrypt(key: &[u8; 32], value: &Value) -> Option<String> {
     .ok()
 }
 pub(crate) fn source(inputs: &Value, device: &str) -> PluginResult<Value> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let (_, store) = read_json(core::required(inputs, "sourcePath")?)?;
     let key = secret(core::text(&inputs["credentialSecret"]));
     let settings = core::text(&inputs["settingsPath"])

@@ -98,6 +98,9 @@ async fn both_sites_start_without_importing_or_authenticating_any_account() {
         assert_eq!(manifest["config"]["authTimeoutMs"], 1050000);
         provider
             .initialize(InitializeParams {
+                subscription_accounts_enabled: true,
+                installed_manifest: None,
+                runtime_config: serde_json::Value::Null,
                 api_version: 1,
                 plugin_id: site.id().into(),
                 plugin_directory: "/test/plugin".into(),

@@ -64,6 +64,9 @@ fn setup(replies: Vec<Reply>) -> (ZenFree, Arc<Client>) {
     plugin
         .core
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "opencode-zen-free".into(),
             plugin_directory: PathBuf::new(),
@@ -77,7 +80,7 @@ fn credentials() -> Value {
     json!({"type":"api","key":"public","provider":"opencode-zen-free","authMethod":"public"})
 }
 fn request(streaming: bool) -> FetchRequest {
-    FetchRequest{account:"public".into(),credentials:Some(credentials()),network_proxy:None,url:format!("{}/chat/completions",catalog::BASE),method:"POST".into(),headers:BTreeMap::from([("user-agent".into(),"untrusted-client".into()),("authorization".into(),"Bearer private-key".into())]),metadata:BTreeMap::from([("sessionID".into(),"private-conversation-id".into())]),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"cat-jam-free","messages":[{"role":"user","content":"hello"}],"stream":streaming,"top_p":0.4,"stop":["END"],"tools":[{"type":"function","function":{"name":"my_tool","parameters":{"type":"object"}}}]})).unwrap())),body_file:None}
+    FetchRequest{ subscription_accounts_enabled: true,account:"public".into(),credentials:Some(credentials()),network_proxy:None,url:format!("{}/chat/completions",catalog::BASE),method:"POST".into(),headers:BTreeMap::from([("user-agent".into(),"untrusted-client".into()),("authorization".into(),"Bearer private-key".into())]),metadata:BTreeMap::from([("sessionID".into(),"private-conversation-id".into())]),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"cat-jam-free","messages":[{"role":"user","content":"hello"}],"stream":streaming,"top_p":0.4,"stop":["END"],"tools":[{"type":"function","function":{"name":"my_tool","parameters":{"type":"object"}}}]})).unwrap())),body_file:None}
 }
 async fn response_json(response: FetchResponse) -> Value {
     let bytes = response
@@ -130,6 +133,7 @@ async fn live_listing_removes_retired_bootstrap_ids_and_includes_new_free_models
     let (plugin, _) = setup(discovery(vec!["brand-new-free"]));
     let result = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "public".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -191,6 +195,7 @@ async fn protocol_mismatches_are_rejected_before_a_request_and_public_quota_is_n
     assert!(client.requests.lock().unwrap().is_empty());
     let usage = plugin
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "public".into(),
             credentials: Some(credentials()),
             network_proxy: None,

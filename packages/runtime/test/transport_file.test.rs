@@ -29,6 +29,7 @@ fn definition(base: &str) -> Definition {
 }
 fn request(base: &str, file: &File) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(json!({"type":"api","key":"private-upload-key"})),
         network_proxy: Some(NetworkProxy::Direct),

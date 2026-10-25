@@ -47,6 +47,7 @@ pub(crate) fn document(bytes: &[u8]) -> PluginResult<Value> {
     Ok(value)
 }
 pub(crate) fn read_document(path: &Path) -> PluginResult<Option<Value>> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     if !path.is_absolute() {
         return Err(unavailable());
     }

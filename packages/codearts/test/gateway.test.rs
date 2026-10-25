@@ -384,6 +384,9 @@ async fn max_inflight_can_lower_the_limit_but_never_exceed_three_sessions() {
         manifest["config"]["maxInflight"] = json!(configured_limit);
         provider
             .initialize(nora_provider_plugin_sdk::InitializeParams {
+                subscription_accounts_enabled: true,
+                installed_manifest: None,
+                runtime_config: serde_json::Value::Null,
                 api_version: 1,
                 plugin_id: "codearts".into(),
                 plugin_directory: std::env::temp_dir(),

@@ -28,6 +28,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "cloudflare-ai-gateway",
     "keyProvider": "cloudflare-ai-gateway",
     "legacy": {

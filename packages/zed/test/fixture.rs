@@ -116,6 +116,7 @@ pub async fn body(response: nora_provider_plugin_sdk::FetchResponse) -> String {
 pub fn fetch(path: &str, body: Value) -> nora_provider_plugin_sdk::FetchRequest {
     use base64::Engine;
     nora_provider_plugin_sdk::FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(saved("personal")),
         network_proxy: None,

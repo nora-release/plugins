@@ -31,6 +31,7 @@ pub(crate) fn credential(input: &Value, method: &str) -> PluginResult<Value> {
     )
 }
 pub(crate) fn read_source(path: &str) -> PluginResult<(PathBuf, Value)> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let path = if let Some(rest) = path.strip_prefix("~/") {
         std::env::var_os("HOME")
             .map(PathBuf::from)

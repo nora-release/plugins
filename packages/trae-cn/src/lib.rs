@@ -2,6 +2,7 @@
 //! The optional read-only desktop device codec derives from dsh-connect-trae (MIT).
 mod auth;
 mod desktop;
+mod identity;
 mod models;
 mod request;
 mod response;
@@ -130,7 +131,12 @@ impl ProviderPlugin for Trae {
                 .cloned()
                 .unwrap_or(json!([])),
         });
-        Ok(json!({"apiVersion":API_VERSION}))
+        let features = if self.site == Site::China {
+            json!({"accountAutomation":1})
+        } else {
+            json!({})
+        };
+        Ok(json!({"apiVersion":API_VERSION,"capabilities":{"sdkFeatures":features}}))
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
         Ok(self.config()?.methods)
@@ -152,10 +158,13 @@ impl ProviderPlugin for Trae {
         let Some(raw) = context.credentials else {
             return Ok(json!([]));
         };
-        let credentials = credentials(&raw)?;
-        Ok(
-            json!([{"id":context.account,"accountId":credentials.get("accountId"),"email":credentials.get("email"),"name":credentials.get("accountId"),"configured":true}]),
-        )
+        let mut current = credentials(&raw)?;
+        identity::assign(self.site, &mut current)?;
+        let mut result = json!({"accounts":[{"id":context.account,"accountId":current.get("accountId"),"email":current.get("email"),"name":current.get("accountId"),"configured":true}]});
+        if current != raw {
+            result["credentials"] = current;
+        }
+        Ok(result)
     }
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
         let Some(raw) = context.credentials else {
@@ -181,12 +190,16 @@ impl ProviderPlugin for Trae {
         request::fetch(self, request).await
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
-        if method != "checkin" {
+        if !matches!(method, "checkin" | "checkinStatus") {
             return Err(PluginError::unsupported(method));
         }
         let credentials = credentials(params.get("credentials").ok_or_else(signed_out)?)?;
         let client = self.params_client(&params)?;
-        usage::checkin(self, client.as_ref(), &credentials).await
+        if method == "checkinStatus" {
+            usage::checkin_status(self, client.as_ref(), &credentials).await
+        } else {
+            usage::checkin(self, client.as_ref(), &credentials).await
+        }
     }
 }
 fn invalid(message: impl Into<String>) -> PluginError {

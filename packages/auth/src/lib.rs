@@ -1,6 +1,7 @@
 //! Provider-owned sign-in, renewal, and account endpoint contracts.
 
 pub mod codex_source;
+pub mod copilot_client;
 pub mod copilot_editors;
 pub mod copilot_identity;
 pub mod grok_source;

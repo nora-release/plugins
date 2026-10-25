@@ -4,6 +4,7 @@ use nora_ai::{
     HttpClient, Model, ModelsCatalog, OAuthCredentials, OAuthError, ResolvedProviderAuth,
 };
 use nora_provider_auth::OAuthLoginCallbacks;
+use nora_provider_plugin_sdk::model_resolution::{ModelResolution, ResolveModelRequest};
 use nora_provider_plugin_sdk::{
     FetchRequest, FetchResponse, NetworkProxy, PluginError, PluginResult,
 };
@@ -18,12 +19,23 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
     fn id(&self) -> Option<&'static str> {
         None
     }
+    fn account_import_kind(&self) -> Option<crate::account_import::LoginKind> {
+        None
+    }
     async fn login(
         &self,
         _callbacks: OAuthLoginCallbacks,
         _client: &dyn HttpClient,
     ) -> Result<OAuthCredentials, OAuthError> {
         Err(OAuthError::UnknownProvider("oauth".into()))
+    }
+    async fn login_with_inputs(
+        &self,
+        callbacks: OAuthLoginCallbacks,
+        _inputs: Value,
+        client: &dyn HttpClient,
+    ) -> Result<OAuthCredentials, OAuthError> {
+        self.login(callbacks, client).await
     }
     async fn refresh(
         &self,
@@ -43,6 +55,18 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
     }
     fn supports_account_discovery(&self) -> bool {
         false
+    }
+    fn supports_model_resolution(&self) -> bool {
+        false
+    }
+    async fn resolve_model(
+        &self,
+        _definition: &Definition,
+        _request: ResolveModelRequest,
+        _auth: &ResolvedProviderAuth,
+        _client: &dyn HttpClient,
+    ) -> PluginResult<Option<ModelResolution>> {
+        Ok(None)
     }
     async fn discover_accounts(
         &self,
@@ -86,6 +110,9 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
     }
     fn enrich_auth(&self, _credentials: &OAuthCredentials, _auth: &mut ResolvedProviderAuth) {}
     fn endpoint(&self, _credentials: Option<&Value>) -> Option<String> {
+        None
+    }
+    fn live_endpoint(&self, _credentials: &Value, _auth: &ResolvedProviderAuth) -> Option<String> {
         None
     }
     fn catalog<'a>(&self, _credentials: Option<&Value>, default: &'a str) -> &'a str {
@@ -164,6 +191,36 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
         _headers: &mut BTreeMap<String, String>,
         _body: &mut Option<Vec<u8>>,
         _auth: &mut ResolvedProviderAuth,
+    ) -> PluginResult<()> {
+        Ok(())
+    }
+    async fn before_send(
+        &self,
+        _definition: &Definition,
+        _credentials: &Value,
+        _request: &nora_ai::HttpRequest,
+        _client: &dyn HttpClient,
+    ) -> PluginResult<()> {
+        Ok(())
+    }
+    fn observed_error_statuses(&self, _credentials: &Value) -> &'static [u16] {
+        &[]
+    }
+    fn observe_response_error(
+        &self,
+        _credentials: &Value,
+        _model: &str,
+        _status: u16,
+        _body: &[u8],
+    ) {
+    }
+    /// Applies vendor requirements after user body, authentication and header overrides.
+    fn finalize_fetch(
+        &self,
+        _credentials: &Value,
+        _target: &Url,
+        _headers: &mut BTreeMap<String, String>,
+        _body: &mut Option<Vec<u8>>,
     ) -> PluginResult<()> {
         Ok(())
     }

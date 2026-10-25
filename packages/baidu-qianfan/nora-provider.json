@@ -93,6 +93,8 @@
     }
   ],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "keyProvider": "baidu-qianfan",
     "catalog": "baidu-qianfan",
     "profiles": [

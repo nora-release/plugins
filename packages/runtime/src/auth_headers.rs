@@ -1,5 +1,4 @@
 use crate::{auth, definition::Definition};
-use futures::{stream, StreamExt};
 use nora_ai::{HttpClient, HttpRequest, HttpStreamingResponse};
 use nora_provider_plugin_sdk::{PluginError, PluginResult};
 use serde_json::{json, Value};
@@ -11,7 +10,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-const ERROR_PREFIX: usize = 64 * 1024;
 const CACHE_SIZE: usize = 512;
 const CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 type CacheKey = (String, String, String, [u8; 32]);
@@ -97,6 +95,18 @@ pub(crate) fn apply(
     token: &str,
     headers: &mut BTreeMap<String, String>,
 ) {
+    if definition
+        .config
+        .api_key_auth
+        .as_ref()
+        .is_some_and(|scheme| match scheme {
+            nora_ai::AuthScheme::Bearer => false,
+            nora_ai::AuthScheme::ApiKeyHeader { name } => !name.eq_ignore_ascii_case("x-api-key"),
+            _ => true,
+        })
+    {
+        return;
+    }
     if token.is_empty() || !auth::is_api(credentials) || !relay(definition, api, target) {
         return;
     }
@@ -112,7 +122,7 @@ pub(crate) fn apply(
     }
 }
 
-pub(crate) fn both_refused(status: u16, body: &[u8]) -> bool {
+fn both_refused(status: u16, body: &[u8]) -> bool {
     if status != 401 {
         return false;
     }
@@ -147,7 +157,7 @@ pub(crate) fn both_refused(status: u16, body: &[u8]) -> bool {
         .any(|phrase| body.contains(phrase))
 }
 
-pub(crate) fn retryable(
+fn retryable(
     definition: &Definition,
     credentials: &Value,
     api: &str,
@@ -181,12 +191,7 @@ pub(crate) fn retryable(
         && header("authorization") == Some(format!("Bearer {token}").as_str())
 }
 
-pub(crate) async fn remember(
-    definition: &Definition,
-    credentials: &Value,
-    target: &str,
-    only: &'static str,
-) {
+async fn remember(definition: &Definition, credentials: &Value, target: &str, only: &'static str) {
     let Some(key) = scope(definition, credentials, target) else {
         return;
     };
@@ -222,30 +227,6 @@ pub(crate) async fn remember(
     let _ = nora_provider_plugin_sdk::save_credentials(updated).await;
 }
 
-async fn prefix(response: &mut HttpStreamingResponse) -> PluginResult<Vec<u8>> {
-    let mut bytes = Vec::new();
-    let mut kept = Vec::new();
-    while bytes.len() < ERROR_PREFIX {
-        let Some(chunk) = response.body.next().await else {
-            break;
-        };
-        match chunk {
-            Ok(chunk) => {
-                let length = chunk.len().min(ERROR_PREFIX - bytes.len());
-                bytes.extend_from_slice(&chunk[..length]);
-                kept.push(Ok(chunk));
-            }
-            Err(error) => {
-                kept.push(Err(error));
-                break;
-            }
-        }
-    }
-    let body = std::mem::replace(&mut response.body, Box::pin(stream::empty()));
-    response.body = Box::pin(stream::iter(kept).chain(body));
-    Ok(bytes)
-}
-
 pub(crate) async fn send(
     client: &dyn HttpClient,
     definition: &Definition,
@@ -258,6 +239,7 @@ pub(crate) async fn send(
         credentials,
         api,
         request,
+        &mut None,
         |request| async move {
             client
                 .stream(request)
@@ -273,6 +255,7 @@ pub(crate) async fn send_with<F, Fut>(
     credentials: &Value,
     api: &str,
     mut request: HttpRequest,
+    only_auth: &mut Option<&'static str>,
     mut send: F,
 ) -> PluginResult<HttpStreamingResponse>
 where
@@ -280,8 +263,9 @@ where
     Fut: Future<Output = PluginResult<HttpStreamingResponse>>,
 {
     if retryable(definition, credentials, api, &request) {
-        if let Some(only) = choice(definition, credentials, &request.url) {
+        if let Some(only) = only_auth.or_else(|| choice(definition, credentials, &request.url)) {
             one(&mut request.headers, only);
+            *only_auth = Some(only);
         }
     }
     let may_retry = retryable(definition, credentials, api, &request);
@@ -292,7 +276,7 @@ where
     if response.status != 401 {
         return Ok(response);
     }
-    let bytes = prefix(&mut response).await?;
+    let bytes = crate::http_response::error_prefix(&mut response).await;
     if !both_refused(response.status, &bytes) {
         return Ok(response);
     }
@@ -302,6 +286,7 @@ where
         one(&mut next.headers, only);
         let response = send(next).await?;
         if !matches!(response.status, 401 | 403) {
+            *only_auth = Some(only);
             remember(definition, credentials, &request.url, only).await;
             return Ok(response);
         }

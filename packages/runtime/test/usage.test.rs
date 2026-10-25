@@ -351,6 +351,84 @@ fn copilot_reset_date_falls_back_when_utc_date_is_missing_or_invalid() {
     }
 }
 
+#[tokio::test]
+async fn copilot_usage_follows_the_verified_accounts_enterprise_host() {
+    use crate::ProviderAdapter;
+    for (host, expected) in [
+        (None, "https://api.github.com/copilot_internal/user"),
+        (Some(""), "https://api.github.com/copilot_internal/user"),
+        (
+            Some("https://Acme.ghe.com/"),
+            "https://api.acme.ghe.com/copilot_internal/user",
+        ),
+    ] {
+        let mut extras = BTreeMap::new();
+        if let Some(host) = host {
+            extras.insert("githubHost".into(), nora_ai::JsonValue::string(host));
+        }
+        let credentials = nora_ai::OAuthCredentials::new(
+            nora_ai::OAuthProviderId::GitHubCopilot,
+            "chat-session-token",
+            Some("verified-github-token".into()),
+            None,
+            extras,
+        );
+        let mut auth = crate::auth::base_auth("github-copilot", &credentials);
+        crate::copilot_provider::Copilot::default().enrich_auth(&credentials, &mut auth);
+        assert_eq!(auth.headers["editor-version"], "vscode/1.140.0");
+        assert_eq!(auth.headers["editor-plugin-version"], "copilot-chat/0.68.0");
+        assert_eq!(auth.headers["x-github-api-version"], "2026-01-09");
+        let client = client(vec![Reply::json(json!({"quota_snapshots":{
+            "chat":{"entitlement":200,"quota_remaining":150}
+        }}))]);
+        let result = fetch_usage("github-copilot", &auth, None, &client)
+            .await
+            .unwrap();
+        assert_eq!(item(&result, "chat")["usedPercent"], 25.0);
+        let requests = client.requests.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].url, expected);
+        assert_eq!(
+            requests[0].headers["authorization"],
+            "token verified-github-token"
+        );
+        assert!(requests[0].body.is_none());
+        assert_eq!(requests[0].headers["editor-version"], "vscode/1.140.0");
+        assert_eq!(
+            requests[0].headers["editor-plugin-version"],
+            "copilot-chat/0.68.0"
+        );
+        assert_eq!(
+            requests[0].headers["user-agent"],
+            "GitHubCopilotChat/0.68.0"
+        );
+    }
+}
+
+#[tokio::test]
+async fn copilot_usage_rejects_unsafe_saved_hosts_before_sending_the_account_token() {
+    for host in [
+        json!("github.com@evil.invalid"),
+        json!("api.acme.ghe.com"),
+        json!("https://acme.ghe.com/path"),
+        json!(false),
+    ] {
+        let mut auth = auth("github-copilot");
+        auth.metadata.insert(
+            "githubOAuthToken".into(),
+            nora_ai::JsonValue::string("private-token"),
+        );
+        auth.metadata.insert("githubHost".into(), host.into());
+        let client = client(Vec::new());
+        let error = fetch_usage("github-copilot", &auth, None, &client)
+            .await
+            .unwrap_err();
+        assert_eq!(error, "The GitHub account host is invalid.");
+        assert!(!error.contains("private-token"));
+        assert!(client.requests.lock().unwrap().is_empty());
+    }
+}
+
 #[test]
 fn reset_credit_counts_are_authoritative_even_when_the_detail_list_is_truncated() {
     let value = resets::parse(

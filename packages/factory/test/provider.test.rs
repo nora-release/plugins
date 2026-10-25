@@ -20,6 +20,9 @@ impl core::CredentialStore for Store {
 }
 fn initialize() -> InitializeParams {
     InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "factory".into(),
         plugin_directory: std::env::temp_dir(),
@@ -241,6 +244,7 @@ async fn api_key_usage_queries_real_billing_limits() {
     let p = plugin(client.clone(), Arc::new(Store::default())).await;
     let result = p
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::key()),
             network_proxy: None,

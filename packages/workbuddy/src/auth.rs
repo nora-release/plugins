@@ -396,6 +396,7 @@ fn default_source(site: Site) -> PluginResult<PathBuf> {
         .join(format!("{}.info", site.source_id())))
 }
 pub(super) fn read_source(site: Site, marker: &Value) -> PluginResult<Value> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let path = match marker.get("sourcePath").and_then(Value::as_str) {
         Some(path) => PathBuf::from(path),
         None => default_source(site)?,

@@ -58,6 +58,8 @@
     }
   ],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "keyProvider": "huaweicloud",
     "catalog": "huaweicloud",
     "profiles": [

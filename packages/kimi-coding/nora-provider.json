@@ -30,6 +30,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "kimi-coding",
     "keyProvider": "kimi-coding",
     "headers": {

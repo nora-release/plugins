@@ -79,6 +79,9 @@ async fn initialize_never_imports_or_authenticates_an_account() {
     assert_eq!(manifest["config"]["accountActions"], json!(["checkin"]));
     provider
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "codearts".into(),
             plugin_directory: "/test/provider".into(),

@@ -387,6 +387,7 @@ pub(crate) fn read_source_if_signed_in(
     kind: &SourceKind,
     path: &str,
 ) -> PluginResult<Option<Credential>> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let path = Path::new(path);
     if !path.is_absolute() {
         return Err(expired());

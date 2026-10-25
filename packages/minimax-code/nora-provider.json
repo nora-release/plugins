@@ -23,6 +23,17 @@
     "accountActions": [
       "checkin"
     ],
-    "authTimeoutMs": 900000
+    "authTimeoutMs": 900000,
+    "accountAutomation": {
+      "version": 1,
+      "checkin": {
+        "method": "checkin",
+        "statusMethod": "checkinStatus",
+        "timeZone": "Asia/Shanghai",
+        "authMethods": [
+          "oauth"
+        ]
+      }
+    }
   }
 }

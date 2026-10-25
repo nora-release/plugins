@@ -23,6 +23,7 @@ pub(crate) enum Home {
 }
 impl Home {
     pub fn own() -> PluginResult<Self> {
+        nora_provider_plugin_sdk::require_subscription_accounts()?;
         std::env::var_os("HOME")
             .map(PathBuf::from)
             .filter(|home| home.is_absolute())
@@ -170,6 +171,7 @@ pub(crate) fn write(path: &Path, bytes: &[u8]) -> PluginResult<()> {
     result
 }
 pub(crate) fn read(path: &Path) -> PluginResult<Value> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     use std::io::Read;
     let file = std::fs::File::open(path).map_err(|_| error())?;
     let mut bytes = Vec::new();
@@ -248,6 +250,7 @@ impl Process {
         cwd: &Path,
         environment: BTreeMap<String, String>,
     ) -> PluginResult<Self> {
+        nora_provider_plugin_sdk::require_subscription_accounts()?;
         #[cfg(unix)]
         let mut command = Command::new(super::supervisor::executable().map_err(|_| error())?);
         #[cfg(not(unix))]
@@ -394,6 +397,7 @@ pub(crate) async fn output(
     result
 }
 pub(crate) async fn credentials(home: &Home) -> PluginResult<Value> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     #[cfg(target_os = "macos")]
     {
         let service = home.keychain_service();

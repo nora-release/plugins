@@ -61,6 +61,20 @@
           "baseURL": "https://cloudcode-pa.googleapis.com"
         }
       ]
+    },
+    "accountImport": {
+      "formats": [
+        "auto",
+        "google-account",
+        "antigravity-manager",
+        "cli-proxy",
+        "refresh-token",
+        "nora-account",
+        "magpie-login"
+      ],
+      "refreshesTokens": true,
+      "maxEntries": 200,
+      "maxBytes": 4194304
     }
   }
 }

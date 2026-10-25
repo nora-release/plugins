@@ -2,6 +2,9 @@ use super::*;
 use crate::fixture::{self, Client, Reply};
 fn initialize() -> InitializeParams {
     InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: API_VERSION,
         plugin_id: "cursor".into(),
         plugin_directory: std::env::temp_dir(),
@@ -178,6 +181,7 @@ async fn model_discovery_is_remote_and_respects_the_account_list() {
     let plugin = plugin(client.clone()).await;
     let result = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::credential()),
             network_proxy: None,
@@ -201,6 +205,7 @@ async fn custom_urls_sampling_and_invalid_proxy_are_rejected_before_any_key_leav
     let client = Client::new(vec![]);
     let plugin = plugin(client.clone()).await;
     let request = |url: &str, body: Value| FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(fixture::credential()),
         network_proxy: None,
@@ -250,6 +255,7 @@ fn provider_http_errors_preserve_status_without_reflecting_bodies() {
 fn fetch_chat(chat: Value) -> FetchRequest {
     use base64::Engine;
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(fixture::credential()),
         network_proxy: None,

@@ -86,6 +86,8 @@ pub fn is_bound(credentials: &OAuthCredentials) -> bool {
 /// The account Codex is signed in to, as a reference Nora can save: which
 /// file, whose account, and what to show for it. It holds no token.
 pub fn bind(auth_file_path: &Path) -> Result<OAuthCredentials, SourceError> {
+    nora_provider_plugin_sdk::require_subscription_accounts()
+        .map_err(|_| SourceError::InvalidSource)?;
     let tokens = read(auth_file_path)?;
     let mut extras =
         OpenAICodexOAuthProvider::profile_extras_from_tokens(&tokens.access, tokens.id.as_deref());
@@ -125,6 +127,8 @@ pub async fn resolve(
     force: bool,
     client: &dyn HttpClient,
 ) -> Result<OAuthCredentials, SourceError> {
+    nora_provider_plugin_sdk::require_subscription_accounts()
+        .map_err(|_| SourceError::InvalidSource)?;
     let source: Source = credentials
         .extras
         .get(METADATA_KEY)

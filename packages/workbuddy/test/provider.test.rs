@@ -64,6 +64,9 @@ async fn both_regions_initialize_without_discovering_or_importing_any_account() 
         })
         .unwrap();
         let params = InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: site.id().into(),
             plugin_directory: "/test/provider".into(),

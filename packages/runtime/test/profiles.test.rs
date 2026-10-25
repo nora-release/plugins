@@ -81,6 +81,9 @@ async fn explicit_api_profile_authorization_persists_the_choice_and_optional_key
     let plugin = BundledProvider::new(GenericProvider);
     plugin
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "profiles".into(),
             plugin_directory: "/tmp/profiles".into(),
@@ -102,6 +105,9 @@ async fn explicit_api_profile_authorization_persists_the_choice_and_optional_key
     let plugin = BundledProvider::new(GenericProvider);
     plugin
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "profiles".into(),
             plugin_directory: "/tmp/profiles".into(),

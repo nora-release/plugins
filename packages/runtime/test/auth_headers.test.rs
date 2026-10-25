@@ -1,5 +1,6 @@
 use super::*;
 use async_trait::async_trait;
+use futures::stream;
 use nora_ai::{HttpClientError, HttpMethod};
 use std::{
     collections::VecDeque,
@@ -165,6 +166,96 @@ async fn ordinary_401_and_successful_streams_are_never_retried() {
             body
         );
         assert_eq!(client.requests.lock().unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn copilot_refusals_are_observed_without_changing_the_original_error_bytes_or_headers() {
+    let mut definition = definition();
+    definition.adapter = crate::test_adapter("github-copilot");
+    let credentials = json!({"type":"oauth", "access":"token", "extras":{"accountIdentity":{"issuer":"https://github.com","subject":"one"}}});
+    let mut bytes = br#"{"error":{"code":"model_not_supported"}}"#.to_vec();
+    bytes.extend(vec![b' '; 100_000]);
+    let client = Client {
+        requests: Mutex::new(Vec::new()),
+        replies: Mutex::new(VecDeque::from([
+            (200, vec![br#"{"data":[]}"#.to_vec()]),
+            (
+                400,
+                vec![
+                    bytes[..17].to_vec(),
+                    bytes[17..70_000].to_vec(),
+                    bytes[70_000..].to_vec(),
+                ],
+            ),
+        ])),
+    };
+    let response = crate::transport::send(
+        &client,
+        &definition,
+        &credentials,
+        "openai-responses",
+        request(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.status, 400);
+    assert_eq!(response.headers["x-original"], "kept");
+    let body = nora_ai::collect_http_body_text_limited(response.body, 1024 * 1024)
+        .await
+        .unwrap();
+    assert_eq!(body.as_bytes(), bytes);
+    let row =
+        json!({"id":"actual-model", "model_picker_enabled":true,"capabilities":{"type":"chat"}});
+    assert!(!definition
+        .adapter
+        .model_visible(&row, "actual-model", &credentials));
+    assert_eq!(client.requests.lock().unwrap().len(), 2);
+}
+
+#[tokio::test]
+async fn adapters_without_an_error_observer_leave_the_response_stream_unread() {
+    struct Lazy(std::sync::Arc<std::sync::atomic::AtomicU64>);
+    #[async_trait]
+    impl HttpClient for Lazy {
+        async fn stream(&self, _: HttpRequest) -> Result<HttpStreamingResponse, HttpClientError> {
+            let reads = self.0.clone();
+            Ok(HttpStreamingResponse {
+                status: 400,
+                headers: BTreeMap::new(),
+                body: Box::pin(stream::once(async move {
+                    reads.fetch_add(1, Ordering::SeqCst);
+                    Ok(b"original-error".to_vec().into())
+                })),
+            })
+        }
+    }
+    for api_account in [false, true] {
+        let mut definition = definition();
+        let credentials = if api_account {
+            definition.adapter = crate::test_adapter("github-copilot");
+            json!({"type":"apiKey","access":"token"})
+        } else {
+            json!({"type":"oauth","access":"token"})
+        };
+        let reads = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let response = crate::transport::send(
+            &Lazy(reads.clone()),
+            &definition,
+            &credentials,
+            "openai-responses",
+            request(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(reads.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            nora_ai::collect_http_body_text_limited(response.body, 1024)
+                .await
+                .unwrap(),
+            "original-error"
+        );
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
     }
 }
 

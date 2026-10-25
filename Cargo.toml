@@ -1,5 +1,7 @@
 [workspace]
 members = [
+    "packages/autoclaw",
+    "packages/autoclaw-cn",
     "packages/remote-magpie",
     "packages/clinepass",
     "packages/vercel-jev",
@@ -74,5 +76,5 @@ license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
-nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "709c2225bd5c9003655a806f1d598a7c7269e822" }
-nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "709c2225bd5c9003655a806f1d598a7c7269e822" }
+nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "76620efda9c5c1fd41e85dfdc47df8871c58d8d6" }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "76620efda9c5c1fd41e85dfdc47df8871c58d8d6" }

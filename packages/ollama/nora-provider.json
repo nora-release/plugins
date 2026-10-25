@@ -36,6 +36,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "keyProvider": "ollama",
     "catalog": "ollama",
     "profiles": [

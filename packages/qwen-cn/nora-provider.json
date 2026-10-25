@@ -28,6 +28,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "keyProvider": "qwen-cn",
     "catalog": "alibaba",
     "profiles": [

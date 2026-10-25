@@ -9,12 +9,14 @@ fn saved(config: &Config) -> Value {
 }
 fn context(config: &Config) -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         credentials: Some(saved(config)),
         ..Default::default()
     }
 }
 fn request(config: &Config) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(saved(config)),
         network_proxy: None,
@@ -210,6 +212,9 @@ async fn initialization_does_not_discover_or_import_an_adc_account() {
     let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
     plugin
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "google-vertex".into(),
             plugin_directory: dir.0.clone(),

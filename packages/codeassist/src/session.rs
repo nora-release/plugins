@@ -16,6 +16,7 @@ pub(crate) struct Tokens {
 }
 
 pub(crate) fn selected(path: &str, app: App) -> PluginResult<Tokens> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let path = Path::new(path);
     if !path.is_absolute() {
         return Err(invalid(
@@ -121,6 +122,7 @@ pub(crate) fn selected(path: &str, app: App) -> PluginResult<Tokens> {
 }
 
 pub(crate) fn current(value: Option<&Value>, app: App) -> PluginResult<(Tokens, Option<String>)> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     let value = value.ok_or_else(expired)?;
     if let Some(source) = value.get("source") {
         if source.get("app").and_then(Value::as_str) != Some(app.id()) {

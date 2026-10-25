@@ -47,6 +47,23 @@
   ],
   "models": [],
   "config": {
+    "upstreamStatus": {
+      "vendor": "anthropic",
+      "name": "Anthropic",
+      "page": "https://status.claude.com",
+      "summary": "https://status.claude.com/api/v2/summary.json",
+      "hosts": [
+        "api.anthropic.com"
+      ],
+      "components": [
+        "Claude Code"
+      ],
+      "componentPrefixes": [
+        "Claude API"
+      ]
+    },
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "anthropic",
     "keyProvider": "anthropic-api-key",
     "oauthProvider": "anthropic",
@@ -59,7 +76,21 @@
     "description": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly.",
     "headerHints": [
       "anthropic-workspace-id"
-    ]
+    ],
+    "accountImport": {
+      "formats": [
+        "auto",
+        "claude-credentials",
+        "cli-proxy",
+        "sub2api",
+        "refresh-token",
+        "nora-account",
+        "magpie-login"
+      ],
+      "refreshesTokens": false,
+      "maxEntries": 200,
+      "maxBytes": 4194304
+    }
   },
   "localSignIns": [
     {

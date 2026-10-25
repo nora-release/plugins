@@ -16,45 +16,74 @@ fn first(payload: &Value, now: i64) -> Option<String> {
     if available_count(payload) == Some(0) {
         return None;
     }
-    let parsed = parse(payload);
-    let mut grants = parsed["grants"]
-        .as_array()?
-        .iter()
-        .filter_map(|grant| {
-            if !matches!(
-                grant["status"].as_str(),
-                Some("available" | "active" | "unredeemed" | "not_redeemed" | "granted")
-            ) || !grant["redeemedAt"].is_null()
-            {
-                return None;
-            }
-            let id = grant["id"].as_str().filter(|id| {
-                !id.is_empty() && id.len() <= 512 && !id.chars().any(char::is_control)
-            })?;
-            let expires = grant["expiresAt"]
-                .as_str()
-                .and_then(|date| DateTime::parse_from_rfc3339(date).ok())
-                .map(|date| date.timestamp_millis());
-            if expires.is_some_and(|date| date <= now) {
-                return None;
-            }
-            let granted = grant["grantedAt"]
-                .as_str()
-                .and_then(|date| DateTime::parse_from_rfc3339(date).ok())
-                .map(|date| date.timestamp_millis());
-            if granted.is_some_and(|date| date > now) {
-                return None;
-            }
-            Some((expires.unwrap_or(i64::MAX), id.to_string()))
-        })
-        .collect::<Vec<_>>();
-    grants.sort_by_key(|(expires, _)| *expires);
-    grants.into_iter().next().map(|(_, id)| id)
+    super::prepare::earliest(&parse(payload), now).map(|(id, _)| id)
 }
 
+#[cfg(test)]
 pub async fn consume(
     auth: &ResolvedProviderAuth,
     request_id: &Value,
+    client: &dyn HttpClient,
+) -> PluginResult<Value> {
+    consume_options(auth, request_id, None, client).await
+}
+
+pub async fn consume_checked(
+    auth: &ResolvedProviderAuth,
+    params: &Value,
+    client: &dyn HttpClient,
+) -> PluginResult<Value> {
+    if params["requestID"]
+        .as_str()
+        .and_then(|id| uuid::Uuid::parse_str(id).ok())
+        .is_none_or(|id| id.is_nil())
+    {
+        return Err(PluginError::invalid("A reset request ID is required."));
+    }
+    let reason = params["reason"].as_str().unwrap_or("hand");
+    if !matches!(reason, "hand" | "week" | "expiring") {
+        return Err(PluginError::invalid("The reset reason is invalid."));
+    }
+    if reason != "hand" && params["offerID"].as_str().is_none_or(str::is_empty) {
+        return Err(PluginError::invalid("A reset offer is required."));
+    }
+    if reason != "hand" {
+        let reading = super::prepare::prepare(auth, client).await?;
+        let now = Utc::now();
+        let eligible = if reason == "week" {
+            reading["weekly"]["exhausted"] == true
+                && reading["weekly"]["cycleEndsAt"]
+                    .as_str()
+                    .and_then(|v| DateTime::parse_from_rfc3339(v).ok())
+                    .is_some_and(|v| v > now)
+        } else {
+            reading["windowsUsed"] == true
+                && reading["expiring"]["dueAt"]
+                    .as_str()
+                    .and_then(|v| DateTime::parse_from_rfc3339(v).ok())
+                    .is_some_and(|v| v <= now)
+                && reading["expiring"]["creditExpiresAt"]
+                    .as_str()
+                    .and_then(|v| DateTime::parse_from_rfc3339(v).ok())
+                    .is_some_and(|v| v > now)
+        };
+        if !eligible || reading["offerID"] != params["offerID"] {
+            return Ok(json!({"outcome":"nothing_to_reset","retrySafe":true}));
+        }
+    }
+    consume_options(
+        auth,
+        &params["requestID"],
+        params["offerID"].as_str(),
+        client,
+    )
+    .await
+}
+
+async fn consume_options(
+    auth: &ResolvedProviderAuth,
+    request_id: &Value,
+    offer: Option<&str>,
     client: &dyn HttpClient,
 ) -> PluginResult<Value> {
     let request_id = request_id
@@ -104,6 +133,9 @@ pub async fn consume(
             json!({"ok":true,"outcome":"no_credit","message":"No reset credit is available for this account."}),
         );
     };
+    if offer.is_some_and(|offer| offer != credit) {
+        return Ok(json!({"outcome":"nothing_to_reset","retrySafe":true}));
+    }
     let mut request = request;
     request.method = HttpMethod::Post;
     request.url = format!("{ENDPOINT}/consume");

@@ -28,6 +28,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "minimax-cn",
     "keyProvider": "minimax-cn",
     "legacy": {

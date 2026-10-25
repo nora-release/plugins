@@ -302,21 +302,7 @@ impl Default for GitHubCopilotOAuthProvider {
     fn default() -> Self {
         Self {
             token_url: "https://api.github.com/copilot_internal/v2/token".to_string(),
-            extra_headers: BTreeMap::from([
-                ("editor-version".to_string(), "vscode/1.107.0".to_string()),
-                (
-                    "editor-plugin-version".to_string(),
-                    "copilot-chat/0.35.0".to_string(),
-                ),
-                (
-                    "user-agent".to_string(),
-                    "GitHubCopilotChat/0.35.0".to_string(),
-                ),
-                (
-                    "copilot-integration-id".to_string(),
-                    "vscode-chat".to_string(),
-                ),
-            ]),
+            extra_headers: crate::copilot_client::editor_headers(),
         }
     }
 }

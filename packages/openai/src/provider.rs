@@ -1,3 +1,6 @@
+#[path = "fast.rs"]
+pub(crate) mod fast;
+
 use async_trait::async_trait;
 use nora_ai::{
     HttpClient, Model, ModelsCatalog, OAuthCredentials, OAuthError, OAuthProvider, OAuthProviderId,
@@ -30,6 +33,9 @@ pub struct OpenAI;
 impl ProviderAdapter for OpenAI {
     fn id(&self) -> Option<&'static str> {
         Some("openai")
+    }
+    fn account_import_kind(&self) -> Option<nora_provider::account_import::LoginKind> {
+        Some(nora_provider::account_import::LoginKind::Codex)
     }
     async fn login(
         &self,
@@ -227,6 +233,24 @@ impl ProviderAdapter for OpenAI {
         !is_oauth(Some(credentials))
             || entry.get("visibility").and_then(Value::as_str) != Some("hide")
     }
+    fn enrich_model(&self, entry: &Value, model: &mut Model, credentials: &Value) {
+        if !is_oauth(Some(credentials)) {
+            return;
+        }
+        let ultrafast = entry
+            .get("service_tiers")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .any(|tier| {
+                tier.as_str()
+                    .or_else(|| tier.get("id").and_then(Value::as_str))
+                    == Some("ultrafast")
+            });
+        if !ultrafast {
+            model.info.service_tiers.retain(|tier| tier != "ultrafast");
+        }
+    }
     fn model_priority(&self, entry: &Value, credentials: &Value) -> i64 {
         if is_oauth(Some(credentials)) {
             entry.get("priority").and_then(Value::as_i64).unwrap_or(0)
@@ -278,6 +302,17 @@ impl ProviderAdapter for OpenAI {
                 codex_version::headers(&codex_version::current().await),
             );
         }
+        Ok(())
+    }
+    fn finalize_fetch(
+        &self,
+        credentials: &Value,
+        target: &Url,
+        headers: &mut BTreeMap<String, String>,
+        body: &mut Option<Vec<u8>>,
+    ) -> PluginResult<()> {
+        let _ = headers;
+        fast::finalize(is_oauth(Some(credentials)), target, body);
         Ok(())
     }
     async fn usage(

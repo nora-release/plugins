@@ -133,6 +133,7 @@ pub(crate) fn identity(value: &Value) -> PluginResult<(String, String)> {
     ))
 }
 pub(crate) fn read(path: &str) -> PluginResult<(String, String)> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     if !Path::new(path).is_absolute() || path.len() > 16 * 1024 {
         return Err(PluginError::invalid(
             "Select an absolute Devin credentials.toml path.",

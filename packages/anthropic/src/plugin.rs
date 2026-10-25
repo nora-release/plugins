@@ -97,6 +97,7 @@ impl Claude {
         {
             return Err(cli::error());
         }
+        nora_provider::account_import::preserve_metadata(value, &mut account.saved);
         let previous = account.saved.clone();
         let next = account.saved();
         let changed = value.pointer("/extras/noraClaudeCLI").is_none()
@@ -111,6 +112,9 @@ impl Claude {
 }
 #[async_trait]
 impl ProviderPlugin for Claude {
+    async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        self.inner.call(method, params).await
+    }
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
         let root = params.data_directory.join("claude-accounts");
         let proxy: Option<NetworkProxy> = serde_json::from_value(
@@ -231,7 +235,10 @@ impl ProviderPlugin for Claude {
         Ok(json!({"changed":false}))
     }
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
-        self.inner.models(context).await
+        let subscription = nora_provider::adapter::is_oauth(context.credentials.as_ref());
+        let mut models = self.inner.models(context).await?;
+        crate::provider::fast::models(&mut models, subscription);
+        Ok(models)
     }
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
         let value = context.credentials.as_ref().ok_or_else(cli::error)?;

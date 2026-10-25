@@ -1,5 +1,6 @@
 use super::*;
 use nora_ai::{HttpMethod, HttpRequest};
+use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -26,12 +27,37 @@ async fn endpoint() -> (String, JoinHandle<String>) {
     (format!("http://{address}"), server)
 }
 
+async fn configured(adapter: impl ProviderAdapter, proxy: Option<NetworkProxy>) -> BundledProvider {
+    let provider = BundledProvider::new(adapter);
+    let mut manifest: Value =
+        serde_json::from_str(include_str!("../../xai/nora-provider.json")).unwrap();
+    manifest["config"]["networkProxy"] = serde_json::to_value(proxy).unwrap();
+    provider
+        .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: Value::Null,
+            api_version: API_VERSION,
+            plugin_id: "xai".into(),
+            plugin_directory: PathBuf::new(),
+            data_directory: PathBuf::new(),
+            manifest,
+        })
+        .await
+        .unwrap();
+    provider
+}
+
 #[tokio::test]
 async fn default_proxy_and_explicit_direct_reach_the_selected_transport() {
-    let provider = BundledProvider::default();
     let (proxy, proxy_request) = endpoint().await;
-    *provider.network_proxy.write().unwrap() = Some(NetworkProxy::Proxy { url: proxy });
-    let response = provider
+    let provider = configured(
+        crate::GenericProvider,
+        Some(NetworkProxy::Proxy { url: proxy }),
+    )
+    .await;
+    let configuration = provider.configuration().unwrap();
+    let response = configuration
         .params_client(&json!({}))
         .unwrap()
         .request(HttpRequest::new(
@@ -46,7 +72,7 @@ async fn default_proxy_and_explicit_direct_reach_the_selected_transport() {
         .unwrap()
         .starts_with("GET http://upstream.invalid/proxied HTTP/1.1"));
     let (origin, direct_request) = endpoint().await;
-    let response = provider
+    let response = configuration
         .params_client(&json!({"networkProxy":{"mode":"direct"}}))
         .unwrap()
         .request(HttpRequest::new(
@@ -62,10 +88,10 @@ async fn default_proxy_and_explicit_direct_reach_the_selected_transport() {
         .starts_with("GET /direct HTTP/1.1"));
 }
 
-#[test]
-fn invalid_network_overrides_never_use_the_default_transport() {
-    let provider = BundledProvider::default();
-    let error = provider.params_client(&json!({"networkProxy":{"mode":"proxy","url":"ftp://private-user:private-password@proxy.invalid"}}));
+#[tokio::test]
+async fn invalid_network_overrides_never_use_the_default_transport() {
+    let provider = configured(crate::GenericProvider, None).await;
+    let error = provider.configuration().unwrap().params_client(&json!({"networkProxy":{"mode":"proxy","url":"ftp://private-user:private-password@proxy.invalid"}}));
     assert!(error.is_err());
     let message = error.err().unwrap().to_string();
     assert!(!message.contains("private-user"));
@@ -120,22 +146,14 @@ async fn every_source_operation_receives_the_effective_proxy_and_explicit_direct
         }),
     ] {
         let observed = Arc::new(std::sync::Mutex::new(Vec::new()));
-        let provider = BundledProvider::new(SourceNetworkRecorder(observed.clone()));
-        provider
-            .initialize(InitializeParams {
-                api_version: API_VERSION,
-                plugin_id: "xai".into(),
-                plugin_directory: PathBuf::new(),
-                data_directory: PathBuf::new(),
-                manifest: serde_json::from_str(include_str!("../../xai/nora-provider.json"))
-                    .unwrap(),
-            })
-            .await
-            .unwrap();
         let default = NetworkProxy::Proxy {
             url: "http://provider.invalid:8080".into(),
         };
-        *provider.network_proxy.write().unwrap() = Some(default.clone());
+        let provider = configured(
+            SourceNetworkRecorder(observed.clone()),
+            Some(default.clone()),
+        )
+        .await;
         let effective = override_proxy.clone().unwrap_or(default);
         let authorized = provider
             .authorize(json!({"method":"grokCLI","networkProxy":override_proxy}))
@@ -147,6 +165,7 @@ async fn every_source_operation_receives_the_effective_proxy_and_explicit_direct
             .await
             .unwrap();
         let context = CallContext {
+            subscription_accounts_enabled: true,
             account: "fixture".into(),
             credentials: Some(credentials.clone()),
             network_proxy: override_proxy.clone(),
@@ -154,6 +173,7 @@ async fn every_source_operation_receives_the_effective_proxy_and_explicit_direct
         provider.models(context.clone()).await.unwrap();
         assert!(provider.usage(context).await.is_err());
         let request = FetchRequest {
+            subscription_accounts_enabled: true,
             account: "fixture".into(),
             credentials: Some(credentials),
             network_proxy: override_proxy,

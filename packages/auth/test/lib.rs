@@ -36,3 +36,7 @@ mod oauth_providers_test {
 mod xai_auth_test {
     include!("xai_auth.test.rs");
 }
+
+mod subscription_policy_test {
+    include!("subscription_policy.test.rs");
+}

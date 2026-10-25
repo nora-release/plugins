@@ -427,7 +427,7 @@ impl OAuthLogin {
                     &mut credentials,
                     client,
                     &config.github_user_url,
-                    "",
+                    &config.github_host,
                 )
                 .await?;
                 return Ok(credentials);
@@ -575,6 +575,7 @@ pub struct GitHubCopilotLoginConfig {
     pub access_token_url: String,
     pub copilot_token_url: String,
     pub github_user_url: String,
+    pub github_host: String,
     pub timeout: Duration,
 }
 
@@ -586,6 +587,7 @@ impl Default for GitHubCopilotLoginConfig {
             access_token_url: "https://github.com/login/oauth/access_token".to_string(),
             copilot_token_url: "https://api.github.com/copilot_internal/v2/token".to_string(),
             github_user_url: "https://api.github.com/user".to_string(),
+            github_host: String::new(),
             timeout: Duration::from_secs(15 * 60),
         }
     }

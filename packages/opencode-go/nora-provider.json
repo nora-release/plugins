@@ -28,6 +28,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "opencode-go",
     "keyProvider": "opencode-go",
     "legacy": {

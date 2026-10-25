@@ -30,6 +30,26 @@
   ],
   "models": [],
   "config": {
+    "upstreamStatus": {
+      "vendor": "moonshot",
+      "name": "Moonshot AI",
+      "page": "https://status.moonshot.cn",
+      "summary": "https://status.moonshot.cn/api/v2/summary.json",
+      "hosts": [
+        "api.moonshot.cn",
+        "api.moonshot.ai"
+      ],
+      "components": [
+        "Open API",
+        "API Service",
+        "Model"
+      ],
+      "componentSuffixes": [
+        " Model"
+      ]
+    },
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "moonshotai-cn",
     "keyProvider": "moonshotai-cn",
     "legacy": {

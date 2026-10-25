@@ -27,6 +27,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "siliconflow",
     "keyProvider": "siliconflow",
     "modelDiscovery": {

@@ -226,6 +226,13 @@ impl Kiro {
     }
     fn source_saved(credential: &Credential, kind: &SourceKind, path: &str) -> Value {
         let mut saved = json!({"type":"oauth","authMethod":kind.auth_method(),"source":kind.reference(path),"accountId":credential.identity,"email":credential.email,"plan":credential.plan,"label":if credential.email.is_empty(){"Kiro account"}else{&credential.email},"profileArn":credential.profile,"region":credential.region,"userId":credential.user_id,"realm":credential.realm,"extras":{"noraAccountSource":kind.marker(path)}});
+        // A new Kiro login has a new refresh token. Access tokens rotate during
+        // ordinary use and must never make a deliberately removed account return.
+        if !credential.refresh.is_empty() {
+            saved["extras"]["noraAccountSource"]["loginMark"] = json!(session::fingerprint(
+                &format!("{}\0{path}\0{}", kind.auth_method(), credential.refresh)
+            ));
+        }
         if let Some(identity) = credential.account_identity() {
             saved["accountIdentity"] = identity.clone();
             saved["extras"]["accountIdentity"] = identity;

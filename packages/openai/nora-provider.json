@@ -41,6 +41,24 @@
   ],
   "models": [],
   "config": {
+    "upstreamStatus": {
+      "vendor": "openai",
+      "name": "OpenAI",
+      "page": "https://status.openai.com",
+      "summary": "https://status.openai.com/api/v2/summary.json",
+      "hosts": [
+        "api.openai.com",
+        "chatgpt.com"
+      ],
+      "components": [
+        "Chat Completions",
+        "Responses",
+        "Codex",
+        "Codex CLI"
+      ]
+    },
+    "modelMetadata": true,
+    "connectionOptions": true,
     "sourceAuthMethods": [
       {
         "id": "codexCLI",
@@ -134,7 +152,38 @@
       "version",
       "x-openai-*",
       "x-codex-*"
-    ]
+    ],
+    "accountImport": {
+      "formats": [
+        "auto",
+        "codex-auth",
+        "cli-proxy",
+        "cockpit",
+        "sub2api",
+        "codexbar",
+        "refresh-token",
+        "nora-account",
+        "magpie-login"
+      ],
+      "refreshesTokens": true,
+      "maxEntries": 200,
+      "maxBytes": 4194304
+    },
+    "accountAutomation": {
+      "version": 1,
+      "reset": {
+        "prepareMethod": "prepareReset",
+        "executeMethod": "consumeReset",
+        "cases": [
+          "week",
+          "expiring"
+        ],
+        "authMethods": [
+          "oauth",
+          "codexCLI"
+        ]
+      }
+    }
   },
   "localSignIns": [
     {

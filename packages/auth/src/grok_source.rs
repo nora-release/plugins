@@ -98,6 +98,7 @@ pub async fn bind_current_account_with_network(
     client: &dyn HttpClient,
     proxy: Option<&NetworkProxy>,
 ) -> Result<OAuthCredentials, String> {
+    nora_provider_plugin_sdk::require_subscription_accounts().map_err(|error| error.message)?;
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
@@ -112,6 +113,7 @@ pub async fn discover_current_account_with_network(
     client: &dyn HttpClient,
     proxy: Option<&NetworkProxy>,
 ) -> Result<Option<OAuthCredentials>, String> {
+    nora_provider_plugin_sdk::require_subscription_accounts().map_err(|error| error.message)?;
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
@@ -215,6 +217,8 @@ pub async fn resolve_credentials_with_network(
     force: bool,
     proxy: Option<&NetworkProxy>,
 ) -> Result<OAuthCredentials, SourceError> {
+    nora_provider_plugin_sdk::require_subscription_accounts()
+        .map_err(|_| SourceError::InvalidSource)?;
     if let Some(proxy) = proxy {
         proxy
             .validate()

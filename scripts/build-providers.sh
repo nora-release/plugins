@@ -8,6 +8,27 @@ MANIFEST_PATH="${REPO_ROOT}/Cargo.toml"
 CARGO_BIN="${CARGO:-cargo}"
 MODE="${1:-build}"
 OUTPUT="${2:-${REPO_ROOT}/.build/providers}"
+CARGO_COMMAND=("${CARGO_BIN}")
+WORKSPACE_ARGS=(--manifest-path "${MANIFEST_PATH}" --workspace)
+if [[ -n "${NORA_PROVIDER_NORA_SOURCE:-}" ]]; then
+  LOCAL_NORA_SOURCE="$(cd "${NORA_PROVIDER_NORA_SOURCE}" && pwd)"
+  for package_path in packages/agents/ai packages/router/plugin-sdk; do
+    if [[ ! -f "${LOCAL_NORA_SOURCE}/${package_path}/Cargo.toml" ]]; then
+      echo "The local Nora source must contain the AI and provider SDK packages." >&2
+      exit 1
+    fi
+  done
+  for package_name in nora-ai nora-provider-plugin-sdk; do
+    case "${package_name}" in
+      nora-ai) package_path="packages/agents/ai" ;;
+      *) package_path="packages/router/plugin-sdk" ;;
+    esac
+    patch_config="$(python3 -c 'import json,sys; print("patch.\"https://github.com/nora-release/nora.git\"." + sys.argv[1] + ".path=" + json.dumps(sys.argv[2]))' "${package_name}" "${LOCAL_NORA_SOURCE}/${package_path}")"
+    CARGO_COMMAND+=(--config "${patch_config}")
+  done
+else
+  WORKSPACE_ARGS+=(--locked)
+fi
 
 if [[ $# -gt 2 ]]; then
   echo "Usage: build-providers.sh [build|--test|--fmt|--fmt-check] [output-directory]" >&2
@@ -15,15 +36,15 @@ if [[ $# -gt 2 ]]; then
 fi
 case "${MODE}" in
   --test)
-    "${CARGO_BIN}" test --manifest-path "${MANIFEST_PATH}" --workspace --locked
+    "${CARGO_COMMAND[@]}" test "${WORKSPACE_ARGS[@]}"
     exit
     ;;
   --fmt-check)
-    "${CARGO_BIN}" fmt --manifest-path "${MANIFEST_PATH}" --all --check
+    "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --all --check
     exit
     ;;
   --fmt)
-    "${CARGO_BIN}" fmt --manifest-path "${MANIFEST_PATH}" --all
+    "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --all
     exit
     ;;
   build) ;;
@@ -45,7 +66,7 @@ fi
 
 CONFIGURATION_NAME="${CONFIGURATION:-${BUILD_CONFIGURATION:-Debug}}"
 PROFILE_DIR="debug"
-BUILD_ARGS=(build --manifest-path "${MANIFEST_PATH}" --workspace --bins --locked)
+BUILD_ARGS=(build "${WORKSPACE_ARGS[@]}" --bins)
 case "${CONFIGURATION_NAME}" in
   Release|Staging)
     PROFILE_DIR="release"
@@ -65,7 +86,7 @@ fi
 export CARGO_TARGET_DIR="${CARGO_OUTPUT_ROOT}"
 BINARY_ROOT="${CARGO_OUTPUT_ROOT}/${CARGO_BUILD_TARGET:+${CARGO_BUILD_TARGET}/}${PROFILE_DIR}"
 
-"${CARGO_BIN}" "${BUILD_ARGS[@]}"
+"${CARGO_COMMAND[@]}" "${BUILD_ARGS[@]}"
 STAGING_ROOT="$(mktemp -d "$(dirname "${OUTPUT}")/.providers-build.XXXXXX")"
 BACKUP=""
 cleanup() {

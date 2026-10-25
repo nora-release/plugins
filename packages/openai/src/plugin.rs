@@ -28,7 +28,14 @@ impl OpenAIPlugin {
         &self,
         params: &Value,
     ) -> PluginResult<(nora_ai::ResolvedProviderAuth, ReqwestHttpClient)> {
-        if params["confirmed"] != true
+        self.reset_context_for(params, true).await
+    }
+    async fn reset_context_for(
+        &self,
+        params: &Value,
+        confirmation: bool,
+    ) -> PluginResult<(nora_ai::ResolvedProviderAuth, ReqwestHttpClient)> {
+        if confirmation && params["confirmed"] != true
             || params["account"].as_str().is_none_or(|account| {
                 account.is_empty()
                     || account.len() > 128
@@ -89,7 +96,8 @@ impl ProviderPlugin for OpenAIPlugin {
                 .unwrap_or(Value::Null),
         )
         .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
-        let result = self.inner.initialize(params).await?;
+        let mut result = self.inner.initialize(params).await?;
+        result["capabilities"]["sdkFeatures"]["accountAutomation"] = serde_json::json!(1);
         *self
             .config
             .write()
@@ -107,7 +115,10 @@ impl ProviderPlugin for OpenAIPlugin {
         self.inner.accounts(context).await
     }
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
-        self.inner.models(context).await
+        let subscription = nora_provider::adapter::is_oauth(context.credentials.as_ref());
+        let mut models = self.inner.models(context).await?;
+        crate::provider::fast::models(&mut models, subscription);
+        Ok(models)
     }
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
         self.inner.usage(context).await
@@ -125,11 +136,15 @@ impl ProviderPlugin for OpenAIPlugin {
         self.inner.fetch(request).await
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        if method == "prepareReset" {
+            let (auth, client) = self.reset_context_for(&params, false).await?;
+            return resets::prepare(&auth, &client).await;
+        }
         if method != "consumeReset" {
             return self.inner.call(method, params).await;
         }
         let (auth, client) = self.reset_context(&params).await?;
-        resets::consume(&auth, &params["requestID"], &client).await
+        resets::consume_checked(&auth, &params, &client).await
     }
 }
 

@@ -81,6 +81,9 @@ fn setup(family: DecisionFamily, replies: Vec<Reply>) -> (DecisionProvider, Arc<
     provider
         .core
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: family.id().into(),
             plugin_directory: PathBuf::new(),
@@ -98,6 +101,7 @@ fn question(model: &str) -> Value {
 }
 fn request(family: DecisionFamily, base: &str, model: &str) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "saved-account".into(),
         credentials: Some(credentials(family, base)),
         network_proxy: None,
@@ -127,6 +131,7 @@ async fn body(mut response: FetchResponse) -> Value {
 }
 fn context(credentials: Value) -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: "saved-account".into(),
         credentials: Some(credentials),
         network_proxy: None,

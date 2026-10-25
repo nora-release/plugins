@@ -31,6 +31,7 @@ fn definition() -> Definition {
 }
 fn request(url: &str) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "account".into(),
         credentials: Some(json!({"type":"api","key":"private-video-key"})),
         network_proxy: None,

@@ -14,7 +14,16 @@
     {
       "id": "oauth",
       "type": "oauth",
-      "label": "Sign in"
+      "label": "Sign in",
+      "fields": [
+        {
+          "id": "host",
+          "key": "host",
+          "type": "text",
+          "label": "GitHub host (github.com or an enterprise's <name>.ghe.com)",
+          "required": false
+        }
+      ]
     },
     {
       "id": "apiKey",
@@ -49,6 +58,9 @@
     }
   ],
   "config": {
+    "modelResolutionModels": ["auto"],
+    "modelMetadata": true,
+    "connectionOptions": true,
     "sourceAuthMethods": [
       {
         "id": "copilotEditors",

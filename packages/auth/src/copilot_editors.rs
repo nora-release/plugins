@@ -110,6 +110,8 @@ pub async fn take_over(
     path: &Path,
     client: &dyn HttpClient,
 ) -> Result<OAuthCredentials, EditorsError> {
+    nora_provider_plugin_sdk::require_subscription_accounts()
+        .map_err(|_| EditorsError::InvalidSource)?;
     let candidates = read_editors(path)?;
     let candidate = candidates
         .into_iter()
@@ -125,6 +127,8 @@ pub async fn discover(
     environment: &BTreeMap<String, String>,
     client: &dyn HttpClient,
 ) -> Result<Vec<OAuthCredentials>, EditorsError> {
+    nora_provider_plugin_sdk::require_subscription_accounts()
+        .map_err(|_| EditorsError::InvalidSource)?;
     let apps = apps_file(home, environment);
     let mut candidates = read_editors(&apps)?;
     candidates.extend(read_editors(&apps.with_file_name("hosts.json"))?);
@@ -184,6 +188,8 @@ pub async fn resolve_with_force(
     force: bool,
     client: &dyn HttpClient,
 ) -> Result<OAuthCredentials, EditorsError> {
+    nora_provider_plugin_sdk::require_subscription_accounts()
+        .map_err(|_| EditorsError::InvalidSource)?;
     let source: Source = credentials
         .extras
         .get(METADATA_KEY)

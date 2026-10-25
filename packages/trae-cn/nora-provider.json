@@ -24,7 +24,7 @@
           "key": "path",
           "type": "text",
           "label": "Trae CN storage file (optional)",
-          "placeholder": "\u2026/User/globalStorage/storage.json"
+          "placeholder": "…/User/globalStorage/storage.json"
         }
       ]
     }
@@ -35,6 +35,18 @@
     "accountActions": [
       "checkin"
     ],
-    "initialResponseTimeoutMs": 240000
+    "initialResponseTimeoutMs": 240000,
+    "accountAutomation": {
+      "version": 1,
+      "checkin": {
+        "method": "checkin",
+        "statusMethod": "checkinStatus",
+        "timeZone": "Asia/Shanghai",
+        "authMethods": [
+          "oauth",
+          "oauth-client"
+        ]
+      }
+    }
   }
 }

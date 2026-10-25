@@ -13,6 +13,9 @@ async fn provider(app: App, replies: Vec<fixture::Reply>) -> (CodeAssist, Arc<fi
     .unwrap();
     provider
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: API_VERSION,
             plugin_id: app.id().into(),
             plugin_directory: Default::default(),
@@ -28,6 +31,7 @@ fn credentials(app: App) -> Value {
 }
 fn context(app: App) -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(credentials(app)),
         network_proxy: None,
@@ -41,6 +45,7 @@ fn project() -> fixture::Reply {
 fn request(app: App, model: &str) -> FetchRequest {
     use base64::Engine;
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(credentials(app)),
         network_proxy: None,
@@ -164,6 +169,7 @@ async fn selected_source_identity_changes_fail_without_writing_or_saving_its_tok
     assert_eq!(std::fs::read(&path).unwrap(), original);
     let error = provider
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "work".into(),
             credentials: Some(saved.clone()),
             network_proxy: None,

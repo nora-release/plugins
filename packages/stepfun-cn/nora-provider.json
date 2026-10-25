@@ -42,6 +42,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "stepfun-step-plan, stepfun",
     "keyProvider": "stepfun-cn",
     "modelDiscovery": {

@@ -3,6 +3,9 @@ use crate::fixture::{self, Client, Reply};
 use crate::protobuf::Pb;
 fn initialize() -> InitializeParams {
     InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "devin".into(),
         plugin_directory: std::env::temp_dir(),
@@ -47,6 +50,7 @@ async fn live_models_come_from_real_protobuf_not_a_static_success() {
     let p = plugin(client.clone()).await;
     let value = p
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,
@@ -151,6 +155,7 @@ async fn read_only_source_uses_verified_identity_and_never_saves_its_private_tok
         .to_string()
         .contains("private-source-key"));
     p.models(CallContext {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(result["credentials"].clone()),
         network_proxy: None,
@@ -206,6 +211,7 @@ async fn http_errors_and_model_discovery_failures_do_not_leak_account_data() {
     let p = plugin(client.clone()).await;
     let error = p
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,
@@ -226,6 +232,7 @@ async fn usage_is_live_and_daily_weekly_quotas_exclude_free_models() {
     let p = plugin(client.clone()).await;
     let value = p
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,

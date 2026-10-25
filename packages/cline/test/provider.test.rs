@@ -81,6 +81,9 @@ fn setup(replies: Vec<(u16, Value)>) -> (Cline, Arc<Client>, Arc<Store>) {
     });
     let core = Core::with_dependencies("cline", client.clone(), store.clone());
     core.initialize(InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "cline".into(),
         plugin_directory: PathBuf::new(),
@@ -99,6 +102,9 @@ async fn clinepass_rejects_oauth_before_any_network_request() {
     let (_, client, store) = setup(vec![]);
     let core = Core::with_dependencies("clinepass", client.clone(), store);
     core.initialize(InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "clinepass".into(),
         plugin_directory: PathBuf::new(),
@@ -212,6 +218,7 @@ async fn credit_balance_is_kept_when_clinepass_is_absent() {
     ]);
     let result = plugin
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -236,6 +243,7 @@ async fn native_tools_and_sampling_survive_nonstreaming_envelope_removal() {
     let body = json!({"model":"maker/model","messages":[{"role":"tool","tool_call_id":"call","content":"done"}],"top_p":0.25,"stop":["END"],"tools":[{"type":"function","function":{"name":"read"}}]});
     let response = plugin
         .fetch(FetchRequest {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,

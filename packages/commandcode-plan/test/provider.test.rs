@@ -92,6 +92,9 @@ fn setup(replies: Vec<Reply>) -> (CommandCode, Arc<Client>, Arc<Store>) {
     });
     let core = Core::with_dependencies("commandcode-plan", client.clone(), store.clone());
     core.initialize(InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "commandcode-plan".into(),
         plugin_directory: PathBuf::new(),
@@ -118,6 +121,7 @@ fn credentials() -> Value {
 }
 fn fetch_request(credentials: Value, body: Value) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials),
         network_proxy: None,
@@ -284,6 +288,7 @@ async fn a_go_refusal_changes_subsequent_models_and_routing_even_with_the_old_cr
     );
     let models = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(original.clone()),
             network_proxy: None,
@@ -364,6 +369,7 @@ async fn live_go_catalog_uses_no_key_and_keeps_real_entitlements() {
     cached_plan(&plugin, "Go").await;
     let value = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -396,6 +402,7 @@ async fn actual_usage_is_saved_but_temporary_credit_outages_keep_the_account() {
     ]);
     let value = plugin
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -419,6 +426,9 @@ fn zero_data_retention_is_opt_in_and_applies_to_both_protocols() {
     plugin
         .core
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "commandcode-plan".into(),
             plugin_directory: PathBuf::new(),

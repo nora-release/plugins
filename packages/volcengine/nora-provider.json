@@ -152,6 +152,8 @@
     }
   ],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "keyProvider": "volcengine",
     "catalog": "volcengine",
     "profiles": [

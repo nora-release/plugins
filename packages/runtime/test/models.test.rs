@@ -37,6 +37,18 @@ fn native_packages_keep_their_own_schema_and_generic_packages_have_models_or_dis
             continue;
         }
         let definition = Definition::parse(value).unwrap();
+        if definition.config.extra.get("configurationTemplateOnly") == Some(&json!(true)) {
+            assert!(
+                definition.base_url.is_empty(),
+                "A custom template must wait for the user's endpoint"
+            );
+            assert!(
+                definition.models.is_empty(),
+                "A custom template cannot claim to list a vendor's models"
+            );
+            assert!(definition.config.key_optional);
+            continue;
+        }
         let bundled = catalog_models(&definition, None).unwrap();
         let remote = definition
             .config

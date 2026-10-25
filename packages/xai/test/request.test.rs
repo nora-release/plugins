@@ -25,6 +25,7 @@ async fn outgoing_with(
     nora_provider::transport::build_request(
         &definition,
         FetchRequest {
+            subscription_accounts_enabled: true,
             account: "test-account".into(),
             credentials: Some(if oauth {
                 json!({"type":"oauth","credentialProvider":"xAI","access":"test-grok-access"})

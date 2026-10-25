@@ -36,6 +36,8 @@
     }
   ],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "ollama-cloud",
     "keyProvider": "ollama-cloud",
     "modelDiscovery": {

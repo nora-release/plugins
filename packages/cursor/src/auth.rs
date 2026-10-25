@@ -49,6 +49,7 @@ pub(crate) fn token(value: Option<&Value>) -> PluginResult<String> {
         .ok_or_else(expired)
 }
 pub(crate) fn read_file(path: &str) -> PluginResult<String> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     if !Path::new(path).is_absolute() || path.len() > 16 * 1024 {
         return Err(PluginError::invalid(
             "Select an absolute cursor-agent auth.json path.",
@@ -70,6 +71,7 @@ pub(crate) fn read_file(path: &str) -> PluginResult<String> {
     token(value.get("accessToken"))
 }
 pub(crate) async fn source(value: &Value) -> PluginResult<String> {
+    nora_provider_plugin_sdk::require_subscription_accounts()?;
     match value["kind"].as_str() {
         Some("file") => {
             let path = text(value.get("path"), 16 * 1024)

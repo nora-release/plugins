@@ -222,6 +222,7 @@ fn finish_identity(value: &mut Value, deployment: &Deployment) -> PluginResult<(
     if let Some(instance) = &deployment.vpc {
         value["vpc"] = json!(instance);
     }
+    crate::identity::assign(value, deployment)?;
     Ok(())
 }
 async fn pat_login(

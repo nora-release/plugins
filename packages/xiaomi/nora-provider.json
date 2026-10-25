@@ -70,6 +70,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "xiaomi-token-plan-cn, xiaomi",
     "keyProvider": "xiaomi",
     "legacy": {

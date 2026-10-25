@@ -15,6 +15,9 @@ bytes = "1"
 chrono = "0.4"
 futures = "0.3"
 globset = "0.4"
+regex = "1"
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+webpki-roots = "1"
 multer = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -25,5 +28,7 @@ tokio-util = { version = "0.7", features = ["io"] }
 url = "2"
 
 [dev-dependencies]
+rcgen = "0.13"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 tokio = { version = "1", features = ["net"] }
 uuid = { version = "1", features = ["v4"] }

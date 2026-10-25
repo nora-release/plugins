@@ -194,6 +194,7 @@ async fn list_models(
     let request = transport::build_request(
         definition,
         FetchRequest {
+            subscription_accounts_enabled: context.subscription_accounts_enabled,
             account: context.account,
             credentials: Some(credentials.clone()),
             network_proxy: context.network_proxy,

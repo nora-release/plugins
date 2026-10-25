@@ -30,6 +30,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "azure",
     "keyProvider": "azure-openai-responses",
     "providerOptions": {

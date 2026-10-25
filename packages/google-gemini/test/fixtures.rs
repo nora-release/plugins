@@ -62,6 +62,7 @@ pub fn definition() -> Definition {
 }
 pub fn request(path: &str, value: Value) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(json!({"type":"api","key":"private-google-key"})),
         network_proxy: None,

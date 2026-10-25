@@ -9,6 +9,9 @@ async fn fixture() -> (Directory, Arc<Client>, Remote) {
     };
     provider
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: 1,
             plugin_id: "remote-magpie".into(),
             plugin_directory: PathBuf::from(env!("CARGO_MANIFEST_DIR")),
@@ -70,6 +73,7 @@ async fn a_real_empty_authoritative_list_clears_old_remote_permissions() {
     let account = Account::inputs(&json!({"endpoint":"remote.test:3572","apiKey":"key"})).unwrap();
     let result = provider
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "local-key".into(),
             credentials: Some(account.saved()),
             network_proxy: None,
@@ -88,6 +92,7 @@ async fn malformed_model_payloads_never_claim_an_authoritative_empty_success() {
     let account = Account::inputs(&json!({"endpoint":"remote.test:3572","apiKey":"key"})).unwrap();
     assert!(provider
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "local-key".into(),
             credentials: Some(account.saved()),
             network_proxy: None
@@ -101,6 +106,7 @@ async fn per_account_network_policy_is_validated_before_the_remote_is_contacted(
     let account = Account::inputs(&json!({"endpoint":"remote.test:3572","apiKey":"key"})).unwrap();
     assert!(provider
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "local-key".into(),
             credentials: Some(account.saved()),
             network_proxy: Some(NetworkProxy::Proxy {

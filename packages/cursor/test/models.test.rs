@@ -65,3 +65,37 @@ fn legacy_families_fit_effort_but_explicit_auto_tier_disables_fast() {
         ("claude-thinking-fast".into(), "xhigh".into(), true)
     );
 }
+
+#[test]
+fn fast_capability_is_per_context_and_actual_account_variant() {
+    let entries = parse(&crate::fixture::picker(), None).unwrap();
+    let value = output(&entries);
+    assert_eq!(value["models"][0]["info"]["serviceTiers"], json!([]));
+    assert_eq!(
+        value["models"][1]["info"]["serviceTiers"],
+        json!(["auto", "priority"])
+    );
+    let entries = parse(
+        &crate::fixture::picker(),
+        Some(&json!({"models":[{"modelId":"claude-medium"}]})),
+    )
+    .unwrap();
+    assert_eq!(
+        output(&entries)["models"][0]["info"]["serviceTiers"],
+        json!([])
+    );
+}
+
+#[test]
+fn a_vendor_default_fast_variant_is_disabled_until_the_caller_asks() {
+    let mut picker = crate::fixture::picker();
+    picker["models"][0]["variants"][0]["isDefaultNonMaxConfig"] = json!(false);
+    picker["models"][0]["variants"][1]["isDefaultNonMaxConfig"] = json!(true);
+    let entries = parse(&picker, None).unwrap();
+    for fast in [None, Some(false)] {
+        let selected = select(&entries, "claude@1m", "high", fast);
+        assert_eq!(selected.params["fast"], "false");
+    }
+    let selected = select(&entries, "claude@1m", "high", Some(true));
+    assert_eq!(selected.params["fast"], "true");
+}

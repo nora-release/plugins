@@ -2,6 +2,9 @@ use super::*;
 use crate::fixture::{self, Client, Reply};
 fn initialize() -> InitializeParams {
     InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: API_VERSION,
         plugin_id: "zed".into(),
         plugin_directory: std::env::temp_dir(),
@@ -74,6 +77,7 @@ async fn live_models_repick_an_unsubscribed_organization_only_after_host_ack() {
     let plugin = plugin(client.clone(), save.clone()).await;
     let result = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved("team")),
             network_proxy: None,
@@ -115,6 +119,7 @@ async fn rejected_credential_save_prevents_using_a_new_organization() {
     let plugin = plugin(client.clone(), save).await;
     assert!(plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved("team")),
             network_proxy: None
@@ -134,6 +139,7 @@ async fn stale_model_token_is_minted_once_without_replacing_the_account_pair() {
     let plugin = plugin(client.clone(), Arc::new(Save::default())).await;
     let result = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved("personal")),
             network_proxy: None,
@@ -199,6 +205,7 @@ async fn usage_returns_only_published_plan_and_period_without_a_fabricated_quota
     let plugin = plugin(client, Arc::new(Save::default())).await;
     let usage = plugin
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved("personal")),
             network_proxy: None,
@@ -250,6 +257,7 @@ async fn each_accounts_model_token_uses_its_own_account_authorization() {
 
 fn model_context() -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(fixture::saved("personal")),
         network_proxy: None,

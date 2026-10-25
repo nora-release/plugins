@@ -2,6 +2,7 @@
 //! COSY transport derives from ufec/CLIProxyAPI (MIT). See bundled LICENSES.
 mod auth;
 mod codec;
+mod identity;
 mod models;
 mod request;
 mod response;
@@ -180,7 +181,7 @@ impl ProviderPlugin for Qoder {
                 .cloned()
                 .unwrap_or(json!([])),
         });
-        Ok(json!({"apiVersion":API_VERSION}))
+        Ok(json!({"apiVersion":API_VERSION,"capabilities":{"sdkFeatures":{"accountAutomation":1}}}))
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
         Ok(self.config()?.methods)
@@ -202,10 +203,13 @@ impl ProviderPlugin for Qoder {
         let Some(credentials) = context.credentials else {
             return Ok(json!([]));
         };
-        let credentials = checked(&credentials)?;
-        Ok(
-            json!([{"id":context.account,"accountId":credentials.get("accountId"),"email":credentials.get("email"),"name":credentials.get("name"),"configured":true}]),
-        )
+        let mut current = checked(&credentials)?;
+        identity::assign(&mut current, &self.deployment(&credentials)?)?;
+        let mut result = json!({"accounts":[{"id":context.account,"accountId":current.get("accountId"),"email":current.get("email"),"name":current.get("name"),"configured":true}]});
+        if current != credentials {
+            result["credentials"] = current;
+        }
+        Ok(result)
     }
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
         let Some(credentials) = context.credentials else {
@@ -233,12 +237,16 @@ impl ProviderPlugin for Qoder {
         request::fetch(self, request).await
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
-        if method != "checkin" {
+        if !matches!(method, "checkin" | "checkinStatus") {
             return Err(PluginError::unsupported(method));
         }
         let credentials = checked(params.get("credentials").ok_or_else(signed_out)?)?;
         let client = self.params_client(&params)?;
-        usage::checkin(self, client.as_ref(), credentials).await
+        if method == "checkinStatus" {
+            usage::checkin_status(self, client.as_ref(), credentials).await
+        } else {
+            usage::checkin(self, client.as_ref(), credentials).await
+        }
     }
 }
 fn invalid(message: impl Into<String>) -> PluginError {

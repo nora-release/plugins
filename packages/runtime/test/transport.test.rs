@@ -1,6 +1,95 @@
 use super::*;
 use crate::xai_provider::grok_model_selection;
 use serde_json::json;
+
+#[tokio::test]
+async fn only_the_adapters_selected_error_statuses_are_observed_without_consuming_the_stream() {
+    use async_trait::async_trait;
+    use futures::stream;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    };
+
+    #[derive(Debug)]
+    struct Observer(Arc<Mutex<Vec<(String, u16, Vec<u8>)>>>);
+    impl crate::ProviderAdapter for Observer {
+        fn observed_error_statuses(&self, _: &Value) -> &'static [u16] {
+            &[429]
+        }
+        fn observe_response_error(&self, _: &Value, model: &str, status: u16, body: &[u8]) {
+            self.0
+                .lock()
+                .unwrap()
+                .push((model.into(), status, body.to_vec()));
+        }
+    }
+    struct Client {
+        status: u16,
+        reads: Arc<AtomicUsize>,
+    }
+    #[async_trait]
+    impl HttpClient for Client {
+        async fn stream(
+            &self,
+            _: HttpRequest,
+        ) -> Result<HttpStreamingResponse, nora_ai::HttpClientError> {
+            let reads = self.reads.clone();
+            Ok(HttpStreamingResponse {
+                status: self.status,
+                headers: BTreeMap::from([("x-original".into(), "kept".into())]),
+                body: Box::pin(stream::once(async move {
+                    reads.fetch_add(1, Ordering::SeqCst);
+                    Ok(b"original-response".to_vec().into())
+                })),
+            })
+        }
+    }
+
+    for (status, body, observe) in [
+        (200, r#"{"model":"selected"}"#, false),
+        (400, r#"{"model":"selected"}"#, false),
+        (429, r#"{"model":"selected"}"#, true),
+        (500, r#"{"model":"selected"}"#, false),
+        (429, "not a model request", false),
+    ] {
+        let reads = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let mut definition = definition("openai");
+        definition.adapter = Arc::new(Observer(observed.clone()));
+        let client = Client {
+            status,
+            reads: reads.clone(),
+        };
+        let response = send(
+            &client,
+            &definition,
+            &json!({"type":"apiKey","access":"fixture-key"}),
+            "openai-responses",
+            HttpRequest::new(HttpMethod::Post, "https://api.openai.com/v1/responses")
+                .with_body(body.as_bytes().to_vec()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(reads.load(Ordering::SeqCst), usize::from(observe));
+        assert_eq!(response.status, status);
+        assert_eq!(response.headers["x-original"], "kept");
+        assert_eq!(
+            nora_ai::collect_http_body_text_limited(response.body, 1024)
+                .await
+                .unwrap(),
+            "original-response"
+        );
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+        let expected = if observe {
+            vec![("selected".into(), 429, b"original-response".to_vec())]
+        } else {
+            Vec::new()
+        };
+        assert_eq!(*observed.lock().unwrap(), expected);
+    }
+}
+
 fn definition(id: &str) -> Definition {
     let mut definition = Definition::parse(
         serde_json::from_slice(
@@ -21,6 +110,7 @@ fn definition(id: &str) -> Definition {
 }
 fn request(url: &str, credentials: Value) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "private".into(),
         network_proxy: None,
         metadata: BTreeMap::new(),
@@ -174,6 +264,86 @@ async fn copilot_rewrites_v1_and_keeps_its_identity_headers() {
         "https://api.individual.githubcopilot.com/responses"
     );
     assert_eq!(request.headers["copilot-integration-id"], "vscode-chat");
+}
+
+#[tokio::test]
+async fn renewed_source_endpoints_replace_stale_saved_hosts_without_changing_api_key_routes() {
+    use crate::ProviderAdapter;
+    use async_trait::async_trait;
+    use nora_ai::{HttpClient, OAuthCredentials, OAuthProviderId, ResolvedProviderAuth};
+    use nora_provider_plugin_sdk::{NetworkProxy, PluginResult};
+
+    #[derive(Debug)]
+    struct Source;
+    #[async_trait]
+    impl ProviderAdapter for Source {
+        fn endpoint(&self, _: Option<&Value>) -> Option<String> {
+            Some("https://saved.example.invalid".into())
+        }
+        fn is_source(&self, credentials: &OAuthCredentials) -> bool {
+            credentials.provider == OAuthProviderId::GitHubCopilot
+        }
+        async fn resolve_source(
+            &self,
+            _: &OAuthCredentials,
+            _: Option<&NetworkProxy>,
+        ) -> PluginResult<ResolvedProviderAuth> {
+            Ok(ResolvedProviderAuth {
+                token: Some("fresh-session-token".into()),
+                base_url: Some("https://current.example.invalid".into()),
+                scheme: nora_ai::AuthScheme::Bearer,
+                ..Default::default()
+            })
+        }
+        fn live_endpoint(
+            &self,
+            credentials: &Value,
+            auth: &ResolvedProviderAuth,
+        ) -> Option<String> {
+            (!crate::auth::is_api(credentials))
+                .then(|| auth.base_url.clone())
+                .flatten()
+        }
+        async fn discover_accounts(
+            &self,
+            _: &dyn HttpClient,
+            _: Option<&NetworkProxy>,
+        ) -> PluginResult<Vec<OAuthCredentials>> {
+            unreachable!()
+        }
+    }
+    let mut definition = definition("github-copilot");
+    definition.adapter = std::sync::Arc::new(Source);
+    let credentials =
+        json!({"type":"oauth","access":"stale-token","credentialProvider":"gitHubCopilot"});
+    let outgoing = build_request(
+        &definition,
+        request(
+            "https://current.example.invalid/responses",
+            credentials.clone(),
+        ),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        outgoing.headers["Authorization"],
+        "Bearer fresh-session-token"
+    );
+    assert!(build_request(
+        &definition,
+        request("https://saved.example.invalid/responses", credentials)
+    )
+    .await
+    .is_err());
+    assert!(build_request(
+        &definition,
+        request(
+            "https://current.example.invalid/responses",
+            json!({"type":"apiKey","access":"api-key"})
+        )
+    )
+    .await
+    .is_err());
 }
 
 #[tokio::test]

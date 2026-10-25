@@ -55,6 +55,34 @@ fn provider(client: Arc<fixture::Client>) -> Kiro {
 }
 
 #[test]
+fn local_login_marks_ignore_access_refreshes_but_identify_a_new_login_without_exposing_tokens() {
+    let mut credentials = Credential {
+        refresh: "private-original-login".into(),
+        access: "private-short-lived-access".into(),
+        identity: "person".into(),
+        ..Default::default()
+    };
+    let first = Kiro::source_saved(&credentials, &SourceKind::Cli, "/fixture/data.sqlite3");
+    let mark = first["extras"]["noraAccountSource"]["loginMark"]
+        .as_str()
+        .unwrap();
+    assert_eq!(mark.len(), 64);
+    assert!(!first.to_string().contains("private-"));
+    credentials.access = "private-refreshed-access".into();
+    credentials.expires = session::now() + 3_600_000;
+    let refreshed = Kiro::source_saved(&credentials, &SourceKind::Cli, "/fixture/data.sqlite3");
+    assert_eq!(refreshed["extras"]["noraAccountSource"]["loginMark"], mark);
+    credentials.refresh = "private-new-login".into();
+    let signed_in = Kiro::source_saved(&credentials, &SourceKind::Cli, "/fixture/data.sqlite3");
+    assert_ne!(signed_in["extras"]["noraAccountSource"]["loginMark"], mark);
+    credentials.refresh.clear();
+    let unmarked = Kiro::source_saved(&credentials, &SourceKind::Cli, "/fixture/data.sqlite3");
+    assert!(unmarked["extras"]["noraAccountSource"]
+        .get("loginMark")
+        .is_none());
+}
+
+#[test]
 fn default_paths_match_kiro_cli_and_ide_and_respect_absolute_data_directory_overrides() {
     let home = Path::new("/fixture-home");
     let mac = default_sources(home, &BTreeMap::new(), "macos");
@@ -140,6 +168,7 @@ async fn cli_and_ide_report_the_same_verified_identity_without_copying_or_writin
     assert!(result.get("errors").is_none());
     let owned = provider(client.clone())
         .accounts(CallContext {
+            subscription_accounts_enabled: true,
             account: "owned".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,
@@ -367,6 +396,7 @@ async fn legacy_owned_profiles_gain_the_same_identity_as_a_verified_source_witho
     let saved = fixture::saved();
     let result = provider
         .accounts(CallContext {
+            subscription_accounts_enabled: true,
             account: "legacy".into(),
             credentials: Some(saved),
             network_proxy: None,
@@ -429,6 +459,7 @@ async fn legacy_owned_account_inspection_does_not_replace_a_saved_person_with_an
     let original = saved.clone();
     assert!(provider
         .accounts(CallContext {
+            subscription_accounts_enabled: true,
             account: "legacy".into(),
             credentials: Some(saved),
             network_proxy: None

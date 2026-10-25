@@ -2,6 +2,7 @@ use nora_provider_plugin_sdk::{PluginError, PluginResult};
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod account_import;
 mod auth;
 mod envelope;
 mod models;

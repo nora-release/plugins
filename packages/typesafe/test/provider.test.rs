@@ -57,6 +57,7 @@ fn credentials() -> Value {
 }
 fn context() -> CallContext {
     CallContext {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials()),
         network_proxy: None,
@@ -67,6 +68,7 @@ fn question() -> Value {
 }
 fn request(body: Value) -> FetchRequest {
     FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials()),
         network_proxy: None,
@@ -347,6 +349,9 @@ async fn initialization_authorization_and_unavailable_quota_use_the_sdk_contract
     let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
     provider
         .initialize(InitializeParams {
+            subscription_accounts_enabled: true,
+            installed_manifest: None,
+            runtime_config: serde_json::Value::Null,
             api_version: API_VERSION,
             plugin_id: "typesafe".into(),
             plugin_directory: directory.0.clone(),

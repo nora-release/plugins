@@ -227,6 +227,9 @@ pub async fn resolve_with_network(
     value: &Value,
     proxy: Option<&NetworkProxy>,
 ) -> PluginResult<(OAuthCredentials, ResolvedProviderAuth)> {
+    if !is_api(value) {
+        nora_provider_plugin_sdk::require_subscription_accounts()?;
+    }
     let credentials = decode(definition, Some(value))?;
     let mut auth = if definition.adapter.is_source(&credentials) {
         definition
@@ -239,22 +242,28 @@ pub async fn resolve_with_network(
         auth
     };
     if is_api(value) {
-        auth.scheme = definition.config.api_key_auth.clone().unwrap_or_else(|| {
-            match definition.api.as_str() {
-                "anthropic-messages" => AuthScheme::ApiKeyHeader {
-                    name: "x-api-key".into(),
-                },
-                "google-generative-ai" => AuthScheme::QueryKey { name: "key".into() },
-                "azure-openai-responses" => AuthScheme::ApiKeyHeader {
-                    name: "api-key".into(),
-                },
-                _ => AuthScheme::Bearer,
-            }
-        });
+        auth.scheme = definition
+            .config
+            .api_key_auth
+            .clone()
+            .unwrap_or_else(|| api_key_scheme(&definition.api));
         auth.base_url = Some(crate::models::effective_endpoint(definition, Some(value)));
     }
     crate::adapter::merge_headers(&mut auth.headers, crate::account_headers::read(value)?);
     Ok((credentials, auth))
+}
+
+pub(crate) fn api_key_scheme(api: &str) -> AuthScheme {
+    match api {
+        "anthropic-messages" => AuthScheme::ApiKeyHeader {
+            name: "x-api-key".into(),
+        },
+        "google-generative-ai" => AuthScheme::QueryKey { name: "key".into() },
+        "azure-openai-responses" => AuthScheme::ApiKeyHeader {
+            name: "api-key".into(),
+        },
+        _ => AuthScheme::Bearer,
+    }
 }
 
 #[cfg(test)]

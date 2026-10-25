@@ -28,6 +28,8 @@
   ],
   "models": [],
   "config": {
+    "modelMetadata": true,
+    "connectionOptions": true,
     "catalog": "cloudflare-workers-ai",
     "keyProvider": "cloudflare-workers-ai",
     "legacy": {

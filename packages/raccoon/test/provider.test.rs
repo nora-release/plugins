@@ -62,6 +62,9 @@ fn setup(replies: Vec<(u16, Value)>) -> (Raccoon, Arc<Client>, Arc<Store>) {
     });
     let core = Core::with_dependencies("raccoon", client.clone(), store.clone());
     core.initialize(InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
         api_version: 1,
         plugin_id: "raccoon".into(),
         plugin_directory: PathBuf::new(),
@@ -215,6 +218,7 @@ async fn live_catalog_preserves_native_ids_and_relative_credit_multipliers() {
     )]);
     let result = plugin
         .models(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -246,6 +250,7 @@ async fn usage_reads_a_larger_real_bill_page_only_when_the_first_is_full() {
     ]);
     let result = plugin
         .usage(CallContext {
+            subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
@@ -266,6 +271,7 @@ async fn native_fetch_preserves_tools_and_options_while_restoring_the_requested_
     let body = json!({"model":"chosen-id","messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read","parameters":{"type":"object"}}}],"top_p":0.4,"stop":["END"]});
     let bytes = serde_json::to_vec(&body).unwrap();
     let request = FetchRequest {
+        subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials()),
         network_proxy: None,

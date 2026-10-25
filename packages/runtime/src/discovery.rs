@@ -47,13 +47,16 @@ pub async fn discover_with_network(
     client: &dyn HttpClient,
     proxy: Option<&NetworkProxy>,
 ) -> PluginResult<Value> {
+    let explicit =
+        credentials.is_some_and(auth::is_api) && !definition.config.models_url.trim().is_empty();
     let remote = credentials.is_some()
-        && definition.adapter.remote_models(credentials)
-        && !definition
-            .config
-            .model_discovery
-            .as_ref()
-            .is_some_and(|discovery| discovery.no_list);
+        && (explicit || definition.adapter.remote_models(credentials))
+        && (explicit
+            || !definition
+                .config
+                .model_discovery
+                .as_ref()
+                .is_some_and(|discovery| discovery.no_list));
     let catalog = if remote {
         model_catalog::cached(data_directory)
     } else {
@@ -65,14 +68,15 @@ pub async fn discover_with_network(
     let Some(value) = credentials else {
         return fallback();
     };
-    if !definition.adapter.remote_models(credentials) {
+    if !explicit && !definition.adapter.remote_models(credentials) {
         return fallback();
     }
-    if definition
-        .config
-        .model_discovery
-        .as_ref()
-        .is_some_and(|discovery| discovery.no_list)
+    if !explicit
+        && definition
+            .config
+            .model_discovery
+            .as_ref()
+            .is_some_and(|discovery| discovery.no_list)
     {
         return fallback();
     }
@@ -186,6 +190,20 @@ pub fn configured_bases(definition: &Definition, credentials: Option<&Value>) ->
     }]
 }
 
+pub(crate) fn resolved_bases(
+    definition: &Definition,
+    credentials: &Value,
+    resolved: &ResolvedProviderAuth,
+) -> Vec<ModelBase> {
+    let mut bases = configured_bases(definition, Some(credentials));
+    if let Some(endpoint) = definition.adapter.live_endpoint(credentials, resolved) {
+        for base in &mut bases {
+            base.base_url = endpoint.clone();
+        }
+    }
+    bases
+}
+
 fn kind(_definition: &Definition, _credentials: &Value, api: &str) -> Option<Kind> {
     match api {
         "anthropic-messages" => Some(Kind::Anthropic),
@@ -283,6 +301,7 @@ fn signed_request(
     resolved: &ResolvedProviderAuth,
     kind: Kind,
     only_auth: Option<&str>,
+    api_key: bool,
 ) -> HttpRequest {
     let token = resolved.token.as_deref().unwrap_or_default().trim();
     let mut headers = BTreeMap::<String, String>::from([
@@ -318,19 +337,36 @@ fn signed_request(
     if kind == Kind::Anthropic {
         headers.insert("anthropic-version".into(), "2023-06-01".into());
     }
-    for (key, value) in resolved
-        .headers
-        .iter()
-        .chain(definition.config.headers.iter())
-    {
-        headers.retain(|name, _| !name.eq_ignore_ascii_case(key));
-        headers.insert(key.clone(), value.clone());
-    }
     definition
         .adapter
         .model_list_headers(&url, resolved, &mut headers);
-    url.query_pairs_mut()
-        .extend_pairs(&definition.config.query_params);
+    if let Some(scheme) = definition.config.api_key_auth.as_ref().filter(|_| api_key) {
+        headers.retain(|name, _| {
+            !["authorization", "x-api-key", "api-key", "x-goog-api-key"]
+                .iter()
+                .any(|known| name.eq_ignore_ascii_case(known))
+        });
+        let mut configured = resolved.clone();
+        configured.scheme = scheme.clone();
+        nora_ai::auth_headers::apply_resolved_auth_with_merge(
+            &configured,
+            &mut headers,
+            |headers, name, value| {
+                headers.retain(|key, _| !key.eq_ignore_ascii_case(&name));
+                headers.insert(name, value);
+            },
+        );
+        if let nora_ai::AuthScheme::QueryKey { name } = scheme {
+            url.query_pairs_mut().append_pair(name, token);
+        }
+    }
+    crate::adapter::merge_headers(&mut headers, resolved.headers.clone());
+    crate::adapter::merge_headers(&mut headers, definition.config.headers.clone());
+    if definition.config.models_url.trim().is_empty() || !definition.config.query_params.is_empty()
+    {
+        url.query_pairs_mut()
+            .extend_pairs(&definition.config.query_params);
+    }
     HttpRequest {
         method: HttpMethod::Get,
         url: url.into(),
@@ -377,28 +413,42 @@ async fn fetch_routes_with_budget(
     let mut asked = BTreeSet::new();
     let mut failed_parts = Vec::new();
     let mut last_error = PluginError::transport("This provider has no model list endpoint.");
-    for base in configured_bases(definition, Some(credentials)) {
+    let explicit = auth::is_api(credentials) && !definition.config.models_url.trim().is_empty();
+    let mut bases = resolved_bases(definition, credentials, resolved);
+    if explicit {
+        let base = bases
+            .iter()
+            .find(|base| base.api == definition.api)
+            .cloned()
+            .or_else(|| bases.first().cloned());
+        bases = base.into_iter().collect();
+    }
+    for base in bases {
         let Some(kind) = kind(definition, credentials, &base.api) else {
             continue;
         };
-        let urls = match definition
-            .adapter
-            .model_urls(&base.base_url, credentials)
-            .await
-        {
-            Ok(Some(urls)) => urls,
-            Ok(None) => match list_urls(&base.base_url, kind) {
-                Ok(urls) => urls,
+        let urls = if explicit {
+            vec![validated_url(definition.config.models_url.trim())?]
+        } else {
+            match definition
+                .adapter
+                .model_urls(&base.base_url, credentials)
+                .await
+            {
+                Ok(Some(urls)) => urls,
+                Ok(None) => match list_urls(&base.base_url, kind) {
+                    Ok(urls) => urls,
+                    Err(error) => {
+                        last_error = error;
+                        failed_parts.push(format!("{}|{}", base.api, base.base_url));
+                        continue;
+                    }
+                },
                 Err(error) => {
                     last_error = error;
                     failed_parts.push(format!("{}|{}", base.api, base.base_url));
                     continue;
                 }
-            },
-            Err(error) => {
-                last_error = error;
-                failed_parts.push(format!("{}|{}", base.api, base.base_url));
-                continue;
             }
         };
         let mut current = urls
@@ -443,7 +493,7 @@ async fn fetch_routes_with_budget(
                             if !definition.adapter.preserve_model_api(credentials) {
                                 model.api = base.api.clone();
                             }
-                            model.base_url = if kind == Kind::Azure {
+                            model.base_url = if kind == Kind::Azure && !explicit {
                                 let mut endpoint = url.clone();
                                 endpoint.set_path(
                                     endpoint
@@ -489,7 +539,13 @@ async fn fetch_routes_with_budget(
             }
         }
     }
-    if all.is_empty() {
+    if all.is_empty()
+        && (listed.is_empty()
+            || definition
+                .adapter
+                .supplemental_models(definition, Some(credentials))
+                .is_empty())
+    {
         return Err(last_error);
     }
     Ok(RemoteModels {
@@ -545,7 +601,12 @@ async fn fetch_pages(
             }
         }
         let Some((key, cursor)) = next_page(&payload, kind)? else {
-            if models.is_empty() {
+            if models.is_empty()
+                && definition
+                    .adapter
+                    .supplemental_models(definition, Some(credentials))
+                    .is_empty()
+            {
                 return Err(PluginError::transport(
                     "The provider did not return any available chat models.",
                 ));
@@ -608,26 +669,37 @@ async fn request_json(
     if only_auth.is_none() && crate::auth_headers::relay(definition, api, url.as_str()) {
         *only_auth = crate::auth_headers::choice(definition, credentials, url.as_str());
     }
-    let request = signed_request(url.clone(), definition, resolved, kind, *only_auth);
-    let may_retry = crate::auth_headers::retryable(definition, credentials, api, &request);
-    let (mut status, mut body) = request_body(client, request).await?;
-    if only_auth.is_none()
-        && may_retry
-        && crate::auth_headers::both_refused(status, &body.as_bytes()[..body.len().min(64 * 1024)])
-    {
-        for only in ["x-api-key", "bearer"] {
-            (status, body) = request_body(
-                client,
-                signed_request(url.clone(), definition, resolved, kind, Some(only)),
-            )
-            .await?;
-            if !matches!(status, 401 | 403) {
-                *only_auth = Some(only);
-                crate::auth_headers::remember(definition, credentials, url.as_str(), only).await;
-                break;
-            }
-        }
-    }
+    let mut request = signed_request(
+        url,
+        definition,
+        resolved,
+        kind,
+        *only_auth,
+        auth::is_api(credentials),
+    );
+    crate::adapter::merge_headers(
+        &mut request.headers,
+        crate::account_headers::read(credentials)?,
+    );
+    let response = crate::auth_headers::send_with(
+        definition,
+        credentials,
+        api,
+        request,
+        only_auth,
+        |request| async move {
+            client.stream(request).await.map_err(|_| {
+                PluginError::transport("The provider model list could not be reached.")
+            })
+        },
+    )
+    .await?;
+    let status = response.status;
+    let body = nora_ai::collect_http_body_text_limited(response.body, MAX_RESPONSE_BYTES)
+        .await
+        .map_err(|_| {
+            PluginError::transport("The provider model list response stopped before it finished.")
+        })?;
     if matches!(status, 401 | 403) {
         return Err(PluginError::authentication(format!(
             "The provider denied access to its model list (HTTP {status})."
@@ -640,23 +712,6 @@ async fn request_json(
     }
     serde_json::from_str(&body)
         .map_err(|_| PluginError::transport("The provider returned an invalid model list."))
-}
-
-async fn request_body(
-    client: &dyn HttpClient,
-    request: HttpRequest,
-) -> PluginResult<(u16, String)> {
-    let response = client
-        .stream(request)
-        .await
-        .map_err(|_| PluginError::transport("The provider model list could not be reached."))?;
-    let status = response.status;
-    let body = nora_ai::collect_http_body_text_limited(response.body, MAX_RESPONSE_BYTES)
-        .await
-        .map_err(|_| {
-            PluginError::transport("The provider model list response stopped before it finished.")
-        })?;
-    Ok((status, body))
 }
 
 #[cfg(test)]

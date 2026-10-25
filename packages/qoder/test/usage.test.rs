@@ -66,6 +66,71 @@ async fn unconfirmed_or_unavailable_benefits_never_report_claimed() {
         "inactive"
     );
 }
+
+#[tokio::test]
+async fn all_claimable_campaigns_are_settled_and_the_earliest_campaign_expiry_is_preserved() {
+    let at = now();
+    let end = at + 3600_000;
+    let campaigns = json!({"campaigns":[
+        {"campaignId":"one","actionType":"CLAIM_BENEFIT","claimStatus":"CLAIMABLE","startAt":(at-1000)/1000,"endAt":end/1000,"benefit":{"amount":3}},
+        {"campaignId":"two","actionType":"CLAIM_BENEFIT","claimStatus":"CLAIMABLE","startAt":at-1000,"endAt":end+1000,"benefit":{"amount":4}},
+        {"campaignId":"other","actionType":"OTHER","claimStatus":"CLAIMABLE"}]});
+    let client = Client::new(vec![
+        (200, campaigns),
+        (200, json!({"status":"CLAIMED","benefit":{"amount":5}})),
+        (200, json!({"data":{"status":"CLAIMED"}})),
+    ]);
+    let provider = configured(Site::China, client.clone());
+    let result = checkin(&provider, client.as_ref(), credentials())
+        .await
+        .unwrap();
+    assert_eq!(result["outcome"], "claimed");
+    assert_eq!(result["credit"], 9.0);
+    assert_eq!(date(&result["validUntil"]), Some(end / 1000 * 1000));
+    let requests = client.requests.lock().unwrap();
+    assert_eq!(requests.len(), 3);
+    assert!(requests[1].url.ends_with("/one/claim"));
+    assert!(requests[2].url.ends_with("/two/claim"));
+}
+
+#[tokio::test]
+async fn campaign_status_only_never_repeats_an_existing_claim_and_handles_seconds_and_milliseconds()
+{
+    let at = now();
+    for (state, outcome) in [("CLAIMABLE", "ready"), ("CLAIMED", "done")] {
+        let client = Client::new(vec![(
+            200,
+            json!({"campaigns":[{"campaignId":"one","actionType":"CLAIM_BENEFIT","claimStatus":state,"startAt":at-1000,"endAt":(at+3600_000)/1000,"benefit":{"amount":2}}]}),
+        )]);
+        let provider = configured(Site::China, client.clone());
+        let result = checkin_status(&provider, client.as_ref(), credentials())
+            .await
+            .unwrap();
+        assert_eq!(result["outcome"], outcome);
+        if outcome == "ready" {
+            assert_eq!(result["retrySafe"], true);
+            assert!(result.get("credit").is_none());
+        }
+        assert_eq!(client.requests.lock().unwrap().len(), 1);
+    }
+}
+
+#[tokio::test]
+async fn partial_claim_failure_is_ambiguous_and_does_not_hide_a_previous_real_claim() {
+    let client = Client::new(vec![
+        (
+            200,
+            json!({"campaigns":[{"campaignId":"one","actionType":"CLAIM_BENEFIT","claimStatus":"CLAIMABLE"},{"campaignId":"two","actionType":"CLAIM_BENEFIT","claimStatus":"CLAIMABLE"}]}),
+        ),
+        (200, json!({"status":"CLAIMED","benefit":{"amount":2}})),
+        (200, json!({})),
+    ]);
+    let provider = configured(Site::China, client.clone());
+    assert!(checkin(&provider, client.as_ref(), credentials())
+        .await
+        .is_err());
+    assert_eq!(client.requests.lock().unwrap().len(), 3);
+}
 #[tokio::test]
 async fn a_refused_account_page_refresh_does_not_expire_the_independent_chat_token() {
     let client = Client::new(vec![(401, json!({})), (403, json!({}))]);

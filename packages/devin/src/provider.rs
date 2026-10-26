@@ -24,6 +24,7 @@ pub(crate) struct Devin {
     client: Option<Client>,
     pending: Mutex<BTreeMap<String, (Instant, auth::Pending)>>,
     models: Mutex<BTreeMap<String, (Instant, Vec<Model>)>>,
+    persistence: Arc<dyn nora_provider::account_import::CredentialPersistence>,
 }
 impl Default for Devin {
     fn default() -> Self {
@@ -32,10 +33,19 @@ impl Default for Devin {
             client: None,
             pending: Mutex::new(BTreeMap::new()),
             models: Mutex::new(BTreeMap::new()),
+            persistence: Arc::new(nora_provider::account_import::HostPersistence),
         }
     }
 }
 impl Devin {
+    async fn save_profile(&self, account: &Account) {
+        let credentials = account.credentials();
+        if credentials != account.saved {
+            // Profile enrichment is best effort: a storage failure must not
+            // hide the account information Devin has successfully returned.
+            let _ = self.persistence.save(credentials).await;
+        }
+    }
     fn client(&self, proxy: Option<&NetworkProxy>) -> PluginResult<Client> {
         let config = self.core.config()?;
         let proxy = proxy.or(config.proxy.as_ref());
@@ -110,10 +120,15 @@ impl ProviderPlugin for Devin {
         let Some(value) = context.credentials else {
             return Ok(json!([]));
         };
-        let account = Account::parse(&value)?;
-        Ok(
-            json!([{"id":context.account,"name":account.email,"email":account.email,"plan":account.plan}]),
-        )
+        let account = if value.pointer("/metadata/profileVersion") == Some(&json!(1)) {
+            Account::parse(&value)?
+        } else {
+            let client = self.client(context.network_proxy.as_ref())?;
+            let (account, _) = Account::status(&value, client.as_ref()).await?;
+            self.save_profile(&account).await;
+            account
+        };
+        Ok(json!([account.profile.public(&context.account)]))
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let client = self.params_client(&params)?;
@@ -163,20 +178,12 @@ impl ProviderPlugin for Devin {
     }
     async fn refresh(&self, params: Value) -> PluginResult<Value> {
         let client = self.params_client(&params)?;
-        let account = Account::live(
+        let (account, _) = Account::status(
             params.get("credentials").ok_or_else(account::expired)?,
             client.as_ref(),
         )
         .await?;
-        let who = network::user(client.as_ref(), &account.key, &account.server).await?;
-        let (email, plan) = account::identity(&who)?;
-        if !account.email.is_empty() && !account.email.eq_ignore_ascii_case(&email) {
-            return Err(account::expired());
-        }
-        let mut next = account.clone();
-        next.email = email;
-        next.plan = plan;
-        let value = next.credentials();
+        let value = account.credentials();
         Ok(json!({"changed":value!=account.saved,"credentials":value}))
     }
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
@@ -194,17 +201,12 @@ impl ProviderPlugin for Devin {
     }
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
         let client = self.client(context.network_proxy.as_ref())?;
-        let account = Account::live(
+        let (account, value) = Account::usage_status(
             context.credentials.as_ref().ok_or_else(account::expired)?,
             client.as_ref(),
         )
         .await?;
-        let value = network::user(client.as_ref(), &account.key, &account.server).await?;
-        if let Some(email) = account::text(value.pointer("/userStatus/email"), 512) {
-            if !account.email.eq_ignore_ascii_case(email) {
-                return Err(account::expired());
-            }
-        }
+        self.save_profile(&account).await;
         let rows = self.listing(client.as_ref(), &account, false).await?;
         usage::parse(&value, &account, &context.account, &rows)
     }
@@ -267,3 +269,7 @@ impl ProviderPlugin for Devin {
 #[cfg(test)]
 #[path = "../test/provider.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/organization.test.rs"]
+mod organization_tests;

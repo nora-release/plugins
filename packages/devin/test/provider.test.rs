@@ -16,6 +16,7 @@ fn initialize() -> InitializeParams {
 async fn plugin(client: Arc<Client>) -> Devin {
     let plugin = Devin {
         client: Some(client),
+        persistence: Arc::new(fixture::Persistence::default()),
         ..Default::default()
     };
     plugin.initialize(initialize()).await.unwrap();

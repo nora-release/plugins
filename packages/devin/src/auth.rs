@@ -48,12 +48,11 @@ pub(crate) async fn finish(
     source: Option<String>,
 ) -> PluginResult<Account> {
     let who = network::user(client, &key, &server).await?;
-    let (email, plan) = account::identity(&who)?;
+    let profile = account::identity(&who)?;
     Ok(Account {
         key,
         server,
-        email,
-        plan,
+        profile,
         source,
         saved: Value::Null,
     })

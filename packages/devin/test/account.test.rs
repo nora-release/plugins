@@ -2,9 +2,9 @@ use super::*;
 use crate::fixture::{self, Client, Reply};
 #[test]
 fn actual_server_identity_names_distinct_accounts() {
-    let (email, plan) = identity(&fixture::me()).unwrap();
-    assert_eq!(email, "one@example.test");
-    assert_eq!(plan, "Devin Pro");
+    let profile = identity(&fixture::me()).unwrap();
+    assert_eq!(profile.email, "one@example.test");
+    assert_eq!(profile.plan, "Devin Pro");
     assert!(identity(&json!({"userStatus":{}})).is_err());
 }
 #[test]

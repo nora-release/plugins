@@ -96,13 +96,14 @@ pub(crate) fn parse(
         balances.push(json!({"id":"extra","label":"Extra usage","balance":micros/1000000.,"currency":"USD","value":format!("${:.2}",micros/1000000.),"countsForRouting":false}));
     }
     if items.is_empty() && balances.is_empty() {
-        items.push(json!({"id":"plan","label":"Plan","value":if account.plan.is_empty(){"Devin"}else{&account.plan},"countsForRouting":false}));
+        items.push(json!({"id":"plan","label":"Plan","value":if account.profile.plan.is_empty(){"Devin"}else{&account.profile.plan},"countsForRouting":false}));
     }
     let mut result = nora_provider::usage::parsing::result(
-        &json!({"account":{"id":id,"email":account.email,"name":account.email,"plan":account.plan}}),
+        &json!({"account":account.profile.public(id)}),
         items,
         balances,
     );
+    result["account"] = account.profile.public(id);
     if let Some(until) = reset(&status["planEnd"]) {
         result["expiresAt"] = until;
     }

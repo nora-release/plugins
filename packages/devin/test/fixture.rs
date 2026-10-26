@@ -154,3 +154,13 @@ pub async fn body(response: nora_provider_plugin_sdk::FetchResponse) -> String {
 pub fn temp(name: &str) -> std::path::PathBuf {
     std::env::temp_dir().join(format!("nora-devin-{}-{name}", uuid::Uuid::new_v4()))
 }
+
+#[derive(Default)]
+pub struct Persistence(pub Mutex<Vec<Value>>);
+#[async_trait]
+impl nora_provider::account_import::CredentialPersistence for Persistence {
+    async fn save(&self, credentials: Value) -> nora_provider_plugin_sdk::PluginResult<()> {
+        self.0.lock().unwrap().push(credentials);
+        Ok(())
+    }
+}

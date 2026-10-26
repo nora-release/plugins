@@ -29,7 +29,7 @@ async fn browser_pkce_callback_uses_its_own_state_and_actual_key_identity() {
         .await
         .unwrap();
     let account = pending.complete().await.unwrap();
-    assert_eq!(account.email, "one@example.test");
+    assert_eq!(account.profile.email, "one@example.test");
     assert_eq!(account.key, "private-browser-key");
     let mut reply = String::new();
     socket.read_to_string(&mut reply).await.unwrap();

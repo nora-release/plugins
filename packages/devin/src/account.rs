@@ -28,12 +28,75 @@ pub(crate) fn server(raw: &str) -> PluginResult<String> {
     }
     Ok(url.as_str().trim_end_matches('/').into())
 }
+#[derive(Clone, Default)]
+pub(crate) struct Profile {
+    pub email: String,
+    pub plan: String,
+    pub organization: String,
+    pub org_id: String,
+    pub team_id: String,
+}
+impl Profile {
+    fn saved(value: &Value) -> Self {
+        let field = |key| {
+            text(value.pointer(&format!("/metadata/{key}")), 512)
+                .map(str::trim)
+                .unwrap_or_default()
+                .to_owned()
+        };
+        Self {
+            email: text(value.get("accountId").or_else(|| value.get("email")), 512)
+                .map(str::trim)
+                .unwrap_or_else(|| text(value.pointer("/metadata/email"), 512).unwrap_or_default())
+                .into(),
+            plan: field("plan"),
+            organization: field("organization"),
+            org_id: field("orgId"),
+            team_id: field("teamId"),
+        }
+    }
+    pub fn display_name(&self) -> String {
+        if self.organization.is_empty() || self.organization.eq_ignore_ascii_case(&self.email) {
+            return self.email.clone();
+        }
+        format!("{} · {}", self.email, self.organization)
+    }
+    pub fn public(&self, id: &str) -> Value {
+        let mut profile = json!({"id":id,"email":self.email,"name":self.email,"displayName":self.display_name(),"plan":self.plan});
+        for (key, value) in [
+            ("organization", &self.organization),
+            ("orgId", &self.org_id),
+            ("teamId", &self.team_id),
+        ] {
+            if !value.is_empty() {
+                profile[key] = json!(value);
+            }
+        }
+        profile
+    }
+    fn update(&mut self, next: Self) -> PluginResult<()> {
+        if !self.email.is_empty() && !self.email.eq_ignore_ascii_case(&next.email) {
+            return Err(expired());
+        }
+        self.email = next.email;
+        if !next.plan.is_empty() {
+            self.plan = next.plan;
+        }
+        self.organization = next.organization;
+        if !next.org_id.is_empty() {
+            self.org_id = next.org_id;
+        }
+        if !next.team_id.is_empty() {
+            self.team_id = next.team_id;
+        }
+        Ok(())
+    }
+}
 #[derive(Clone)]
 pub(crate) struct Account {
     pub key: String,
     pub server: String,
-    pub email: String,
-    pub plan: String,
+    pub profile: Profile,
     pub source: Option<String>,
     pub saved: Value,
 }
@@ -53,57 +116,104 @@ impl Account {
             server: server(
                 text(value.pointer("/metadata/server"), 2048).unwrap_or(network::SERVER),
             )?,
-            email: text(
-                value
-                    .get("accountId")
-                    .or_else(|| value.pointer("/metadata/email")),
-                512,
-            )
-            .unwrap_or_default()
-            .into(),
-            plan: text(value.pointer("/metadata/plan"), 512)
-                .unwrap_or_default()
-                .into(),
+            profile: Profile::saved(value),
             source,
             saved: value.clone(),
         })
     }
     pub async fn live(value: &Value, client: &dyn HttpClient) -> PluginResult<Self> {
+        if value.get("source").is_some() {
+            return Self::status(value, client)
+                .await
+                .map(|(account, _)| account);
+        }
+        Self::parse(value)
+    }
+    pub async fn status(value: &Value, client: &dyn HttpClient) -> PluginResult<(Self, Value)> {
+        let (mut account, who) = Self::read_status(value, client).await?;
+        account.update_profile(&who)?;
+        Ok((account, who))
+    }
+    pub async fn usage_status(
+        value: &Value,
+        client: &dyn HttpClient,
+    ) -> PluginResult<(Self, Value)> {
+        let (mut account, who) = Self::read_status(value, client).await?;
+        match identity(&who) {
+            Ok(profile) => account.profile.update(profile)?,
+            // An owned key already belongs to this account. Quota-only replies
+            // keep its profile; a mutable CLI source must identify its key.
+            Err(error) if account.source.is_some() => return Err(error),
+            Err(_) => {}
+        }
+        Ok((account, who))
+    }
+    async fn read_status(value: &Value, client: &dyn HttpClient) -> PluginResult<(Self, Value)> {
         let mut account = Self::parse(value)?;
         if let Some(path) = &account.source {
-            let (path, original) = (path.clone(), account.email.clone());
+            let path = path.clone();
             let (key, server) = tokio::task::spawn_blocking(move || read(&path))
                 .await
                 .map_err(|_| expired())??;
-            let who = network::user(client, &key, &server).await?;
-            let (email, plan) = identity(&who)?;
-            if original.is_empty() || !original.eq_ignore_ascii_case(&email) {
+            if account.profile.email.is_empty() {
                 return Err(expired());
             }
             account.key = key;
             account.server = server;
-            account.plan = plan;
         }
-        Ok(account)
+        let who = network::user(client, &account.key, &account.server).await?;
+        Ok((account, who))
+    }
+    pub fn update_profile(&mut self, value: &Value) -> PluginResult<()> {
+        self.profile.update(identity(value)?)
     }
     pub fn credentials(&self) -> Value {
-        let mut value = json!({"type":if self.source.is_some(){"oauth"}else{"api"},"authMethod":if self.source.is_some(){"cliSource"}else{"browser"},"accountId":self.email,"label":self.email,"metadata":{"email":self.email,"plan":self.plan,"server":self.server},"expires":0});
+        let profile = &self.profile;
+        let mut value = json!({"type":if self.source.is_some(){"oauth"}else{"api"},"authMethod":if self.source.is_some(){"cliSource"}else{"browser"},"accountId":profile.email,"label":profile.display_name(),"displayName":profile.display_name(),"email":profile.email,"name":profile.email,"plan":profile.plan,"endpoint":self.server,"metadata":{"email":profile.email,"plan":profile.plan,"server":self.server,"profileVersion":1},"expires":0});
+        for (key, field) in [
+            ("organization", &profile.organization),
+            ("orgId", &profile.org_id),
+            ("teamId", &profile.team_id),
+        ] {
+            if !field.is_empty() {
+                value["metadata"][key] = json!(field);
+            }
+        }
+        if !profile.org_id.is_empty() {
+            value["organizationId"] = json!(profile.org_id);
+        }
+        if !profile.team_id.is_empty() {
+            value["workspaceId"] = json!(profile.team_id);
+        }
         if let Some(path) = &self.source {
             value["source"] = json!({"path":path,"kind":"file"});
         } else {
             value["key"] = json!(self.key);
         }
+        nora_provider::account_import::preserve_metadata(&self.saved, &mut value);
         value
     }
 }
-pub(crate) fn identity(value: &Value) -> PluginResult<(String, String)> {
+pub(crate) fn identity(value: &Value) -> PluginResult<Profile> {
     let status = &value["userStatus"];
-    let email = text(status.get("email"), 512)
-        .or_else(|| text(status.get("name"), 512))
+    let clean = |value| {
+        text(value, 512)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    };
+    let email = clean(status.get("email"))
+        .or_else(|| clean(status.get("name")))
         .ok_or_else(|| PluginError::authentication("Devin did not identify this account."))?;
     let info = &status["planStatus"]["planInfo"];
-    let raw = text(status.get("teamsTier"), 256)
-        .or_else(|| text(info.get("teamsTier"), 256))
+    let devin = &info["devinInfo"];
+    let organization = clean(devin.get("accountDisplayName"))
+        .or_else(|| clean(info.get("teamName")))
+        .or_else(|| clean(status.get("teamName")))
+        .unwrap_or_default();
+    let team_id = clean(status.get("teamId")).unwrap_or_default();
+    let org_id = clean(devin.get("orgId")).unwrap_or(team_id);
+    let raw = clean(status.get("teamsTier"))
+        .or_else(|| clean(info.get("teamsTier")))
         .unwrap_or_default();
     let plan = raw
         .trim_start_matches("TEAMS_TIER_")
@@ -123,14 +233,17 @@ pub(crate) fn identity(value: &Value) -> PluginResult<(String, String)> {
         })
         .collect::<Vec<_>>()
         .join(" ");
-    Ok((
-        email.into(),
-        if plan.is_empty() {
-            text(info.get("planName"), 256).unwrap_or_default().into()
+    Ok(Profile {
+        email: email.into(),
+        plan: if plan.is_empty() {
+            clean(info.get("planName")).unwrap_or_default().into()
         } else {
             plan
         },
-    ))
+        organization: organization.into(),
+        org_id: org_id.into(),
+        team_id: team_id.into(),
+    })
 }
 pub(crate) fn read(path: &str) -> PluginResult<(String, String)> {
     nora_provider_plugin_sdk::require_subscription_accounts()?;

@@ -295,6 +295,7 @@ struct Page {
     title: String,
     url: String,
     text: String,
+    age: Option<String>,
 }
 impl SearchApiPlugin {
     async fn ask(
@@ -630,6 +631,17 @@ fn parse(vendor: Vendor, value: &Value) -> PluginResult<Vec<Page>> {
             title: if title.is_empty() { url.clone() } else { title },
             url,
             text: clip(plain(&description)),
+            age: hit
+                .get(if vendor == Vendor::You {
+                    "page_age"
+                } else {
+                    "date"
+                })
+                .and_then(Value::as_str)
+                .filter(|age| {
+                    !age.is_empty() && age.len() <= 4096 && !age.chars().any(char::is_control)
+                })
+                .map(str::to_owned),
         });
         if pages.len() == HITS {
             break;
@@ -652,7 +664,17 @@ fn pages_result(pages: Vec<Page>) -> Value {
         })
         .collect::<Vec<_>>()
         .join("\n\n");
-    json!({"text":said.trim(),"sources":pages.into_iter().map(|page|json!({"url":page.url,"title":page.title})).collect::<Vec<_>>()})
+    let sources = pages
+        .into_iter()
+        .map(|page| {
+            let mut source = json!({"url":page.url,"title":page.title});
+            if let Some(age) = page.age {
+                source["page_age"] = json!(age);
+            }
+            source
+        })
+        .collect::<Vec<_>>();
+    json!({"text":said.trim(),"sources":sources})
 }
 
 /// Subscription search endpoints return the same public page contract as an

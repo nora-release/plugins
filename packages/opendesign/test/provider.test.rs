@@ -1,6 +1,8 @@
 use super::*;
 #[path = "model_inputs.test.rs"]
 mod model_inputs;
+#[path = "model_rates.test.rs"]
+mod model_rates;
 use async_trait::async_trait;
 use base64::Engine;
 use nora_ai::{HttpClientError, HttpRequest, HttpStreamingResponse};

@@ -121,6 +121,22 @@ fn model(id: &str, entry: &Value, preset: &Value, source: &str) -> Value {
         source,
     );
     model["input"] = json!(input);
+    let cost = if entry.is_null() {
+        &preset["cost"]
+    } else {
+        &metadata["cost"]
+    };
+    let multiplier = match core::text(cost) {
+        Some("low") => Some(0.5),
+        Some("medium") => Some(1.0),
+        Some("high") => Some(2.0),
+        Some("very_high") => Some(4.0),
+        _ => None,
+    };
+    if let Some(multiplier) = multiplier {
+        model["info"]["creditMultiplier"] = json!(multiplier);
+    }
+    model["info"]["pricingKnown"] = json!(false);
     model
 }
 fn models_of(value: &Value) -> PluginResult<Vec<Value>> {

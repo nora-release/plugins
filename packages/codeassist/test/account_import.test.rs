@@ -269,9 +269,10 @@ async fn incomplete_token_response_keeps_rotation_and_retry_uses_saved_value() {
     let first = Harness::new(vec![fixture::Reply::json(
         json!({"refresh_token":"rotated-private"}),
     )]);
-    assert!(import(&plugin, &params(account()), &first, &first)
+    let error = import(&plugin, &params(account()), &first, &first)
         .await
-        .is_err());
+        .unwrap_err();
+    assert_eq!(error.code, "upstream_transport_error");
     let saved = first.saves.lock().unwrap().last().unwrap().clone();
     assert_eq!(saved["refresh"], "rotated-private");
     let mut params = params(account());

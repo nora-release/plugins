@@ -1344,6 +1344,7 @@ version = "1.2.0"
 dependencies = [
  "nora-provider-codeassist",
  "nora-provider-plugin-sdk",
+ "serde_json",
  "tokio",
 ]
 
@@ -1679,6 +1680,7 @@ version = "1.2.0"
 dependencies = [
  "nora-provider-codeassist",
  "nora-provider-plugin-sdk",
+ "serde_json",
  "tokio",
 ]
 

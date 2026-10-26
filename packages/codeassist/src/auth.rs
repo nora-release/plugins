@@ -128,23 +128,27 @@ pub(crate) fn read_tokens(
     payload: &Value,
     previous: Option<&session::Tokens>,
 ) -> PluginResult<session::Tokens> {
-    let access = token(payload.get("access_token"))?;
+    let access = token(payload.get("access_token")).map_err(|_| invalid_token_response())?;
     let refresh = match payload.get("refresh_token") {
-        Some(value) => token(Some(value))?,
+        Some(value) => token(Some(value)).map_err(|_| invalid_token_response())?,
         None => previous
             .map(|tokens| tokens.refresh.clone())
-            .ok_or_else(expired)?,
+            .ok_or_else(invalid_token_response)?,
     };
     let seconds = payload
         .get("expires_in")
         .and_then(Value::as_i64)
         .filter(|seconds| *seconds > 0 && *seconds <= 31_536_000)
-        .ok_or_else(expired)?;
+        .ok_or_else(invalid_token_response)?;
     let mut tokens = previous.cloned().unwrap_or_default();
     tokens.access = access;
     tokens.refresh = refresh;
     tokens.expires = now().saturating_add(seconds.saturating_mul(1000));
     Ok(tokens)
+}
+
+pub(crate) fn invalid_token_response() -> PluginError {
+    PluginError::transport("The Google service returned an incomplete token response.")
 }
 
 pub(crate) async fn identify(
@@ -188,30 +192,45 @@ pub(crate) async fn json_request(
     request: HttpRequest,
 ) -> PluginResult<Value> {
     tokio::time::timeout(Duration::from_secs(25), async {
-        let login_endpoint = request.url == TOKEN || request.url == USER_INFO;
+        let token_endpoint = request.url == TOKEN;
+        let user_endpoint = request.url == USER_INFO;
         let response = client
             .stream(request)
             .await
             .map_err(|_| PluginError::transport("The Google service could not be reached."))?;
-        if response.status == 401 || (response.status == 403 && login_endpoint) {
+        if response.status == 401 || (response.status == 403 && user_endpoint) {
             return Err(expired());
         }
-        if !(200..300).contains(&response.status) {
-            return Err(PluginError::transport(format!(
-                "The Google service returned HTTP {}.",
-                response.status
-            )));
+        let status = response.status;
+        let success = (200..300).contains(&status);
+        let status_error =
+            || PluginError::transport(format!("The Google service returned HTTP {status}."));
+        if !success && !(token_endpoint && status == 400) {
+            return Err(status_error());
         }
-        let text = nora_ai::collect_http_body_text_limited(response.body, 4 * 1024 * 1024 + 1)
+        let limit = if success { 4 * 1024 * 1024 } else { 64 * 1024 };
+        let text = nora_ai::collect_http_body_text_limited(response.body, limit + 1)
             .await
             .map_err(|_| {
                 PluginError::transport("The Google response stopped before it finished.")
             })?;
-        if text.len() > 4 * 1024 * 1024 {
+        if text.len() > limit {
             return Err(PluginError::transport("The Google response is too large."));
         }
-        serde_json::from_str(&text)
-            .map_err(|_| PluginError::transport("The Google service returned invalid JSON."))
+        let value: Value = serde_json::from_str(&text)
+            .map_err(|_| PluginError::transport("The Google service returned invalid JSON."))?;
+        if !success {
+            // Only the token endpoint's explicit OAuth refusal invalidates the
+            // sign-in. Proxy errors, limits and malformed replies can recover.
+            if matches!(
+                value.get("error").and_then(Value::as_str),
+                Some("invalid_grant" | "invalid_token")
+            ) {
+                return Err(expired());
+            }
+            return Err(status_error());
+        }
+        Ok(value)
     })
     .await
     .map_err(|_| PluginError::transport("The Google request timed out."))?

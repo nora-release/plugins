@@ -753,3 +753,7 @@ impl ProviderPlugin for CodeAssist {
 #[cfg(test)]
 #[path = "../test/provider.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/refresh.test.rs"]
+mod refresh_tests;

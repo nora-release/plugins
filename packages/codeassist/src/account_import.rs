@@ -153,7 +153,7 @@ pub(super) async fn import(
         shared::mark(&mut credentials, &fingerprint, "rotated");
         shared::checkpoint(persistence, &credentials).await?;
         if access.is_err() || rotated.is_err() || seconds.is_none() {
-            return Err(expired());
+            return Err(auth::invalid_token_response());
         }
     }
     let (mut tokens, _) = session::current(Some(&credentials), plugin.app)?;

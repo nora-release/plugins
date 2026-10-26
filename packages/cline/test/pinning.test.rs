@@ -69,6 +69,28 @@ fn shipped_manifests_preserve_an_unspecified_pin_preference() {
     }
 }
 
+#[test]
+fn both_manifests_offer_the_upstream_switch_without_forcing_its_default() {
+    for text in [
+        include_str!("../nora-provider.json"),
+        include_str!("../../clinepass/nora-provider.json"),
+    ] {
+        let manifest: Value = serde_json::from_str(text).unwrap();
+        let option = manifest["config"]["options"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|option| option["id"] == "pinUpstream")
+            .unwrap();
+        assert_eq!(option["type"], "boolean");
+        assert_eq!(option["default"], false);
+        assert_eq!(option["preserveUnset"], true);
+        assert!(option["label"].as_str().unwrap().contains("DeepSeek"));
+        assert!(option["description"].as_str().unwrap().contains("fails"));
+        assert!(manifest["config"].get("pinUpstream").is_none());
+    }
+}
+
 #[tokio::test]
 async fn default_pass_pin_uses_preset_image_capabilities_and_preserves_the_cache_prefix() {
     for id in ["cline", "clinepass"] {

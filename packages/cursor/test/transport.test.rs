@@ -135,6 +135,7 @@ async fn open(
             h2_client,
             base,
             token,
+            None,
             version,
             first,
         )
@@ -159,6 +160,7 @@ async fn a_missing_h2_head_temporarily_uses_h1_only_for_its_network_and_host_the
                 Some(&client),
                 &held.url,
                 "token",
+                None,
                 "cli-fixture",
                 b"first".to_vec(),
             )
@@ -176,6 +178,7 @@ async fn a_missing_h2_head_temporarily_uses_h1_only_for_its_network_and_host_the
                 Some(&client),
                 &held.url,
                 "token",
+                None,
                 "cli-fixture",
                 b"cached".to_vec(),
             )
@@ -191,6 +194,7 @@ async fn a_missing_h2_head_temporarily_uses_h1_only_for_its_network_and_host_the
                 Some(&client),
                 &held.url,
                 "token",
+                None,
                 "cli-fixture",
                 b"other proxy".to_vec(),
             )
@@ -207,6 +211,7 @@ async fn a_missing_h2_head_temporarily_uses_h1_only_for_its_network_and_host_the
                 Some(&client),
                 &other_host.url,
                 "token",
+                None,
                 "cli-fixture",
                 b"other host".to_vec(),
             )
@@ -223,6 +228,7 @@ async fn a_missing_h2_head_temporarily_uses_h1_only_for_its_network_and_host_the
                 Some(&client),
                 &held.url,
                 "token",
+                None,
                 "cli-fixture",
                 b"retry".to_vec(),
             )
@@ -252,6 +258,7 @@ async fn connection_refusal_and_stream_refusal_never_mark_the_network_as_h2_bloc
                     Some(&client),
                     base,
                     "token",
+                    None,
                     "cli-fixture",
                     b"request".to_vec(),
                 )
@@ -278,6 +285,7 @@ async fn cancellation_during_an_h2_open_does_not_poison_the_next_attempt() {
                 Some(&h2_client()),
                 &base,
                 "token",
+                None,
                 "cli-fixture",
                 b"cancelled".to_vec(),
             )
@@ -296,6 +304,7 @@ async fn cancellation_during_an_h2_open_does_not_poison_the_next_attempt() {
                 Some(&h2_client()),
                 &held.url,
                 "token",
+                None,
                 "cli-fixture",
                 b"next".to_vec(),
             )
@@ -622,5 +631,63 @@ async fn h1_error_statuses_survive_non_json_response_bodies() {
             client.requests.lock().unwrap().len(),
             if on_append { 2 } else { 1 }
         );
+    }
+}
+
+#[tokio::test]
+async fn native_http2_and_fallback_runs_use_the_selected_team() {
+    let token = "e30.eyJzdWIiOiJhdXRoMHx1c2VyX29uZSJ9.sig";
+    for team in [Some(42), None] {
+        let mut server = server(Mode::Answer(200)).await;
+        let fallback = Script::new(vec![]);
+        let native = Connector::default()
+            .open(
+                "team-test",
+                fallback.clone(),
+                Some(&h2_client()),
+                &server.url,
+                token,
+                team,
+                "cli-test",
+                b"first".to_vec(),
+            )
+            .await
+            .unwrap();
+        let request = received(&mut server.requests).await;
+        assert_eq!(
+            request
+                .headers
+                .get("x-cursor-team-id")
+                .map(|value| value.to_str().unwrap().to_owned()),
+            team.map(|value| value.to_string())
+        );
+        assert!(fallback.requests.lock().unwrap().is_empty());
+        drop(native);
+        let fallback = Script::new(vec![Reply::json(json!({})), Reply::json(json!({}))]);
+        let scoped = crate::team::fixed_client(fallback.clone(), token, team);
+        let run = Connector::default()
+            .open(
+                "team-test",
+                scoped,
+                None,
+                "https://agentn.global.api5.cursor.sh",
+                token,
+                team,
+                "cli-test",
+                b"first".to_vec(),
+            )
+            .await
+            .unwrap();
+        let requests = fallback.requests.lock().unwrap();
+        assert_eq!(requests.len(), 2);
+        assert!(requests[0].url.ends_with("/RunSSE"));
+        assert!(requests[1].url.ends_with("/BidiAppend"));
+        for request in requests.iter() {
+            assert_eq!(
+                request.headers.get("x-cursor-team-id").cloned(),
+                team.map(|value| value.to_string())
+            );
+        }
+        drop(run);
     }
 }

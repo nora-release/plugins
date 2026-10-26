@@ -389,3 +389,104 @@ async fn a_region_error_after_output_never_replays_the_request() {
     );
     assert_eq!(client.requests.lock().unwrap().len(), 5);
 }
+
+#[tokio::test]
+async fn selected_team_is_sent_only_for_the_matching_cursor_account() {
+    use base64::Engine;
+    if std::env::var_os("NORA_CURSOR_TEAM_FIXTURE").is_none() {
+        let directory = std::env::temp_dir().join(format!("cursor-team-{}", auth::random()));
+        std::fs::create_dir(&directory).unwrap();
+        std::fs::write(
+            directory.join("cli-config.json"),
+            json!({"authInfo":{"authId":"auth0|user_one","activeTeamId":42}}).to_string(),
+        )
+        .unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "provider::tests::selected_team_is_sent_only_for_the_matching_cursor_account",
+                "--nocapture",
+            ])
+            .env("NORA_CURSOR_TEAM_FIXTURE", "1")
+            .env("CURSOR_CONFIG_DIR", &directory)
+            .output()
+            .unwrap();
+        std::fs::remove_dir_all(&directory).unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    let raw = Client::new(vec![Reply::json(json!({})), Reply::json(json!({}))]);
+    let provider = plugin(raw.clone()).await;
+    let client = provider.client(None).unwrap();
+    for subject in ["auth0|user_one", "auth0|user_other"] {
+        let token = format!(
+            "e30.{}.signature",
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(json!({"sub":subject}).to_string())
+        );
+        network::unary(
+            client.as_ref(),
+            "aiserver.v1.DashboardService/GetCurrentPeriodUsage",
+            &token,
+            "cli-test",
+            &json!({}),
+        )
+        .await
+        .unwrap();
+    }
+    let requests = raw.requests.lock().unwrap();
+    assert_eq!(
+        requests[0]
+            .headers
+            .get("x-cursor-team-id")
+            .map(String::as_str),
+        Some("42")
+    );
+    assert!(!requests[1].headers.contains_key("x-cursor-team-id"));
+    for request in requests.iter() {
+        assert_eq!(
+            serde_json::from_slice::<Value>(request.body.as_ref().unwrap()).unwrap(),
+            json!({})
+        );
+    }
+    drop(requests);
+    for (subject, team) in [("auth0|user_one", Some("42")), ("auth0|user_other", None)] {
+        let raw = Client::new(vec![
+            Reply::json(fixture::picker()),
+            Reply::json(json!({"models":[{"modelId":"claude-medium"}]})),
+            region_config("https://agent.cursor.sh"),
+            finished(),
+            Reply::json(json!({})),
+        ]);
+        let plugin = plugin(raw.clone()).await;
+        let mut chat = fixture::chat();
+        chat["stream"] = json!(false);
+        let mut request = fetch_chat(chat);
+        request.credentials.as_mut().unwrap()["access"] = json!(format!(
+            "e30.{}.signature",
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(json!({"sub":subject}).to_string())
+        ));
+        let response = plugin.fetch(request).await.unwrap();
+        assert_eq!(response.status, 200);
+        assert!(fixture::body(response).await.contains("Regional answer."));
+        let requests = raw.requests.lock().unwrap();
+        assert!(requests
+            .iter()
+            .any(|request| request.url.ends_with("/RunSSE")));
+        assert!(requests
+            .iter()
+            .any(|request| request.url.ends_with("/BidiAppend")));
+        for request in requests.iter() {
+            assert_eq!(
+                request.headers.get("x-cursor-team-id").map(String::as_str),
+                team
+            );
+        }
+    }
+}

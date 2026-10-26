@@ -244,6 +244,7 @@ async fn h2(
     client: &reqwest::Client,
     base: &str,
     token: &str,
+    team_id: Option<u64>,
     version: &str,
     first: Vec<u8>,
     head_wait: Duration,
@@ -263,36 +264,38 @@ async fn h2(
         Some((Ok::<_, std::io::Error>(packet.data), rx))
     });
     nora_provider_plugin_sdk::before_http_request().await?;
-    let response = tokio::time::timeout(
-        head_wait,
-        client
-            .post(format!("{base}/agent.v1.AgentService/Run"))
-            .header("authorization", format!("Bearer {token}"))
-            .header("content-type", "application/connect+proto")
-            .header("connect-protocol-version", "1")
-            .header("x-cursor-client-version", version)
-            .header("x-cursor-client-type", "cli")
-            .header("x-ghost-mode", "true")
-            .header("x-request-id", super::request::uuid())
-            .header(
-                "x-cursor-agent-allowed-tools",
-                "mcp_tool_call,get_mcp_tools_tool_call",
-            )
-            .body(reqwest::Body::wrap_stream(body))
-            .send(),
-    )
-    .await
-    .map_err(|_| PluginError::new("cursor_h2_blocked", "Cursor HTTP/2 did not open in time."))?
-    .map_err(|error| {
-        PluginError::new(
-            if h2_blocked(&error) {
-                "cursor_h2_blocked"
-            } else {
-                "cursor_h2_unavailable"
-            },
-            "Cursor HTTP/2 could not open on this network.",
+    let request = client
+        .post(format!("{base}/agent.v1.AgentService/Run"))
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/connect+proto")
+        .header("connect-protocol-version", "1")
+        .header("x-cursor-client-version", version)
+        .header("x-cursor-client-type", "cli")
+        .header("x-ghost-mode", "true")
+        .header("x-request-id", super::request::uuid())
+        .header(
+            "x-cursor-agent-allowed-tools",
+            "mcp_tool_call,get_mcp_tools_tool_call",
         )
-    })?;
+        .body(reqwest::Body::wrap_stream(body));
+    let request = if let Some(team) = team_id {
+        request.header("x-cursor-team-id", team.to_string())
+    } else {
+        request
+    };
+    let response = tokio::time::timeout(head_wait, request.send())
+        .await
+        .map_err(|_| PluginError::new("cursor_h2_blocked", "Cursor HTTP/2 did not open in time."))?
+        .map_err(|error| {
+            PluginError::new(
+                if h2_blocked(&error) {
+                    "cursor_h2_blocked"
+                } else {
+                    "cursor_h2_unavailable"
+                },
+                "Cursor HTTP/2 could not open on this network.",
+            )
+        })?;
     if response.version() != reqwest::Version::HTTP_2 {
         return Err(PluginError::new(
             "cursor_h2_blocked",
@@ -385,6 +388,7 @@ impl Connector {
         h2_client: Option<&reqwest::Client>,
         base: &str,
         token: &str,
+        team_id: Option<u64>,
         version: &str,
         first: Vec<u8>,
     ) -> PluginResult<Transport> {
@@ -393,6 +397,7 @@ impl Connector {
                 h2_client,
                 base,
                 token,
+                team_id,
                 version,
                 first.clone(),
                 self.head_wait,

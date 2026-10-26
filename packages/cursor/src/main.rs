@@ -8,6 +8,7 @@ mod provider;
 mod request;
 mod session;
 mod stream;
+mod team;
 mod transport;
 mod usage;
 

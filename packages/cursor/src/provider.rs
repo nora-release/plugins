@@ -49,6 +49,7 @@ pub(crate) struct Cursor {
     models: Mutex<BTreeMap<String, (u64, Vec<models::Entry>)>>,
     pool: Pool,
     max_only: Mutex<BTreeSet<String>>,
+    teams: Arc<crate::team::Teams>,
 }
 impl Default for Cursor {
     fn default() -> Self {
@@ -61,6 +62,7 @@ impl Default for Cursor {
             models: Mutex::new(BTreeMap::new()),
             pool: Pool::default(),
             max_only: Mutex::new(BTreeSet::new()),
+            teams: Arc::new(crate::team::Teams::default()),
         }
     }
 }
@@ -80,6 +82,9 @@ impl Cursor {
         Ok(proxy)
     }
     fn client(&self, proxy: Option<&NetworkProxy>) -> PluginResult<Client> {
+        Ok(self.teams.client(self.raw_client(proxy)?))
+    }
+    fn raw_client(&self, proxy: Option<&NetworkProxy>) -> PluginResult<Client> {
         let proxy = self.proxy(proxy)?;
         if let Some(client) = &self.client {
             return Ok(client.clone());
@@ -256,11 +261,19 @@ impl Cursor {
             )
         };
         let base = network::agent_url(client.as_ref(), &token, &version).await;
+        let team_id = self.teams.active(&token);
+        // A retained Run and its deferred usage belong to the team that opened it.
+        let client = crate::team::fixed_client(
+            self.raw_client(request.network_proxy.as_ref())?,
+            &token,
+            team_id,
+        );
         let account = auth::hash(format!(
-            "{}\0{}\0{}",
+            "{}\0{}\0{}\0{:?}",
             request.account,
             credential["accountId"],
-            auth::hash(&token)
+            auth::hash(&token),
+            team_id
         ));
         let controls=auth::hash(json!({"account":account,"proxy":proxy,"model":chat["model"],"tools":chat["tools"],"choice":chat["tool_choice"],"effort":effort,"tier":chat["service_tier"],"selector":request::selector(chat,&request.metadata,&account)}).to_string());
         self.pool
@@ -269,6 +282,7 @@ impl Cursor {
                     client,
                     h2_client,
                     token,
+                    team_id,
                     version,
                     base,
                     account: account.clone(),

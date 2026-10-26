@@ -115,6 +115,7 @@ pub(crate) struct Open {
     pub client: Client,
     pub h2_client: Option<reqwest::Client>,
     pub token: String,
+    pub team_id: Option<u64>,
     pub version: String,
     pub base: String,
     pub account: String,
@@ -210,6 +211,7 @@ impl Pool {
                 config.h2_client.as_ref(),
                 &config.base,
                 &config.token,
+                config.team_id,
                 &config.version,
                 first,
             )

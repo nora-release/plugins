@@ -6,6 +6,7 @@ use crate::{
 
 fn config(client: Arc<Client>, account: &str) -> Open {
     Open {
+        team_id: None,
         client,
         h2_client: None,
         token: format!("fixture-{account}"),
@@ -388,4 +389,30 @@ async fn expired_debt_and_capacity_overflow_stay_unknown_and_unretained_runs_cre
     let mut unretained = ledger.begin(&config, "unretained", auth::now());
     assert_eq!(unretained.collect().await, Counts::default());
     assert!(client.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn detailed_usage_carries_the_runs_team_in_header_and_body_and_omits_an_unknown_team() {
+    let since = auth::now() - 30_000;
+    let token = "e30.eyJzdWIiOiJhdXRoMHx1c2VyX29uZSJ9.sig";
+    for team in [Some(42), None] {
+        let client = Client::new(vec![Reply::json(
+            json!({"usageEventsDisplay":[event(since+2000,"conversation",11)]}),
+        )]);
+        let mut config = config(client.clone(), "one");
+        config.token = token.into();
+        config.team_id = team;
+        config.client = crate::team::fixed_client(client.clone(), token, team);
+        let ledger = Arc::new(Ledger::default());
+        abandon(&ledger, &config, "conversation", since);
+        let mut book = ledger.begin(&config, "conversation", auth::now());
+        assert_eq!(book.collect().await.input, 11);
+        let requests = client.requests.lock().unwrap();
+        let body: Value = serde_json::from_slice(requests[0].body.as_ref().unwrap()).unwrap();
+        assert_eq!(body.get("teamId").and_then(Value::as_u64), team);
+        assert_eq!(
+            requests[0].headers.get("x-cursor-team-id").cloned(),
+            team.map(|value| value.to_string())
+        );
+    }
 }

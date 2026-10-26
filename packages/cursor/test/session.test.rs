@@ -221,6 +221,7 @@ impl HttpClient for Fake {
 }
 fn config(client: Arc<Fake>, chat: &Value, account: &str) -> Open {
     Open {
+        team_id: None,
         client,
         h2_client: None,
         token: format!("private-{account}"),

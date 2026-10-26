@@ -138,6 +138,7 @@ pub(crate) struct Book {
     ledger: Arc<Ledger>,
     client: network::Client,
     token: String,
+    team_id: Option<u64>,
     version: String,
     account: String,
     conversation: String,
@@ -176,6 +177,7 @@ impl Ledger {
             ledger: self.clone(),
             client: config.client.clone(),
             token: config.token.clone(),
+            team_id: config.team_id,
             version: config.version.clone(),
             account: config.account.clone(),
             conversation: conversation.into(),
@@ -268,8 +270,20 @@ impl Book {
                 };
                 since
             };
-            let request = network::post(format!("{}/aiserver.v1.DashboardService/GetFilteredUsageEvents", network::API),
-                json!({"teamId":0,"startDate":since.saturating_sub(60_000).to_string(),"endDate":auth::now().saturating_add(60_000).to_string(),"page":1,"pageSize":50}).to_string().into_bytes(), &self.token, &self.version, "application/json");
+            let mut body = json!({"startDate":since.saturating_sub(60_000).to_string(),"endDate":auth::now().saturating_add(60_000).to_string(),"page":1,"pageSize":50});
+            if let Some(team) = self.team_id {
+                body["teamId"] = json!(team);
+            }
+            let request = network::post(
+                format!(
+                    "{}/aiserver.v1.DashboardService/GetFilteredUsageEvents",
+                    network::API
+                ),
+                body.to_string().into_bytes(),
+                &self.token,
+                &self.version,
+                "application/json",
+            );
             let response = tokio::time::timeout(Duration::from_secs(5), async {
                 let response = network::send(self.client.as_ref(), request, 5).await?;
                 let status = response.status;

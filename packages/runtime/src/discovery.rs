@@ -166,6 +166,20 @@ fn add_default_route(result: &mut Value, definition: &Definition, credentials: O
     models::configure_model(definition, credentials, &mut route);
     result["defaultAPI"] = json!(route.api);
     result["defaultBaseURL"] = json!(route.base_url);
+    let transports = definition
+        .adapter
+        .selectable_model_apis(credentials)
+        .iter()
+        .filter_map(|api| {
+            definition
+                .adapter
+                .model_api(credentials, api)
+                .map(|transport| (*api, transport))
+        })
+        .collect::<BTreeMap<_, _>>();
+    if !transports.is_empty() {
+        result["apiTransports"] = json!(transports);
+    }
     result["apiEndpoints"] = json!(configured_bases(definition, credentials)
         .into_iter()
         .filter(|base| !base.base_url.is_empty())

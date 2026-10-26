@@ -135,6 +135,11 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
     fn model_api(&self, _credentials: Option<&Value>, _native_api: &str) -> Option<String> {
         None
     }
+    /// Logical chat APIs a managed account lets the user select per model.
+    /// `model_api` translates each choice to the provider's authenticated transport.
+    fn selectable_model_apis(&self, _credentials: Option<&Value>) -> &'static [&'static str] {
+        &[]
+    }
     fn retain_model(&self, _credentials: Option<&Value>, _model: &Model) -> bool {
         true
     }

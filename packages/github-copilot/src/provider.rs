@@ -278,6 +278,17 @@ impl ProviderAdapter for Copilot {
             .into(),
         )
     }
+    fn selectable_model_apis(&self, credentials: Option<&Value>) -> &'static [&'static str] {
+        if is_oauth(credentials) {
+            &[
+                "openai-completions",
+                "openai-responses",
+                "anthropic-messages",
+            ]
+        } else {
+            &[]
+        }
+    }
     fn model_list_headers(
         &self,
         _url: &Url,
@@ -474,3 +485,7 @@ mod login_tests;
 #[cfg(test)]
 #[path = "../test/renewal.test.rs"]
 mod renewal_tests;
+
+#[cfg(test)]
+#[path = "../test/model_api.test.rs"]
+mod model_api_tests;

@@ -15,12 +15,14 @@ pub const MAX_BYTES: usize = 4 * 1024 * 1024;
 pub enum LoginKind {
     Codex,
     Claude,
+    Grok,
 }
 impl LoginKind {
     pub fn id(self) -> &'static str {
         match self {
             Self::Codex => "openai",
             Self::Claude => "anthropic",
+            Self::Grok => "xai",
         }
     }
     fn formats(self) -> &'static [&'static str] {
@@ -45,6 +47,7 @@ impl LoginKind {
                 "nora-account",
                 "magpie-login",
             ],
+            Self::Grok => &["auto", "cli-proxy"],
         }
     }
 }
@@ -68,7 +71,11 @@ pub fn fingerprint(provider: &str, refresh: &str) -> String {
     )
 }
 pub fn declaration(kind: LoginKind) -> Value {
-    json!({"formats":kind.formats(),"refreshesTokens":kind==LoginKind::Codex,"maxEntries":MAX_ENTRIES,"maxBytes":MAX_BYTES})
+    let mut value = json!({"formats":kind.formats(),"refreshesTokens":kind==LoginKind::Codex,"maxEntries":MAX_ENTRIES,"maxBytes":MAX_BYTES});
+    if kind == LoginKind::Grok {
+        value["notice"] = json!(nora_provider_auth::grok_cpa::IMPORT_NOTICE);
+    }
+    value
 }
 
 pub fn inspect(kind: LoginKind, params: &Value) -> PluginResult<Value> {

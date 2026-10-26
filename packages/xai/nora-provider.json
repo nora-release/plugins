@@ -39,6 +39,13 @@
   ],
   "models": [],
   "config": {
+    "accountImport": {
+      "formats": ["auto", "cli-proxy"],
+      "refreshesTokens": false,
+      "maxEntries": 200,
+      "maxBytes": 4194304,
+      "notice": "Stop using this account in CPA before importing it. Both clients rotate the same refresh token."
+    },
     "modelMetadata": true,
     "connectionOptions": true,
     "options": [

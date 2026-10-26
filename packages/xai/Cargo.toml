@@ -23,3 +23,7 @@ futures = "0.3"
 [[test]]
 name = "grok_source"
 path = "test/grok-source-integration.test.rs"
+
+[[test]]
+name = "cpa_import"
+path = "test/cpa-import-integration.test.rs"

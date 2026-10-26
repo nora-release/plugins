@@ -51,6 +51,10 @@ impl ProviderAdapter for Xai {
     fn id(&self) -> Option<&'static str> {
         Some("xai")
     }
+
+    fn account_import_kind(&self) -> Option<nora_provider::account_import::LoginKind> {
+        Some(nora_provider::account_import::LoginKind::Grok)
+    }
     async fn login(
         &self,
         callbacks: OAuthLoginCallbacks,
@@ -63,14 +67,18 @@ impl ProviderAdapter for Xai {
         credentials: &OAuthCredentials,
         client: &dyn HttpClient,
     ) -> PluginResult<OAuthCredentials> {
-        XaiOAuthProvider::default()
-            .refresh(credentials, client)
-            .await
-            .map_err(|_| {
-                PluginError::authentication(
-                    "The provider account could not be renewed. Sign in again.",
-                )
-            })
+        let mut provider = XaiOAuthProvider::default();
+        if credentials
+            .extras
+            .get("oidcClientId")
+            .and_then(|value| value.as_str())
+            == Some(nora_provider_auth::xai_auth::XAI_COMPAT_OAUTH_CLIENT_ID)
+        {
+            provider.client_id = nora_provider_auth::xai_auth::XAI_COMPAT_OAUTH_CLIENT_ID.into();
+        }
+        provider.refresh(credentials, client).await.map_err(|_| {
+            PluginError::authentication("The provider account could not be renewed. Sign in again.")
+        })
     }
     fn enrich_credentials(&self, value: &Value, credentials: &mut OAuthCredentials) {
         if credentials.provider != OAuthProviderId::XAI {
@@ -503,3 +511,7 @@ mod account_identity_tests;
 #[cfg(test)]
 #[path = "../test/request.test.rs"]
 mod request_tests;
+
+#[cfg(test)]
+#[path = "../test/cpa_import.test.rs"]
+mod cpa_import_tests;

@@ -4,6 +4,7 @@ pub mod codex_source;
 pub mod copilot_client;
 pub mod copilot_editors;
 pub mod copilot_identity;
+pub mod grok_cpa;
 pub mod grok_source;
 pub mod manager;
 pub mod oauth_callback_server;

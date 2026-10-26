@@ -13,11 +13,11 @@ pub(super) async fn import(
     persistence: &dyn CredentialPersistence,
 ) -> PluginResult<Value> {
     let mut credentials = match resumed {
-        Some(credentials) => validate_resume(kind, credentials)?,
+        Some(credentials) => validate_resume(kind, entry, credentials)?,
         None => initial(kind, entry, fingerprint),
     };
     checkpoint(persistence, &credentials).await?;
-    if kind == LoginKind::Claude {
+    if kind != LoginKind::Codex {
         return result(credentials, false);
     }
     let valid_access = token(credentials.get("access")).is_some()
@@ -35,6 +35,11 @@ pub(super) async fn import(
 }
 
 fn initial(kind: LoginKind, entry: &Entry, fingerprint: &str) -> Value {
+    if let Some(owned) = &entry.owned {
+        let mut credentials = crate::auth::encode(owned, kind.id(), false);
+        mark(&mut credentials, fingerprint, "complete");
+        return credentials;
+    }
     let mut credentials = json!({
         "type":"oauth", "authMethod":"oauth",
         "provider":if kind==LoginKind::Codex {"openAICodex"} else {"anthropic"},
@@ -94,7 +99,7 @@ fn initial(kind: LoginKind, entry: &Entry, fingerprint: &str) -> Value {
     credentials
 }
 
-fn validate_resume(kind: LoginKind, mut credentials: Value) -> PluginResult<Value> {
+fn validate_resume(kind: LoginKind, entry: &Entry, mut credentials: Value) -> PluginResult<Value> {
     let provider = credentials
         .get("credentialProvider")
         .or_else(|| credentials.get("provider"))
@@ -103,13 +108,28 @@ fn validate_resume(kind: LoginKind, mut credentials: Value) -> PluginResult<Valu
     let provider_matches = match kind {
         LoginKind::Codex => matches!(provider, "openAICodex" | "openai-codex"),
         LoginKind::Claude => provider == "anthropic",
+        LoginKind::Grok => provider == "xAI",
     };
     if credentials["type"] != "oauth"
         || !provider_matches
         || token(credentials.get("refresh")).is_none()
-        || (kind == LoginKind::Claude && token(credentials.get("access")).is_none())
+        || (kind != LoginKind::Codex && token(credentials.get("access")).is_none())
     {
         return Err(invalid("The saved import does not match this provider."));
+    }
+    if let Some(owned) = &entry.owned {
+        let expected = crate::auth::encode(owned, kind.id(), false);
+        if credentials.get("accountIdentity") != expected.get("accountIdentity")
+            || credentials.pointer("/extras/accountIdentity")
+                != expected.pointer("/extras/accountIdentity")
+            || credentials.pointer("/extras/oidcClientId")
+                != expected.pointer("/extras/oidcClientId")
+            || credentials.pointer("/extras/oidcIssuer") != expected.pointer("/extras/oidcIssuer")
+        {
+            return Err(invalid(
+                "The saved import does not match this account entry.",
+            ));
+        }
     }
     // A private staging record may only restore transferable token values.
     for key in ["key", "source", "noraClaudeCLI"] {

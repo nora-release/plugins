@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Default)]
 pub(super) struct Entry {
+    pub owned: Option<nora_ai::OAuthCredentials>,
     pub email: String,
     pub access: String,
     pub refresh: String,
@@ -135,6 +136,28 @@ fn walk(
     Ok(())
 }
 fn entry(kind: LoginKind, value: &Value) -> Entry {
+    if kind == LoginKind::Grok {
+        return match nora_provider_auth::grok_cpa::credentials(value) {
+            Ok(credentials) => Entry {
+                email: credentials
+                    .extras
+                    .get("email")
+                    .and_then(|value| value.as_str())
+                    .unwrap_or_default()
+                    .into(),
+                access: credentials.access_token.clone(),
+                refresh: credentials.refresh_token.clone().unwrap_or_default(),
+                owned: Some(credentials),
+                ..Default::default()
+            },
+            Err(error) => Entry {
+                access: text(value, &["access_token"]).into(),
+                refresh: text(value, &["refresh_token"]).into(),
+                error: Some(error.to_string()),
+                ..Default::default()
+            },
+        };
+    }
     let mut outer = value.clone();
     if let Some(auth) = value.get("auth") {
         if let Some(agent) = value.get("agent").and_then(Value::as_str) {
@@ -198,6 +221,7 @@ fn entry(kind: LoginKind, value: &Value) -> Entry {
         .or_else(|| value.get("extras"))
         .unwrap_or(&Value::Null);
     let mut entry = Entry {
+        owned: None,
         email: select(&[
             text(value, &["email", "email_address"]),
             text(source, &["email", "email_address"]),
@@ -277,6 +301,7 @@ fn entry(kind: LoginKind, value: &Value) -> Entry {
     let ours = match kind {
         LoginKind::Codex => &["codex", "openai", "openaicodex", "openai-codex"][..],
         LoginKind::Claude => &["claude", "anthropic"][..],
+        LoginKind::Grok => &["xai"][..],
     };
     let provider = text(value, &["credentialProvider", "authProvider", "provider"]);
     if sub2.is_some() {

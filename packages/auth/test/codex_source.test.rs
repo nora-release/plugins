@@ -5,6 +5,9 @@ use nora_ai::http::{HttpClientError, HttpRequest, HttpResponse, HttpStreamingRes
 use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+#[path = "codex_refresh.test.rs"]
+mod refresh_tests;
+
 struct Directory(PathBuf);
 
 impl Directory {

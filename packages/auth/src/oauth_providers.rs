@@ -94,6 +94,48 @@ impl OAuthProvider for AnthropicOAuthProvider {
 
 // MARK: - OpenAI Codex
 
+/// A refused refresh grant requires a new sign-in; an unavailable endpoint
+/// says nothing about the saved grant. Keep this distinction before adapting
+/// to the general OAuth API, whose errors do not include HTTP status.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CodexRefreshError {
+    MissingRefreshToken,
+    Refused,
+    Unavailable(OAuthError),
+}
+
+impl CodexRefreshError {
+    pub fn requires_sign_in(&self) -> bool {
+        matches!(self, Self::MissingRefreshToken | Self::Refused)
+    }
+}
+
+impl std::fmt::Display for CodexRefreshError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::MissingRefreshToken => "ChatGPT's refresh token is missing.",
+            Self::Refused => "ChatGPT refused the refresh token.",
+            Self::Unavailable(_) => "ChatGPT's token refresh could not be completed.",
+        })
+    }
+}
+
+impl std::error::Error for CodexRefreshError {}
+
+impl From<CodexRefreshError> for OAuthError {
+    fn from(error: CodexRefreshError) -> Self {
+        match error {
+            CodexRefreshError::MissingRefreshToken => {
+                Self::InvalidResponse("openai-codex credentials missing refresh token".into())
+            }
+            CodexRefreshError::Refused => {
+                Self::RefreshFailed("openai-codex refresh token was refused".into())
+            }
+            CodexRefreshError::Unavailable(error) => error,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OpenAICodexOAuthProvider {
     pub token_url: String,
@@ -123,7 +165,10 @@ impl OpenAICodexOAuthProvider {
         &self,
         refresh_token: &str,
         client: &dyn HttpClient,
-    ) -> Result<OAuthTokenResponse, OAuthError> {
+    ) -> Result<OAuthTokenResponse, CodexRefreshError> {
+        if refresh_token.trim().is_empty() {
+            return Err(CodexRefreshError::MissingRefreshToken);
+        }
         let form = url_encoded_form(&BTreeMap::from([
             ("client_id".to_string(), self.client_id.clone()),
             ("grant_type".to_string(), "refresh_token".to_string()),
@@ -136,15 +181,63 @@ impl OpenAICodexOAuthProvider {
                     .with_header("accept", "application/json")
                     .with_body(form),
             )
-            .await?;
-        if response.status >= 400 {
-            return Err(OAuthError::RefreshFailed(format!(
-                "openai-codex {}: {}",
-                response.status,
-                String::from_utf8_lossy(&response.body)
+            .await
+            .map_err(|error| CodexRefreshError::Unavailable(error.into()))?;
+        // These are responses from the token endpoint. A proxy failure or
+        // TLS/connection error never reaches this status classification.
+        if matches!(response.status, 400 | 401) {
+            return Err(CodexRefreshError::Refused);
+        }
+        if response.status != 200 {
+            return Err(CodexRefreshError::Unavailable(OAuthError::RefreshFailed(
+                format!(
+                    "openai-codex token refresh failed (HTTP {})",
+                    response.status
+                ),
             )));
         }
-        decode_token_response(&response.body)
+        let mut token =
+            decode_token_response(&response.body).map_err(CodexRefreshError::Unavailable)?;
+        if token.access_token.trim().is_empty() {
+            return Err(CodexRefreshError::Unavailable(OAuthError::InvalidResponse(
+                "openai-codex returned an empty access token".into(),
+            )));
+        }
+        token.refresh_token = token.refresh_token.filter(|value| !value.trim().is_empty());
+        token.id_token = token.id_token.filter(|value| !value.trim().is_empty());
+        Ok(token)
+    }
+
+    pub async fn refresh_credentials(
+        &self,
+        credentials: &OAuthCredentials,
+        client: &dyn HttpClient,
+    ) -> Result<OAuthCredentials, CodexRefreshError> {
+        let refresh_token = credentials
+            .refresh_token
+            .as_deref()
+            .filter(|token| !token.trim().is_empty())
+            .ok_or(CodexRefreshError::MissingRefreshToken)?;
+        let token = self.refresh_tokens(refresh_token, client).await?;
+        let mut extras = credentials.extras.clone();
+        extras.extend(Self::profile_extras_from_tokens(
+            &token.access_token,
+            token.id_token.as_deref(),
+        ));
+        if let Some(account_id) = Self::extract_account_id_from_jwt(&token.access_token) {
+            extras.insert("accountId".to_string(), JsonValue::string(account_id));
+        }
+        Ok(OAuthCredentials {
+            provider: OAuthProviderId::OpenAICodex,
+            access_token: token.access_token,
+            refresh_token: Some(
+                token
+                    .refresh_token
+                    .unwrap_or_else(|| refresh_token.to_string()),
+            ),
+            expires_at: Some(expires_from_now(token.expires_in)),
+            extras,
+        })
     }
 
     /// Extract the ChatGPT account id from the access token JWT claim.
@@ -265,28 +358,9 @@ impl OAuthProvider for OpenAICodexOAuthProvider {
         credentials: &OAuthCredentials,
         client: &dyn HttpClient,
     ) -> Result<OAuthCredentials, OAuthError> {
-        let refresh_token = require_refresh_token(credentials, self.id())?;
-        let token = self.refresh_tokens(refresh_token, client).await?;
-        let mut extras = credentials.extras.clone();
-        extras.extend(Self::profile_extras_from_tokens(
-            &token.access_token,
-            token.id_token.as_deref(),
-        ));
-        if let Some(account_id) = Self::extract_account_id_from_jwt(&token.access_token) {
-            extras.insert("accountId".to_string(), JsonValue::string(account_id));
-        }
-
-        Ok(OAuthCredentials {
-            provider: OAuthProviderId::OpenAICodex,
-            access_token: token.access_token,
-            refresh_token: Some(
-                token
-                    .refresh_token
-                    .unwrap_or_else(|| refresh_token.to_string()),
-            ),
-            expires_at: Some(expires_from_now(token.expires_in)),
-            extras,
-        })
+        self.refresh_credentials(credentials, client)
+            .await
+            .map_err(Into::into)
     }
 }
 

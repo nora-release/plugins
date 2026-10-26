@@ -3,7 +3,7 @@ pub(crate) mod fast;
 
 use async_trait::async_trait;
 use nora_ai::{
-    HttpClient, Model, ModelsCatalog, OAuthCredentials, OAuthError, OAuthProvider, OAuthProviderId,
+    HttpClient, Model, ModelsCatalog, OAuthCredentials, OAuthError, OAuthProviderId,
     ResolvedProviderAuth,
 };
 use nora_provider::{
@@ -54,12 +54,16 @@ impl ProviderAdapter for OpenAI {
         client: &dyn HttpClient,
     ) -> PluginResult<OAuthCredentials> {
         OpenAICodexOAuthProvider::default()
-            .refresh(credentials, client)
+            .refresh_credentials(credentials, client)
             .await
-            .map_err(|_| {
-                PluginError::authentication(
-                    "The provider account could not be renewed. Sign in again.",
-                )
+            .map_err(|error| {
+                if error.requires_sign_in() {
+                    PluginError::authentication(
+                        "ChatGPT could not renew this account. Sign in again.",
+                    )
+                } else {
+                    PluginError::transport("ChatGPT could not renew this account. Try again.")
+                }
             })
     }
     fn enrich_credentials(&self, value: &Value, credentials: &mut OAuthCredentials) {
@@ -374,7 +378,10 @@ fn cli_models(definition: &Definition, credentials: &Value, catalog: &ModelsCata
 }
 
 fn source_error(error: codex_source::SourceError) -> PluginError {
-    PluginError::authentication(error.message())
+    match error {
+        codex_source::SourceError::RefreshFailed => PluginError::transport(error.message()),
+        _ => PluginError::authentication(error.message()),
+    }
 }
 
 fn source_client(proxy: Option<&NetworkProxy>) -> PluginResult<nora_ai::ReqwestHttpClient> {
@@ -382,3 +389,7 @@ fn source_client(proxy: Option<&NetworkProxy>) -> PluginResult<nora_ai::ReqwestH
         nora_provider_plugin_sdk::http_client(proxy)?,
     ))
 }
+
+#[cfg(test)]
+#[path = "../test/refresh.test.rs"]
+mod refresh_tests;

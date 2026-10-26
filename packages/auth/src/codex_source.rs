@@ -36,6 +36,7 @@ pub enum SourceError {
     NotSignedIn,
     InvalidCredentials,
     AccountChanged,
+    RefreshRefused,
     RefreshFailed,
 }
 
@@ -52,7 +53,8 @@ impl SourceError {
             Self::AccountChanged => {
                 "Codex is signed in to a different account. Reconnect the account in Nora."
             }
-            Self::RefreshFailed => "Codex's sign-in could not be renewed. Sign in to Codex again.",
+            Self::RefreshRefused => "Codex's sign-in was refused. Sign in to Codex again.",
+            Self::RefreshFailed => "Codex's sign-in could not be renewed. Try again.",
         }
     }
 }
@@ -169,7 +171,13 @@ pub async fn resolve(
         let renewed = OpenAICodexOAuthProvider::default()
             .refresh_tokens(refresh, client)
             .await
-            .map_err(|_| SourceError::RefreshFailed)?;
+            .map_err(|error| {
+                if error.requires_sign_in() {
+                    SourceError::RefreshRefused
+                } else {
+                    SourceError::RefreshFailed
+                }
+            })?;
         write_back(&source.auth_file_path, &renewed, &account, subject)?;
         tokens = read(&source.auth_file_path)?;
         ensure_account(&tokens, &account, subject)?;

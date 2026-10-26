@@ -22,3 +22,7 @@ fs2 = "0.4"
 
 [dev-dependencies]
 futures = "0.3"
+
+[[test]]
+name = "refresh"
+path = "test/refresh-integration.test.rs"

@@ -946,3 +946,6 @@ async fn model_list_custom_auth_header_and_user_headers_override_all_generated_h
     assert_eq!(header("authorization"), None);
     assert_eq!(header("x-api-key"), None);
 }
+
+#[path = "decision_discovery.test.rs"]
+mod decisions;

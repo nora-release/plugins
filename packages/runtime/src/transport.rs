@@ -296,6 +296,9 @@ pub(crate) fn request_api(definition: &Definition, credentials: &Value, target: 
     if target.path().ends_with("/chat/completions") {
         return "openai-completions".into();
     }
+    if target.path().ends_with("/systemone") {
+        return "systemone".into();
+    }
     if target.path().ends_with("/responses") {
         return "openai-responses".into();
     }

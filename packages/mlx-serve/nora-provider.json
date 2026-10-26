@@ -91,6 +91,16 @@
         }
       ],
       "noList": false
+    },
+    "decisionDiscovery": "mlx-serve",
+    "operations": [
+      "decision"
+    ],
+    "operationsAuthMethods": {
+      "decision": [
+        "api",
+        "apiKey"
+      ]
     }
   }
 }

@@ -83,6 +83,16 @@
         }
       ],
       "noList": false
+    },
+    "decisionDiscovery": "ollama",
+    "operations": [
+      "decision"
+    ],
+    "operationsAuthMethods": {
+      "decision": [
+        "api",
+        "apiKey"
+      ]
     }
   }
 }

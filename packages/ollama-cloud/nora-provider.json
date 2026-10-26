@@ -48,6 +48,16 @@
           "baseURL": "https://ollama.com/v1"
         }
       ]
+    },
+    "decisionDiscovery": "ollama",
+    "operations": [
+      "decision"
+    ],
+    "operationsAuthMethods": {
+      "decision": [
+        "api",
+        "apiKey"
+      ]
     }
   }
 }

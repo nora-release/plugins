@@ -23,6 +23,16 @@ pub struct Definition {
     pub adapter: std::sync::Arc<dyn crate::ProviderAdapter>,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum DecisionDiscovery {
+    Omlx,
+    MlxServe,
+    Ollama,
+    Jev,
+    Bailian,
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
@@ -66,6 +76,8 @@ pub struct Config {
     pub catalog: String,
     #[serde(default)]
     pub model_discovery: Option<ModelDiscovery>,
+    #[serde(default)]
+    pub decision_discovery: Option<DecisionDiscovery>,
     pub key_provider: String,
     #[serde(default)]
     pub api_key_auth: Option<nora_ai::AuthScheme>,

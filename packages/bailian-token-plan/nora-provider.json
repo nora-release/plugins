@@ -148,6 +148,16 @@
         }
       ],
       "noList": false
+    },
+    "decisionDiscovery": "bailian",
+    "operations": [
+      "decision"
+    ],
+    "operationsAuthMethods": {
+      "decision": [
+        "api",
+        "apiKey"
+      ]
     }
   }
 }

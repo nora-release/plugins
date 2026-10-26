@@ -11,6 +11,9 @@ use std::path::Path;
 use std::time::Duration;
 use url::Url;
 
+#[path = "decision_discovery.rs"]
+mod decisions;
+
 #[path = "discovery_parse.rs"]
 pub mod parsing;
 
@@ -94,7 +97,11 @@ pub async fn discover_with_network(
     match remote.await {
         Ok(mut remote) => {
             supplement_models(definition, credentials, &mut remote.models);
+            let empty = remote.models.is_empty() && remote.failed_parts.is_empty();
             let mut result = json!({"models":remote.models,"supportedAPIs":remote.supported_apis,"source":"remote","allowUnknownModels":false});
+            if empty {
+                result["authoritativeEmpty"] = json!(true);
+            }
             if !remote.failed_parts.is_empty() {
                 result["failedModelParts"] = json!(remote.failed_parts);
                 result["modelError"] = json!("Some provider model lists could not be refreshed. The last successful lists were kept.");
@@ -149,6 +156,7 @@ pub(crate) fn supplement_models(
     credentials: Option<&Value>,
     models: &mut Vec<Model>,
 ) {
+    decisions::supplement(definition, credentials, models);
     for mut model in definition
         .adapter
         .supplemental_models(definition, credentials)
@@ -185,6 +193,10 @@ fn add_default_route(result: &mut Value, definition: &Definition, credentials: O
         .filter(|base| !base.base_url.is_empty())
         .map(|base| (base.api, base.base_url))
         .collect::<BTreeMap<_, _>>());
+    if definition.config.decision_discovery.is_some() {
+        result["apiEndpoints"]["systemone"] =
+            json!(models::effective_endpoint(definition, credentials));
+    }
     let templates=definition.config.model_routes.iter().filter_map(|rule| {
         let base=definition.config.model_discovery.as_ref()?.bases.iter().find(|base|base.api==rule.api)?;
         Some(json!({"pattern":rule.pattern,"model":{"api":base.api,"baseUrl":base.base_url,"contextWindow":0,"maxTokens":0}}))
@@ -516,6 +528,15 @@ async fn fetch_routes_with_budget(
                 match result {
                     Ok(mut models) => {
                         for model in &mut models.models {
+                            // Local services identify decisions in their own metadata;
+                            // a cached catalog's label must not override that live list.
+                            if decisions::uses_remote_metadata(definition)
+                                && model.info.decision == Some(true)
+                            {
+                                model.info.decision = None;
+                                model.info.chat = None;
+                                model.info.tool_calling = None;
+                            }
                             if !definition.adapter.preserve_model_api(credentials) {
                                 model.api = base.api.clone();
                             }
@@ -575,7 +596,32 @@ async fn fetch_routes_with_budget(
             }
         }
     }
+    let mut decisions_refreshed = false;
+    if let Some(result) =
+        decisions::fetch(definition, credentials, resolved, client, deadline).await
+    {
+        match result {
+            Ok(decisions) => {
+                decisions_refreshed = true;
+                for model in decisions {
+                    if !all.contains_key(&model.id) {
+                        order.push(model.id.clone());
+                    }
+                    supported_apis.remove(&model.id);
+                    all.insert(model.id.clone(), model);
+                }
+            }
+            Err(error) => {
+                last_error = error;
+                failed_parts.push(format!(
+                    "systemone|{}",
+                    models::effective_endpoint(definition, Some(credentials))
+                ));
+            }
+        }
+    }
     if all.is_empty()
+        && !decisions_refreshed
         && (listed.is_empty()
             || definition
                 .adapter
@@ -584,8 +630,18 @@ async fn fetch_routes_with_budget(
     {
         return Err(last_error);
     }
+    let mut models = order
+        .into_iter()
+        .filter_map(|id| all.remove(&id))
+        .collect::<Vec<_>>();
+    decisions::supplement(definition, Some(credentials), &mut models);
+    supported_apis.retain(|id, _| {
+        !models
+            .iter()
+            .any(|model| model.id == *id && model.api == "systemone")
+    });
     Ok(RemoteModels {
-        models: order.into_iter().filter_map(|id| all.remove(&id)).collect(),
+        models,
         supported_apis,
         failed_parts,
     })
@@ -644,6 +700,7 @@ async fn fetch_pages(
         }
         let Some((key, cursor)) = next_page(&payload, kind)? else {
             if models.is_empty()
+                && !decisions::uses_remote_metadata(definition)
                 && definition
                     .adapter
                     .supplemental_models(definition, Some(credentials))

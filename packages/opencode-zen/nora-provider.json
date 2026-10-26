@@ -83,6 +83,16 @@
         }
       ],
       "noList": false
+    },
+    "decisionDiscovery": "jev",
+    "operations": [
+      "decision"
+    ],
+    "operationsAuthMethods": {
+      "decision": [
+        "api",
+        "apiKey"
+      ]
     }
   }
 }

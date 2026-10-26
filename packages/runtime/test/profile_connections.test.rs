@@ -60,6 +60,70 @@ fn request(credentials: Value, url: String) -> FetchRequest {
 }
 
 #[tokio::test]
+async fn local_profiles_list_models_and_send_each_protocol_to_the_custom_server() {
+    for id in ["ollama", "omlx", "mlx-serve", "lmstudio"] {
+        let endpoint = Endpoint::start().await;
+        let manifest: Value = serde_json::from_slice(
+            &std::fs::read(
+                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("..")
+                    .join(id)
+                    .join("nora-provider.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let plugin = plugin(manifest.clone(), manifest, json!({})).await;
+        let connected = plugin.authorize(json!({"authMethodID":"apiKey", "inputs":{"endpoint":format!("{}/v1",endpoint.base)}})).await.unwrap();
+        let credentials = connected["credentials"].clone();
+        let result = plugin.models(context(credentials.clone())).await.unwrap();
+        assert_eq!(result["source"], "remote", "{id}: {result}");
+        assert_eq!(
+            result["models"][0]["baseUrl"],
+            format!("{}/v1", endpoint.base)
+        );
+        let mut paths = vec!["/v1/chat/completions"];
+        if id != "lmstudio" {
+            paths.push("/v1/messages");
+        }
+        if matches!(id, "omlx" | "mlx-serve") {
+            paths.push("/v1/responses");
+        }
+        for path in &paths {
+            assert_eq!(
+                plugin
+                    .fetch(request(
+                        credentials.clone(),
+                        format!("{}{path}", endpoint.base)
+                    ))
+                    .await
+                    .unwrap()
+                    .status,
+                200,
+                "{id} {path}"
+            );
+        }
+        let captured = endpoint.requests.lock().unwrap();
+        assert!(
+            captured
+                .iter()
+                .filter(|request| request.starts_with("GET "))
+                .filter_map(|request| request.split_whitespace().nth(1))
+                .any(|target| target.split('?').next() == Some("/v1/models")),
+            "{id}: {captured:?}"
+        );
+        for path in paths {
+            assert!(
+                captured
+                    .iter()
+                    .any(|request| request.starts_with(&format!("POST {path} "))),
+                "{id} {path}: {captured:?}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
 async fn adding_and_changing_an_additional_api_keeps_the_primary_request_working() {
     let primary = Endpoint::start().await;
     let additional = Endpoint::start().await;

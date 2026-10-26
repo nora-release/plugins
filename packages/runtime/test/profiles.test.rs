@@ -49,19 +49,12 @@ fn plan_models_keep_native_protocols_and_do_not_include_unrelated_catalog_models
 }
 
 #[test]
-fn endpoint_selection_requires_explicit_account_input_and_rejects_embedded_credentials() {
+fn endpoint_selection_requires_explicit_account_input() {
     let mut definition = definition();
     definition.config.profiles[1].custom_endpoint = true;
     definition.config.profiles[1].endpoint_required = true;
     let mut credentials = OAuthCredentials::api_key(nora_ai::OAuthProviderId::ApiKey, "key");
     assert!(assign(&definition, "profile-api", &json!({}), &mut credentials).is_err());
-    assert!(assign(
-        &definition,
-        "profile-api",
-        &json!({"endpoint":"https://secret@example.invalid/v1"}),
-        &mut credentials
-    )
-    .is_err());
     assign(
         &definition,
         "profile-api",
@@ -73,6 +66,116 @@ fn endpoint_selection_requires_explicit_account_input_and_rejects_embedded_crede
     let configured = configured(definition.clone(), Some(&saved)).unwrap();
     assert_eq!(configured.base_url, "http://127.0.0.1:1234/v1");
     assert!(super::configured(definition, Some(&json!({"profile":"api","access":"key"}))).is_err());
+}
+
+fn local_definition(id: &str) -> Definition {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join(id)
+        .join("nora-provider.json");
+    Definition::parse(serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()).unwrap()
+}
+
+#[test]
+fn local_service_addresses_preserve_every_api_path() {
+    for id in ["ollama", "omlx", "mlx-serve", "lmstudio"] {
+        let original = local_definition(id);
+        for (input, origin) in [
+            ("http://127.0.0.1:9000/v1", "http://127.0.0.1:9000"),
+            ("localhost:11435", "http://localhost:11435"),
+            ("192.168.1.5:11434", "http://192.168.1.5:11434"),
+            ("myhost", "http://myhost"),
+            (" http://box:9000/api/?x=1#y ", "http://box:9000"),
+            ("https://local.example.com", "https://local.example.com"),
+            ("[::1]:11434", "http://[::1]:11434"),
+            ("HTTP://Box:1", "http://box:1"),
+        ] {
+            let mut credentials = OAuthCredentials::api_key(nora_ai::OAuthProviderId::ApiKey, "");
+            assign(
+                &original,
+                "apiKey",
+                &json!({"endpoint":input}),
+                &mut credentials,
+            )
+            .unwrap_or_else(|error| panic!("{id} {input}: {error}"));
+            let saved = serde_json::to_value(&credentials).unwrap();
+            let moved = configured(original.clone(), Some(&saved))
+                .unwrap_or_else(|error| panic!("{id} {input}: {error}"));
+            let bases = moved.config.model_discovery.unwrap().bases;
+            assert_eq!(bases.len(), original.config.profiles[0].bases.len());
+            for (base, prior) in bases.iter().zip(&original.config.profiles[0].bases) {
+                let path = url::Url::parse(&prior.base_url).unwrap().path().to_owned();
+                assert_eq!(base.api, prior.api);
+                assert_eq!(
+                    base.base_url,
+                    format!("{origin}{path}").trim_end_matches('/'),
+                    "{id} {input}"
+                );
+            }
+            assert_eq!(moved.base_url, bases[0].base_url);
+            // Values already saved by older releases must use the same interpretation.
+            let legacy = configured(original.clone(), Some(&json!({"endpoint":input}))).unwrap();
+            assert_eq!(legacy.base_url, moved.base_url);
+        }
+    }
+}
+
+#[test]
+fn local_service_addresses_discard_private_userinfo_and_pasted_query_before_saving() {
+    let original = local_definition("omlx");
+    let mut credentials = OAuthCredentials::api_key(nora_ai::OAuthProviderId::ApiKey, "");
+    assign(
+        &original,
+        "apiKey",
+        &json!({"endpoint":"https://private:secret@box:8443/api?token=private#fragment"}),
+        &mut credentials,
+    )
+    .unwrap();
+    let saved = serde_json::to_value(&credentials).unwrap();
+    assert_eq!(saved["extras"]["endpoint"], "https://box:8443");
+    let moved = configured(original, Some(&saved)).unwrap();
+    for base in moved.config.model_discovery.unwrap().bases {
+        assert!(base.base_url.starts_with("https://box:8443"));
+        assert!(!base.base_url.contains("private"));
+        assert!(!base.base_url.contains("secret"));
+    }
+}
+
+#[test]
+fn local_service_addresses_reject_invalid_authorities_and_keep_optional_defaults() {
+    let original = local_definition("ollama");
+    for input in [
+        "ftp://box:9000",
+        "http://",
+        ":11434",
+        "my ollama box",
+        "http://my host:11434",
+        "localhost:abc",
+        "localhost:70000",
+        "http://localhost:0",
+        "http:///missing-host",
+        "box:9000/path\npart",
+    ] {
+        let mut credentials = OAuthCredentials::api_key(nora_ai::OAuthProviderId::ApiKey, "");
+        assert!(
+            assign(
+                &original,
+                "apiKey",
+                &json!({"endpoint":input}),
+                &mut credentials
+            )
+            .is_err(),
+            "{input}"
+        );
+        assert!(
+            configured(original.clone(), Some(&json!({"endpoint":input}))).is_err(),
+            "{input}"
+        );
+    }
+    for input in ["", "  ", "\t"] {
+        let moved = configured(original.clone(), Some(&json!({"endpoint":input}))).unwrap();
+        assert_eq!(moved.base_url, original.base_url);
+    }
 }
 
 #[tokio::test]

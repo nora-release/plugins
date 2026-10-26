@@ -60,6 +60,44 @@ fn endpoint(value: &str) -> PluginResult<url::Url> {
     }
     Ok(url)
 }
+
+// A local service address changes the origin, not the paths of its APIs.
+// Accept pasted API URLs, but never persist their user info, query or fragment.
+fn service_address(value: &str) -> PluginResult<Option<url::Url>> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Ok(None);
+    }
+    let bad = || PluginError::invalid("Enter a service address such as http://localhost:11434.");
+    if value.contains([' ', '\t', '\r', '\n']) {
+        return Err(bad());
+    }
+    let value = if value.contains("://") {
+        value.to_owned()
+    } else {
+        format!("http://{value}")
+    };
+    // URL parsers may repair a missing authority; a service address must have one.
+    if value
+        .split_once("://")
+        .is_none_or(|(_, rest)| rest.starts_with(['/', '\\', '?', '#']))
+    {
+        return Err(bad());
+    }
+    let mut url = url::Url::parse(&value).map_err(|_| bad())?;
+    if !matches!(url.scheme(), "http" | "https")
+        || url.host_str().is_none()
+        || url.port() == Some(0)
+    {
+        return Err(bad());
+    }
+    url.set_username("").map_err(|_| bad())?;
+    url.set_password(None).map_err(|_| bad())?;
+    url.set_path("");
+    url.set_query(None);
+    url.set_fragment(None);
+    Ok(Some(url))
+}
 pub(crate) fn validate(definition: &Definition) -> PluginResult<()> {
     if definition.config.profiles.len() > 24 {
         return Err(invalid());
@@ -141,19 +179,19 @@ pub(crate) fn assign(
         .extras
         .insert("plan".into(), JsonValue::string(&profile.name));
     if profile.custom_endpoint {
-        let supplied = inputs
-            .get("endpoint")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty());
+        let supplied = service_address(
+            inputs
+                .get("endpoint")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+        )?;
         if profile.endpoint_required && supplied.is_none() {
             return Err(PluginError::invalid("Enter the address of your provider."));
         }
         if let Some(value) = supplied {
-            endpoint(value)?;
             credentials.extras.insert(
                 "endpoint".into(),
-                JsonValue::string(value.trim_end_matches('/')),
+                JsonValue::string(value.as_str().trim_end_matches('/')),
             );
         }
     }
@@ -187,43 +225,26 @@ pub(crate) fn configured(
     .clone();
     let mut bases = profile.bases;
     if profile.custom_endpoint {
-        if profile.endpoint_required
-            && value.is_some()
-            && value
+        let supplied = service_address(
+            value
                 .and_then(|value| {
                     value
                         .get("endpoint")
                         .or_else(|| value.pointer("/extras/endpoint"))
                 })
                 .and_then(Value::as_str)
-                .is_none()
-        {
+                .unwrap_or_default(),
+        )?;
+        if profile.endpoint_required && value.is_some() && supplied.is_none() {
             return Err(PluginError::authentication(
                 "Reconnect this account with its provider address.",
             ));
         }
-        if let Some(value) = value
-            .and_then(|value| {
-                value
-                    .get("endpoint")
-                    .or_else(|| value.pointer("/extras/endpoint"))
-            })
-            .and_then(Value::as_str)
-        {
-            let supplied = endpoint(value)?;
-            let default = endpoint(&bases[0].base_url)?;
+        if let Some(supplied) = supplied {
             for base in &mut bases {
                 let original = endpoint(&base.base_url)?;
-                if original.origin() != default.origin() {
-                    return Err(invalid());
-                }
-                let prefix = default.path().trim_end_matches('/');
-                let suffix = original.path().strip_prefix(prefix).ok_or_else(invalid)?;
                 let mut target = supplied.clone();
-                target.set_path(&format!(
-                    "{}{suffix}",
-                    supplied.path().trim_end_matches('/')
-                ));
+                target.set_path(original.path());
                 base.base_url = target.to_string().trim_end_matches('/').into();
             }
         }

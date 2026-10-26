@@ -15,12 +15,14 @@ async fn tasks(
             None,
         )
         .await;
-        if let Ok(reply) = reply {
-            if reply.code == 0 {
+        match reply {
+            Err(error) if error.code == refusal::CODE => return Err(error),
+            Ok(reply) if reply.code == 0 => {
                 if let Some(tasks) = reply.data.as_array() {
                     return Ok((host, tasks.clone()));
                 }
             }
+            _ => {}
         }
     }
     Err(PluginError::transport(
@@ -102,7 +104,7 @@ pub(super) async fn fetch(
     let access = text(credentials, "access");
     let mut wallets = None;
     for host in [site, site.other()] {
-        if let Ok(reply) = transport::call(
+        let reply = transport::call(
             client,
             host.host(),
             "/agent-assetmgr/api/v2/wallets?biz_app_id=autoclaw",
@@ -110,12 +112,14 @@ pub(super) async fn fetch(
             access,
             None,
         )
-        .await
-        {
-            if reply.code == 0 && reply.data.is_object() {
+        .await;
+        match reply {
+            Err(error) if error.code == refusal::CODE => return Err(error),
+            Ok(reply) if reply.code == 0 && reply.data.is_object() => {
                 wallets = Some(reply.data);
                 break;
             }
+            _ => {}
         }
     }
     let data = wallets

@@ -184,7 +184,7 @@ pub(super) async fn renew(
     };
     let body = json!({"source_id":"autoclaw","device_id":device,"refresh_token":refresh});
     for host in [first, first.other()] {
-        let mut result = transport::call(
+        let mut result = transport::envelope(
             client,
             host.host(),
             "/userapi/v1/refresh",
@@ -194,7 +194,7 @@ pub(super) async fn renew(
         )
         .await?;
         if result.code == 400002 {
-            result = transport::call(
+            result = transport::envelope(
                 client,
                 host.host(),
                 "/userapi/v1/agent-refresh",
@@ -204,19 +204,23 @@ pub(super) async fn renew(
             )
             .await?;
         }
-        if result.code == 400000 {
+        if result.code == 400000 && host == first {
             continue;
         }
-        if result.code != 0 {
-            return Err(if result.code == 401001 {
-                signed_out()
-            } else {
-                PluginError::transport("AutoClaw could not refresh this sign-in.")
-            });
+        if result.code != 0 || !(200..300).contains(&result.status) {
+            return Err(
+                if result.code == 401001 || refusal::revoked(&result.message) {
+                    signed_out()
+                } else {
+                    PluginError::transport("AutoClaw could not refresh this sign-in.")
+                },
+            );
         }
         return tokens(&result.data, credentials, site, now());
     }
-    Err(signed_out())
+    Err(PluginError::transport(
+        "AutoClaw could not refresh this sign-in on either account server.",
+    ))
 }
 pub(super) async fn insert(provider: &Autoclaw, pending: Pending) -> PluginResult<String> {
     let mut entries = provider.pending.lock().await;

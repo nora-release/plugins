@@ -5,6 +5,7 @@ mod auth;
 mod chat;
 mod guide;
 mod models;
+mod refusal;
 mod transport;
 mod usage;
 
@@ -308,3 +309,11 @@ mod tests;
 #[cfg(test)]
 #[path = "../test/compiled.test.rs"]
 mod compiled_tests;
+
+#[cfg(test)]
+#[path = "../test/refusal.test.rs"]
+mod refusal_tests;
+
+#[cfg(test)]
+#[path = "../test/refusal-protocol.test.rs"]
+mod refusal_protocol_tests;

@@ -232,12 +232,19 @@ pub(super) async fn fetch(
         .to_string()
         .into_bytes();
     let client = provider.client(request.network_proxy.as_ref())?;
-    let credentials = provider
+    let credentials = match provider
         .current(
             client.as_ref(),
             request.credentials.as_ref().ok_or_else(signed_out)?,
         )
-        .await?;
+        .await
+    {
+        Ok(credentials) => credentials,
+        Err(error) if error.code == refusal::CODE => {
+            return Ok(response(403, BTreeMap::new(), json!({"error":{"message":error.message,"type":"permission_error","code":refusal::CODE}}).to_string().into_bytes(), "kept"));
+        }
+        Err(error) => return Err(error),
+    };
     let headers = headers(&request, provider.site, text(&credentials, "access"), model)?;
     let urls = if provider.site == Site::China {
         vec!["https://autoglm-acceleration-api.zhipuai.cn/autoclaw-proxy/proxy/autoclaw/chat/completions".into()]
@@ -303,6 +310,13 @@ pub(super) async fn fetch(
             ));
         }
         if matches!(status, 401 | 403) {
+            if let Some(message) = refusal::banned(&value) {
+                let message = refusal::redact(
+                    &message,
+                    &[text(&credentials, "access"), text(&credentials, "refresh")],
+                );
+                return Ok(response(403,headers,json!({"error":{"message":format!("AutoClaw: {message}"),"type":"permission_error","code":refusal::code(&value)}}).to_string().into_bytes(),"kept"));
+            }
             if index + 1 < count {
                 continue;
             }

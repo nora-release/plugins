@@ -149,6 +149,7 @@ async fn wrapper_keeps_api_authorization_account_profiles_and_usage_methods_avai
         account: "saved-api".into(),
         credentials: Some(authorized["credentials"].clone()),
         network_proxy: None,
+        ..Default::default()
     };
     let accounts = plugin.accounts(context.clone()).await.unwrap();
     assert_eq!(accounts["accounts"][0]["id"], "saved-api");
@@ -192,4 +193,55 @@ async fn ordinary_extension_methods_and_invalid_callbacks_are_forwarded_without_
         )
         .await
         .is_err());
+}
+
+#[tokio::test]
+async fn alpha_search_sdk_dispatch_negotiates_the_production_plugin_and_rejects_non_subscription_accounts(
+) {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let directory = Directory::new();
+    let (client, server) = tokio::io::duplex(65536);
+    let (input, output) = tokio::io::split(server);
+    let (reader, mut writer) = tokio::io::split(client);
+    let task = tokio::spawn(nora_provider_plugin_sdk::serve_io(
+        Arc::new(OpenAIPlugin::default()),
+        input,
+        output,
+    ));
+    let mut reader = BufReader::new(reader);
+    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let requests = [
+        json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":"openai","pluginDirectory":directory.0,"dataDirectory":directory.0.join("data"),"manifest":manifest,"hostCapabilities":{"httpRequestMeter":true}}}),
+        json!({"id":2,"method":"alphaSearch","params":{"account":"saved-api","credentials":{"type":"apiKey","key":"private-api-key"},"request":{"model":"gpt-fixture","commands":{}},"headers":{}}}),
+        json!({"id":3,"method":"alphaSearch","params":{"subscriptionAccountsEnabled":false,"account":"saved","credentials":oauth(),"request":{"model":"gpt-fixture","commands":{}},"headers":{}}}),
+    ];
+    for request in requests {
+        writer
+            .write_all(format!("{request}\n").as_bytes())
+            .await
+            .unwrap();
+        let mut line = String::new();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            reader.read_line(&mut line),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        let response: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(response["id"], request["id"]);
+        assert!(
+            response.get("event").is_none(),
+            "no HTTP meter or vendor call: {response}"
+        );
+        if request["id"] == 1 {
+            assert_eq!(
+                response["result"]["capabilities"]["sdkFeatures"]["alphaSearch"],
+                1
+            );
+        } else {
+            assert!(response.get("error").is_some(), "{response}");
+        }
+    }
+    task.abort();
 }

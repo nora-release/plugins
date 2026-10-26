@@ -222,6 +222,7 @@ async fn live_catalog_preserves_native_ids_and_relative_credit_multipliers() {
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -254,6 +255,7 @@ async fn usage_reads_a_larger_real_bill_page_only_when_the_first_is_full() {
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -271,6 +273,8 @@ async fn native_fetch_preserves_tools_and_options_while_restoring_the_requested_
     let body = json!({"model":"chosen-id","messages":[{"role":"user","content":"hello"}],"tools":[{"type":"function","function":{"name":"read","parameters":{"type":"object"}}}],"top_p":0.4,"stop":["END"]});
     let bytes = serde_json::to_vec(&body).unwrap();
     let request = FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials()),

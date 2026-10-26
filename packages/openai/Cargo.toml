@@ -18,6 +18,7 @@ tokio = { version = "1", features = ["rt", "macros"] }
 url = "2"
 chrono = "0.4"
 uuid = { version = "1", features = ["v4"] }
+fs2 = "0.4"
 
 [dev-dependencies]
 futures = "0.3"

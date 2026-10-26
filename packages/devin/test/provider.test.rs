@@ -54,6 +54,7 @@ async fn live_models_come_from_real_protobuf_not_a_static_success() {
             account: "one".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -159,6 +160,7 @@ async fn read_only_source_uses_verified_identity_and_never_saves_its_private_tok
         account: "one".into(),
         credentials: Some(result["credentials"].clone()),
         network_proxy: None,
+        ..Default::default()
     })
     .await
     .unwrap();
@@ -215,6 +217,7 @@ async fn http_errors_and_model_discovery_failures_do_not_leak_account_data() {
             account: "one".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .err()
@@ -236,6 +239,7 @@ async fn usage_is_live_and_daily_weekly_quotas_exclude_free_models() {
             account: "one".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();

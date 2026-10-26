@@ -7,9 +7,48 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant, SystemTime};
 use tokio::io::AsyncReadExt;
 
+#[path = "seen_clients.rs"]
+mod seen_clients;
+
 pub(crate) const MINIMUM: &str = "0.159.2";
 const CHECK_EVERY: Duration = Duration::from_secs(10 * 60);
 const MAX_CACHE_BYTES: u64 = 8 * 1024 * 1024;
+
+fn seen() -> &'static std::sync::Mutex<seen_clients::SeenClients> {
+    static SEEN: OnceLock<std::sync::Mutex<seen_clients::SeenClients>> = OnceLock::new();
+    SEEN.get_or_init(Default::default)
+}
+
+pub(crate) fn initialize(directory: &Path) {
+    if let Ok(mut seen) = seen().lock() {
+        seen.configure(directory);
+    }
+}
+
+pub(crate) fn observe(user_agent: Option<&str>, version: Option<&str>, originator: Option<&str>) {
+    if let Ok(mut seen) = seen().lock() {
+        seen.observe(user_agent, version, originator);
+    }
+}
+
+pub(crate) fn observe_headers(headers: &std::collections::BTreeMap<String, String>) {
+    let header = |name: &str| {
+        headers
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str())
+    };
+    observe(
+        header("user-agent"),
+        header("version"),
+        header("originator"),
+    );
+}
+
+fn with_seen(version: &str) -> String {
+    let observed = seen().lock().ok().and_then(|mut seen| seen.get());
+    newest([Some(version), observed.as_deref()])
+}
 
 #[derive(Default)]
 struct Cache {
@@ -39,13 +78,13 @@ pub(crate) async fn current() -> String {
         .checked_at
         .is_some_and(|at| at.elapsed() < CHECK_EVERY)
     {
-        return cache.version.clone();
+        return with_seen(&cache.version);
     }
     let cached = models_cache_path().and_then(|path| cache_version(&path));
     let installed = installed_version(&mut cache.failed_binaries).await;
     cache.version = newest([Some(MINIMUM), cached.as_deref(), installed.as_deref()]);
     cache.checked_at = Some(Instant::now());
-    cache.version.clone()
+    with_seen(&cache.version)
 }
 
 pub(crate) fn headers(version: &str) -> std::collections::BTreeMap<String, String> {
@@ -252,7 +291,7 @@ async fn native_version(path: &Path) -> Result<Option<String>, ()> {
     .map_err(|_| ())
 }
 
-fn newest<'a>(versions: impl IntoIterator<Item = Option<&'a str>>) -> String {
+pub(crate) fn newest<'a>(versions: impl IntoIterator<Item = Option<&'a str>>) -> String {
     versions
         .into_iter()
         .flatten()

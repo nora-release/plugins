@@ -56,6 +56,13 @@
           "baseURL": "https://api.kimi.com/coding"
         }
       ]
+    },
+    "ownSearch": {
+      "version": 1,
+      "manual": true
+    },
+    "sdkCapabilities": {
+      "webSearch": 1
     }
   }
 }

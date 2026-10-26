@@ -73,6 +73,41 @@ fn cli_sources_are_explicit_regular_files_and_are_never_modified() {
     assert!(read_source("relative.json").is_err());
     std::fs::remove_file(path).unwrap();
 }
+
+#[test]
+fn cli_source_uses_the_default_home_path_and_explicit_paths_take_precedence() {
+    let home = std::env::temp_dir().join(format!("commandcode-home-{}", state()));
+    let directory = home.join(".commandcode");
+    std::fs::create_dir_all(&directory).unwrap();
+    let default = directory.join("auth.json");
+    let explicit = home.join("other.json");
+    let original = br#"{"apiKey":"default-key","userId":"default-user"}"#;
+    let other = br#"{"apiKey":"selected-key","userId":"selected-user"}"#;
+    std::fs::write(&default, original).unwrap();
+    std::fs::write(&explicit, other).unwrap();
+    for empty in ["", "  "] {
+        let (path, account) = read_source_with_home(empty, Some(home.clone())).unwrap();
+        assert_eq!(path, default);
+        assert_eq!(account["key"], "default-key");
+    }
+    let (path, account) =
+        read_source_with_home("~/.commandcode/auth.json", Some(home.clone())).unwrap();
+    assert_eq!(path, default);
+    assert_eq!(account["key"], "default-key");
+    let (path, account) =
+        read_source_with_home(explicit.to_str().unwrap(), Some(home.clone())).unwrap();
+    assert_eq!(path, explicit);
+    assert_eq!(account["key"], "selected-key");
+    assert!(read_source_with_home(explicit.to_str().unwrap(), None).is_ok());
+    assert!(read_source_with_home("", None).is_err());
+    assert_eq!(std::fs::read(&default).unwrap(), original);
+    assert_eq!(std::fs::read(&explicit).unwrap(), other);
+    std::fs::remove_file(&default).unwrap();
+    assert!(read_source_with_home("", Some(home.clone())).is_err());
+    std::fs::write(&default, b"invalid json").unwrap();
+    assert!(read_source_with_home("", Some(home.clone())).is_err());
+    std::fs::remove_dir_all(home).unwrap();
+}
 #[cfg(unix)]
 #[test]
 fn cli_sources_reject_symlinks() {

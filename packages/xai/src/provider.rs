@@ -21,11 +21,33 @@ mod media;
 #[path = "request.rs"]
 mod request;
 
-#[derive(Debug)]
-pub struct Xai;
+#[path = "namespaces.rs"]
+mod namespaces;
+
+#[path = "rate_limits.rs"]
+mod rate_limits;
+
+#[derive(Debug, Default)]
+pub struct Xai {
+    rate_limits: rate_limits::RateLimits,
+}
+
+#[cfg(test)]
+#[path = "../test/rate_limit.test.rs"]
+mod rate_limit_tests;
 
 #[async_trait]
 impl ProviderAdapter for Xai {
+    fn transform_response(
+        &self,
+        request: &nora_provider_plugin_sdk::FetchRequest,
+        response: nora_provider_plugin_sdk::FetchResponse,
+    ) -> PluginResult<nora_provider_plugin_sdk::FetchResponse> {
+        namespaces::response(request, response)
+    }
+    fn initialize_data_directory(&self, directory: &std::path::Path) -> PluginResult<()> {
+        self.rate_limits.initialize(directory)
+    }
     fn id(&self) -> Option<&'static str> {
         Some("xai")
     }
@@ -200,7 +222,7 @@ impl ProviderAdapter for Xai {
         credentials: &OAuthCredentials,
         proxy: Option<&NetworkProxy>,
     ) -> PluginResult<ResolvedProviderAuth> {
-        grok_source::resolve(
+        let mut auth = grok_source::resolve(
             credentials,
             grok_source::AgentAuthResolveReason::Initial,
             proxy,
@@ -210,13 +232,16 @@ impl ProviderAdapter for Xai {
             PluginError::authentication(
                 "Reconnect the Grok Build account. Its local identity or session changed.",
             )
-        })
+        })?;
+        rate_limits::bind_auth(credentials, &mut auth);
+        Ok(auth)
     }
     fn enrich_auth(&self, credentials: &OAuthCredentials, auth: &mut ResolvedProviderAuth) {
         if credentials.provider != OAuthProviderId::XAI {
             nora_provider_auth::apply_xai_credentials_contract("xai-api-key", credentials, auth);
             return;
         }
+        rate_limits::bind_auth(credentials, auth);
         let version = grok_source::client_version(credentials);
         nora_provider_auth::apply_xai_oauth_session_contract_with_client(
             auth,
@@ -384,7 +409,24 @@ impl ProviderAdapter for Xai {
         account_id: Option<&str>,
         client: &dyn HttpClient,
     ) -> Result<Value, String> {
-        usage::fetch(auth, account_id, client).await
+        let mut usage = usage::fetch(auth, account_id, client).await?;
+        self.rate_limits
+            .apply(auth, &mut usage, chrono::Utc::now().timestamp_millis());
+        Ok(usage)
+    }
+
+    fn observe_response(
+        &self,
+        credentials: &Value,
+        status: u16,
+        headers: &BTreeMap<String, String>,
+    ) {
+        self.rate_limits.observe(
+            credentials,
+            status,
+            headers,
+            chrono::Utc::now().timestamp_millis(),
+        );
     }
 
     async fn fetch_override(

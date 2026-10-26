@@ -86,3 +86,36 @@ fn free_accounts_do_not_show_a_premium_allowance_they_have_never_had() {
         .iter()
         .all(|balance| balance["id"] != "premium_interactions"));
 }
+
+#[test]
+fn finite_and_exhausted_pooled_allowances_keep_their_monthly_period() {
+    for quota in [
+        json!({"entitlement":100,"quota_remaining":50}),
+        json!({"entitlement":"100","quota_remaining":"50"}),
+        json!({"unlimited":true,"has_quota":false}),
+    ] {
+        let usage = parse(&json!({"quota_snapshots":{"premium_interactions":quota}}));
+        assert_eq!(usage["items"][0]["windowSeconds"], 30 * 24 * 3600);
+    }
+    let usage = parse(&json!({"quota_snapshots":{"chat":{"unlimited":true}}}));
+    assert!(usage["items"][0].get("windowSeconds").is_none());
+}
+
+#[test]
+fn plan_names_follow_github_entitlement_and_education_sku() {
+    for (plan, sku, expected) in [
+        ("individual", "", "Pro"),
+        ("individual_pro", "", "Pro+"),
+        ("individual_max", "", "Max"),
+        ("individual_edu", "", "Education"),
+        ("business", "", "Business"),
+        ("enterprise", "", "Enterprise"),
+        ("individual", "free_educational_quota", "Education"),
+        ("individual", "free_limited_copilot", "Free"),
+        ("future_plan", "", "Future_plan"),
+    ] {
+        let usage = parse(&json!({"copilot_plan":plan,"access_type_sku":sku}));
+        assert_eq!(usage["account"]["plan"], expected);
+        assert_eq!(usage["plan"], expected);
+    }
+}

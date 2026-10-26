@@ -101,6 +101,8 @@ fn question(model: &str) -> Value {
 }
 fn request(family: DecisionFamily, base: &str, model: &str) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "saved-account".into(),
         credentials: Some(credentials(family, base)),
@@ -135,6 +137,7 @@ fn context(credentials: Value) -> CallContext {
         account: "saved-account".into(),
         credentials: Some(credentials),
         network_proxy: None,
+        ..Default::default()
     }
 }
 

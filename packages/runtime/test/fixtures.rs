@@ -12,7 +12,7 @@ pub(crate) mod xai_provider;
 pub(crate) fn test_adapter(id: &str) -> std::sync::Arc<dyn ProviderAdapter> {
     match id {
         "openai" | "openai-codex" => std::sync::Arc::new(openai_provider::OpenAI),
-        "xai" => std::sync::Arc::new(xai_provider::Xai),
+        "xai" => std::sync::Arc::new(xai_provider::Xai::default()),
         "anthropic" => std::sync::Arc::new(anthropic_provider::Anthropic),
         "github-copilot" => std::sync::Arc::new(copilot_provider::Copilot::default()),
         _ => adapter::generic(),

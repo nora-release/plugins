@@ -5,6 +5,7 @@ mod auth;
 mod checkin;
 mod models;
 mod request;
+mod search;
 mod stream;
 mod tools;
 mod usage;
@@ -134,6 +135,12 @@ impl WorkBuddy {
 
 #[async_trait]
 impl ProviderPlugin for WorkBuddy {
+    fn supports_web_search(&self) -> bool {
+        true
+    }
+    async fn web_search(&self, context: CallContext, query: String) -> PluginResult<Value> {
+        search::search(self, context, &query).await
+    }
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
         if params.api_version != API_VERSION
             || params.plugin_id != self.site.id()

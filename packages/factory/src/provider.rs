@@ -348,7 +348,12 @@ impl ProviderPlugin for Factory {
             if !(200..300).contains(&status) {
                 return Err(network::error(status));
             }
-            return usage::parse(&value, &account, &context.account);
+            return usage::parse(
+                &value,
+                &account,
+                &context.account,
+                self.core.config()?.manifest["config"]["standard_only"] == true,
+            );
         }
     }
     async fn fetch(&self, original: FetchRequest) -> PluginResult<FetchResponse> {

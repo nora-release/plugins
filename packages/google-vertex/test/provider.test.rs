@@ -16,6 +16,8 @@ fn context(config: &Config) -> CallContext {
 }
 fn request(config: &Config) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(saved(config)),

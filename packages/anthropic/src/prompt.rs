@@ -57,6 +57,31 @@ fn render(parts: &[Value], blocks: &mut Vec<Value>, buffer: &mut String) -> Plug
                 }
                 blocks.push(part.clone());
             }
+            "server_tool_use" if part["name"] == "web_search" => {
+                let query = cli::text(part.pointer("/input/query"), 16384).ok_or_else(|| {
+                    PluginError::invalid("The previous Claude web search query is invalid.")
+                })?;
+                buffer.push_str(&format!(
+                    "<previous_web_search>\nQuery: {}\n</previous_web_search>\n",
+                    serde_json::to_string(query).unwrap()
+                ));
+            }
+            "web_search_tool_result" => {
+                buffer.push_str("<previous_web_search_sources>\n");
+                for page in super::search_results::public_pages(&part["content"])? {
+                    buffer.push_str(&format!(
+                        "{}\n",
+                        json!({"title":page["title"],"url":page["url"],"page_age":page["page_age"]})
+                    ));
+                }
+                if let Some(error) = cli::text(part.pointer("/content/error_code"), 256) {
+                    buffer.push_str(&format!(
+                        "Search error: {}\n",
+                        serde_json::to_string(error).unwrap()
+                    ));
+                }
+                buffer.push_str("</previous_web_search_sources>\n");
+            }
             "tool_use" => {
                 let name = cli::text(part.get("name"), 4096).ok_or_else(|| {
                     PluginError::invalid("The Claude history tool name is invalid.")
@@ -110,16 +135,7 @@ pub(crate) fn initial(request: &Value) -> PluginResult<Vec<Value>> {
         .filter_map(|part| part["text"].as_str().map(str::to_owned))
         .collect::<Vec<_>>()
         .join("\n");
-    if let Some(schema) = request
-        .pointer("/output_config/format")
-        .filter(|format| format["type"] == "json_schema")
-        .and_then(|format| format.get("schema"))
-        .filter(|schema| schema.is_object())
-    {
-        system.push_str(&format!(
-            "\nRespond with a single JSON value matching this schema: {schema}"
-        ));
-    }
+    system.push_str(&mcp::tool_choice_ask(request)?);
     if !system.is_empty() {
         blocks.push(json!({"type":"text","text":format!("<external_system_instructions>\n{system}\n</external_system_instructions>\n"),"cache_control":{"type":"ephemeral","ttl":"1h"}}));
     }

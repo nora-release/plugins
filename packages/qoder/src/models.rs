@@ -200,7 +200,7 @@ impl Entry {
         model.base_url = deployment.api.clone();
         model.name = self.name.clone();
         model.context_window = self.context;
-        model.max_tokens = 32000;
+        model.max_tokens = if site.is_work() { 0 } else { 32000 };
         model.reasoning = self.thinks;
         model.input = if self.images {
             vec![InputModality::Text, InputModality::Image]
@@ -225,9 +225,37 @@ impl Entry {
         Ok(value)
     }
 }
+#[cfg(test)]
 pub(crate) fn listing(value: &Value) -> PluginResult<Vec<Entry>> {
+    listing_for(value, Site::International)
+}
+pub(crate) fn listing_for(value: &Value, site: Site) -> PluginResult<Vec<Entry>> {
     if !value.is_object() {
-        return Err(transport("Qoder returned no model catalog."));
+        return Err(transport("The provider returned no model catalog."));
+    }
+    if site.is_work() {
+        let rows = value
+            .get("qwork")
+            .and_then(Value::as_array)
+            .ok_or_else(|| transport("QwenWork returned no qwork catalog."))?;
+        if rows.len() > 8192 {
+            return Err(transport(
+                "The QwenWork model catalog exceeds its size limit.",
+            ));
+        }
+        let mut seen = BTreeSet::new();
+        let entries = rows
+            .iter()
+            .filter(|row| {
+                !["", "auto", "default"].contains(&text(row, "key"))
+                    && seen.insert(text(row, "key").to_owned())
+            })
+            .map(Entry::parse)
+            .collect::<PluginResult<Vec<_>>>()?;
+        if entries.is_empty() {
+            return Err(transport("QwenWork returned no account models."));
+        }
+        return Ok(entries);
     }
     let app = value
         .get("app")

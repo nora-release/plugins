@@ -78,6 +78,7 @@ impl Configuration {
                     "The provider executable does not match its manifest.",
                 ));
             }
+            adapter.initialize_data_directory(&params.data_directory)?;
             definition.adapter = adapter.clone();
             installed.adapter = adapter.clone();
         }

@@ -70,3 +70,30 @@ fn gemini_keeps_nontext_files_signatures_and_function_ids() {
         "call-one"
     );
 }
+
+#[test]
+fn billing_attribution_line_does_not_delete_the_instruction_text_in_the_same_block() {
+    for system in [
+        json!("x-anthropic-billing-header: cc_version=private\nFollow the user's task exactly."),
+        json!([{"type":"text","text":"x-anthropic-billing-header: cc_version=private\nFollow the user's task exactly.","cache_control":{"type":"ephemeral"}}]),
+    ] {
+        let has_cache_control = system.is_array();
+        let mut body = json!({"system":system,"messages":[]});
+        adapt(&mut body, Wire::Anthropic);
+        let parts = body["system"].as_array().unwrap();
+        assert!(parts[0]["text"].as_str().unwrap().starts_with(DROID));
+        assert!(parts.iter().any(|part| part["text"]
+            .as_str()
+            .is_some_and(|text| text.contains("Follow the user's task exactly."))));
+        assert!(!parts.iter().any(|part| part["text"]
+            .as_str()
+            .is_some_and(|text| text.contains("cc_version=private"))));
+        if has_cache_control {
+            let part = parts
+                .iter()
+                .find(|part| part.get("cache_control").is_some())
+                .expect("The instruction block keeps its cache metadata");
+            assert_eq!(part["cache_control"]["type"], "ephemeral");
+        }
+    }
+}

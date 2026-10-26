@@ -19,7 +19,12 @@ fn end(value: &Value) -> Option<Value> {
     let value = nora_provider_subscription_core::iso(ms);
     (!value.is_null()).then_some(value)
 }
-pub(crate) fn parse(value: &Value, account: &Account, id: &str) -> PluginResult<Value> {
+pub(crate) fn parse(
+    value: &Value,
+    account: &Account,
+    id: &str,
+    standard_only: bool,
+) -> PluginResult<Value> {
     if !value
         .pointer("/limits/standard")
         .is_some_and(Value::is_object)
@@ -50,7 +55,12 @@ pub(crate) fn parse(value: &Value, account: &Account, id: &str) -> PluginResult<
                     PluginError::transport("Factory returned an invalid billing percentage.")
                 })?
                 .clamp(0., 100.);
-            let mut item = json!({"id":format!("{group}-{key}"),"label":format!("{label}{name}"),"type":"quota","used":used,"limit":100,"remaining":100.-used,"usedPercent":used,"value":format!("{used:.0}% used"),"unit":"percent","windowSeconds":seconds,"countsForRouting":!extra,"modelIDs":models::ids(is_core)});
+            let mut item = json!({"id":format!("{group}-{key}"),"label":format!("{label}{name}"),"type":"quota","used":used,"limit":100,"remaining":100.-used,"usedPercent":used,"value":format!("{used:.0}% used"),"unit":"percent","windowSeconds":seconds,"countsForRouting":if is_core { !standard_only && !extra } else { standard_only || !extra }});
+            if is_core {
+                item["modelIDs"] = json!(models::ids(true));
+            } else if !standard_only {
+                item["notModels"] = json!(models::ids(true));
+            }
             if let Some(reset) = end(&window["windowEnd"]) {
                 item["resetsAt"] = reset;
             }

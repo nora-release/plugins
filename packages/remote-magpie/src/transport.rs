@@ -123,6 +123,14 @@ pub(crate) fn request_headers(
     }
     out.entry("user-agent".into())
         .or_insert_with(|| "nora/1.1.0".into());
+    if request
+        .metadata
+        .get("noraSearching")
+        .is_some_and(|value| value == "1")
+    {
+        out.insert("x-magpie-searching".into(), "1".into());
+        out.insert("user-agent".into(), "magpie/nora".into());
+    }
     out.insert("accept-encoding".into(), "identity".into());
     out.insert("authorization".into(), format!("Bearer {}", account.key));
     out

@@ -64,6 +64,7 @@ fn context() -> CallContext {
         account: "host-account".into(),
         credentials: Some(credential()),
         network_proxy: None,
+        ..Default::default()
     }
 }
 #[test]
@@ -144,6 +145,8 @@ async fn native_tool_calls_and_caller_parameters_are_forwarded_without_rewriting
     let body = json!({"model":"new-model","top_p":0.25,"messages":[{"role":"tool","tool_call_id":"c","content":"result"}],"tools":[{"type":"function","function":{"name":"read","parameters":{"type":"object"}}}]});
     let response = plugin
         .fetch(FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "account".into(),
             credentials: Some(credential()),

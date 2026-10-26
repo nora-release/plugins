@@ -34,6 +34,15 @@
   "config": {
     "catalog": "",
     "description": "Factory subscriptions and API keys. Models follow the Droid registry; account billing limits are queried live.",
-    "authTimeoutMs": 1140000
+    "authTimeoutMs": 1140000,
+    "options": [
+      {
+        "id": "standard_only",
+        "type": "boolean",
+        "label": "Standard usage only",
+        "description": "Switch accounts when any Standard usage window is exhausted. Droid Core and Extra usage remain visible and do not keep the account in use.",
+        "default": false
+      }
+    ]
   }
 }

@@ -8,28 +8,34 @@
     "type": "native"
   },
   "api": "openai-completions",
-  "baseURL": "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1",
+  "baseURL": "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
   "aliases": [],
   "authMethods": [
     {
       "id": "apiKey",
       "type": "api",
-      "label": "API key",
+      "label": "Cloudflare API token",
       "fields": [
         {
-          "id": "apiKey",
-          "key": "apiKey",
+          "id": "token",
+          "key": "token",
           "type": "password",
-          "label": "API key",
+          "label": "API token",
           "required": true
+        },
+        {
+          "id": "accountId",
+          "key": "accountId",
+          "type": "text",
+          "label": "Account ID",
+          "placeholder": "32 hexadecimal characters"
         }
       ]
     }
   ],
   "models": [],
   "config": {
-    "modelMetadata": true,
-    "connectionOptions": true,
+    "connectionOptions": false,
     "catalog": "cloudflare-workers-ai",
     "keyProvider": "cloudflare-workers-ai",
     "legacy": {
@@ -37,6 +43,10 @@
       "keyProvider": "cloudflare-workers-ai",
       "oauthProvider": null,
       "credentialProvider": "apiKey"
-    }
+    },
+    "accountId": "",
+    "baseTemplate": "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
+    "discoveryTTLMs": 3600000,
+    "maxConcurrency": 3
   }
 }

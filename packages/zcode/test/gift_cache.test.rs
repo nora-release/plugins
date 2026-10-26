@@ -19,6 +19,7 @@ fn context(stored: &Value) -> CallContext {
         account: "one".into(),
         credentials: Some(stored.clone()),
         network_proxy: None,
+        ..Default::default()
     }
 }
 fn queue_usage(client: &Client, value: Value, paid: bool) {

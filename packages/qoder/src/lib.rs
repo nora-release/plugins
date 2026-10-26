@@ -4,10 +4,12 @@ mod auth;
 mod codec;
 mod identity;
 mod models;
+mod queue;
 mod request;
 mod response;
 mod site;
 mod usage;
+mod work_usage;
 use async_trait::async_trait;
 use nora_ai::{HttpClient, HttpMethod, HttpRequest, HttpStreamingResponse, ReqwestHttpClient};
 use nora_provider_plugin_sdk::{
@@ -91,6 +93,28 @@ impl Qoder {
                 "The Qoder enterprise account has an invalid instance. Sign in again.",
             ));
         }
+        if self.site == Site::QwenWorkEnterprise {
+            let host = credentials
+                .get("enterpriseHost")
+                .and_then(Value::as_str)
+                .or_else(|| credentials.get("vpc").and_then(Value::as_str))
+                .filter(|host| !host.is_empty())
+                .ok_or_else(|| {
+                    authentication(
+                        "This QwenWork enterprise account has no original domain. Sign in again.",
+                    )
+                })?;
+            if credentials
+                .get("vpc")
+                .and_then(Value::as_str)
+                .is_some_and(|vpc| vpc != host)
+            {
+                return Err(authentication(
+                    "The QwenWork enterprise account domain changed. Sign in again.",
+                ));
+            }
+            return self.site.deployment(Some(host));
+        }
         self.site
             .deployment(credentials.get("vpc").and_then(Value::as_str))
     }
@@ -111,7 +135,7 @@ impl Qoder {
             }
         }
         let url = format!("{}{MODEL_PATH}", deployment.api);
-        let headers = codec::headers(&url, credentials, "")?;
+        let headers = codec::headers_for(self.site, &url, credentials, "")?;
         let response = send(
             client,
             HttpRequest {
@@ -129,12 +153,19 @@ impl Qoder {
                 "Qoder refused the model list. Renew the account sign-in.",
             ));
         }
-        if status != 200 {
-            return Err(transport(format!("Qoder models returned HTTP {status}.")));
-        }
-        let value: Value = serde_json::from_slice(&value)
-            .map_err(|_| transport("Qoder returned invalid model JSON."))?;
-        let entries = models::listing(&value)?;
+        let value: Value = if status == 503 && self.site == Site::QwenWorkEnterprise {
+            work_usage::fallback_catalog()
+        } else {
+            if status != 200 {
+                return Err(transport(format!(
+                    "{} models returned HTTP {status}.",
+                    self.site.id()
+                )));
+            }
+            serde_json::from_slice(&value)
+                .map_err(|_| transport("The provider returned invalid model JSON."))?
+        };
+        let entries = models::listing_for(&value, self.site)?;
         if listings.len() >= 128 && !listings.contains_key(&key) {
             if let Some(first) = listings
                 .iter()
@@ -231,13 +262,16 @@ impl ProviderPlugin for Qoder {
     async fn usage(&self, context: CallContext) -> PluginResult<Value> {
         let credentials = checked(context.credentials.as_ref().ok_or_else(signed_out)?)?;
         let client = self.client(context.network_proxy.as_ref())?;
+        if self.site.is_work() {
+            return work_usage::fetch(self, client.as_ref(), credentials).await;
+        }
         usage::fetch(self, client.as_ref(), credentials).await
     }
     async fn fetch(&self, request: FetchRequest) -> PluginResult<FetchResponse> {
         request::fetch(self, request).await
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
-        if !matches!(method, "checkin" | "checkinStatus") {
+        if self.site.is_work() || !matches!(method, "checkin" | "checkinStatus") {
             return Err(PluginError::unsupported(method));
         }
         let credentials = checked(params.get("credentials").ok_or_else(signed_out)?)?;
@@ -358,3 +392,7 @@ async fn openapi(
 #[cfg(test)]
 #[path = "../test/provider.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/qwenwork.test.rs"]
+mod qwenwork_tests;

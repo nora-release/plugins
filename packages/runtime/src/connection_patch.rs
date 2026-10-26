@@ -29,18 +29,31 @@ pub(crate) fn apply(definition: &mut Definition, patch: &Value) -> PluginResult<
         .and_then(Value::as_object)
         .filter(|endpoints| !endpoints.is_empty())
     {
-        let bases = endpoints
+        let overrides = endpoints
             .iter()
             .map(|(api, base)| {
-                let base = base
-                    .as_str()
-                    .ok_or_else(|| PluginError::invalid("A provider endpoint must be text."))?;
-                Ok(ModelBase {
-                    api: api.clone(),
-                    base_url: base.into(),
-                })
+                base.as_str()
+                    .map(|base| (api.as_str(), base))
+                    .ok_or_else(|| PluginError::invalid("A provider endpoint must be text."))
             })
             .collect::<PluginResult<Vec<_>>>()?;
+        let discovery = definition.config.model_discovery.as_ref();
+        let defaults = discovery
+            .into_iter()
+            .flat_map(|discovery| discovery.bases.iter())
+            .map(|base| (base.api.as_str(), base.base_url.as_str()));
+        let bases = nora_provider_plugin_sdk::connection::api_endpoints(
+            &definition.api,
+            &definition.base_url,
+            discovery
+                .map(|discovery| discovery.default_base_url.as_str())
+                .unwrap_or_default(),
+            defaults,
+            overrides,
+        )
+        .into_iter()
+        .map(|(api, base_url)| ModelBase { api, base_url })
+        .collect();
         definition.config.model_discovery = Some(ModelDiscovery {
             default_base_url: definition.base_url.clone(),
             bases,

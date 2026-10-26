@@ -158,6 +158,30 @@ impl BundledProvider {
 
 #[async_trait]
 impl ProviderPlugin for BundledProvider {
+    fn supports_web_search(&self) -> bool {
+        self.adapter
+            .as_ref()
+            .is_some_and(|adapter| adapter.supports_web_search())
+    }
+
+    async fn web_search(&self, context: CallContext, query: String) -> PluginResult<Value> {
+        let configuration = self.configuration()?;
+        let definition = configuration.account_definition(context.credentials.as_ref())?;
+        let proxy = configuration.effective_proxy(context.network_proxy.as_ref())?;
+        let client = configuration.request_client(
+            &definition,
+            proxy.as_ref(),
+            context.credentials.as_ref(),
+        )?;
+        let credentials = context
+            .credentials
+            .as_ref()
+            .ok_or_else(|| PluginError::authentication("Connect a provider account."))?;
+        let (_, auth) =
+            auth::resolve_with_network(&definition, credentials, proxy.as_ref()).await?;
+        definition.adapter.web_search(&auth, &query, &client).await
+    }
+
     fn model_resolution(&self) -> bool {
         self.adapter
             .as_ref()
@@ -566,11 +590,13 @@ impl ProviderPlugin for BundledProvider {
             .credentials
             .clone()
             .ok_or_else(|| PluginError::authentication("Connect a provider account."))?;
+        let original = request.clone();
         let request = transport::build_request(&definition, request).await?;
         let api = transport::request_api(&definition, &credentials, &request.url);
         let secrets = transport::request_secrets(&request);
         let response = transport::send(&client, &definition, &credentials, &api, request).await?;
-        transport::finish_response(response, secrets).await
+        let response = transport::finish_response(response, secrets).await?;
+        definition.adapter.transform_response(&original, response)
     }
 
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {

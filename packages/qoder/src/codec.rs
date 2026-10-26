@@ -59,7 +59,16 @@ fn swap(bytes: &mut Vec<u8>) {
     out.extend_from_slice(&bytes[..third]);
     *bytes = out;
 }
+#[cfg(test)]
 pub(crate) fn headers(
+    url: &str,
+    credentials: &Value,
+    body: &str,
+) -> PluginResult<BTreeMap<String, String>> {
+    headers_for(Site::International, url, credentials, body)
+}
+pub(crate) fn headers_for(
+    site: Site,
     url: &str,
     credentials: &Value,
     body: &str,
@@ -81,7 +90,7 @@ pub(crate) fn headers(
             .map_err(|_| invalid("The Qoder account envelope could not be signed."))?,
     );
     let payload = STANDARD.encode(
-        json!({"version":"v1","requestId":id(),"info":info,"cosyVersion":VERSION,"ideVersion":""})
+        json!({"version":"v1","requestId":id(),"info":info,"cosyVersion":site.version(),"ideVersion":""})
             .to_string(),
     );
     let at = (now() / 1000).to_string();
@@ -110,10 +119,10 @@ pub(crate) fn headers(
             "authorization".into(),
             format!("Bearer COSY.{payload}.{signature}"),
         ),
-        ("cosy-business-product".into(), "app".into()),
+        ("cosy-business-product".into(), site.product().into()),
         ("cosy-business-type".into(), "agent".into()),
         ("cosy-clientip".into(), machine.into()),
-        ("cosy-clienttype".into(), "10".into()),
+        ("cosy-clienttype".into(), site.client_type().into()),
         ("cosy-data-policy".into(), "disagree".into()),
         ("cosy-date".into(), at),
         ("cosy-key".into(), wrapped),
@@ -121,9 +130,9 @@ pub(crate) fn headers(
         ("cosy-machinetoken".into(), machine.into()),
         ("cosy-machinetype".into(), "5".into()),
         ("cosy-machineos".into(), format!("{arch}_{os}")),
-        ("cosy-scene".into(), "app".into()),
+        ("cosy-scene".into(), site.scene().into()),
         ("cosy-user".into(), text(credentials, "uid").into()),
-        ("cosy-version".into(), VERSION.into()),
+        ("cosy-version".into(), site.version().into()),
         ("login-version".into(), "v2".into()),
     ]))
 }

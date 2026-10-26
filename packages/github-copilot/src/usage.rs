@@ -7,8 +7,37 @@ pub fn parse(payload: &Value) -> Value {
     let mut items = Vec::new();
     let mut balances = Vec::new();
     copilot(payload, &mut items, &mut balances);
-    let result = result(payload, items, balances);
+    let mut result = result(payload, items, balances);
+    if let Some(plan) = plan(payload) {
+        result["account"]["plan"] = json!(plan);
+        result["plan"] = json!(plan);
+    }
     result
+}
+
+fn plan(payload: &Value) -> Option<String> {
+    match payload["access_type_sku"].as_str() {
+        Some("free_educational_quota") => return Some("Education".into()),
+        Some("free_limited_copilot") => return Some("Free".into()),
+        _ => {}
+    }
+    let plan = payload["copilot_plan"].as_str()?.trim();
+    let label = match plan.to_ascii_lowercase().as_str() {
+        "free" => "Free",
+        "individual" => "Pro",
+        "individual_pro" => "Pro+",
+        "individual_max" => "Max",
+        "individual_edu" => "Education",
+        "business" => "Business",
+        "enterprise" => "Enterprise",
+        _ => {
+            let mut chars = plan.chars();
+            return chars
+                .next()
+                .map(|first| format!("{}{rest}", first.to_uppercase(), rest = chars.as_str()));
+        }
+    };
+    Some(label.into())
 }
 
 pub async fn fetch(
@@ -113,6 +142,7 @@ fn copilot(payload: &Value, items: &mut Vec<Value>, balances: &mut Vec<Value>) {
         if let Some(mut item) =
             quantities(key, label, &quantities_payload, Some("requests"), resets)
         {
+            item["windowSeconds"] = json!(30 * 24 * 3600);
             item["countsForRouting"] = json!(
                 (key == "chat"
                     || key == "premium_interactions"

@@ -10,6 +10,16 @@ use tokio::{
 };
 #[path = "fixture.rs"]
 mod fixture;
+#[path = "learned-usage-integration.test.rs"]
+mod learned_usage_integration;
+#[path = "session-activity-integration.test.rs"]
+mod session_activity_integration;
+#[path = "session-integration.test.rs"]
+mod session_integration;
+#[path = "structured-output-integration.test.rs"]
+mod structured_output_integration;
+#[path = "web-search-integration.test.rs"]
+mod web_search_integration;
 struct Host {
     child: Child,
     input: ChildStdin,
@@ -401,6 +411,164 @@ async fn usage_comes_from_the_real_cli_command_and_retains_model_scopes() {
     assert_eq!(items[2]["modelIDs"], json!(["*opus*"]));
 }
 #[tokio::test]
+async fn cli_output_usage_accepts_verbose_results_and_nonzero_success_results() {
+    for (exit, payload) in [
+        (
+            0,
+            json!([{"type":"system","result":"ignore this"},{"type":"result","is_error":true,"result":"old error"},{"type":"result","is_error":false,"result":"Current session: 17% used"}]),
+        ),
+        (
+            1,
+            json!({"type":"result","is_error":false,"result":"Current session: 17% used"}),
+        ),
+    ] {
+        let directory = fixture::Directory::new();
+        let path = directory.0.join("claude-accounts/account-a");
+        let credentials = fixture::profile(&path);
+        std::fs::write(
+            path.join("fixture-usage.json"),
+            json!({"exit":exit,"stdout":payload.to_string()}).to_string(),
+        )
+        .unwrap();
+        let mut host = Host::new(&directory.0).await;
+        let id = host.send("usage", json!({"account":"work","credentials":credentials,"networkProxy":{"mode":"direct"}})).await;
+        let frame = host.frame(id).await;
+        assert!(frame.get("error").is_none(), "{frame}");
+        assert_eq!(frame["result"]["items"][0]["usedPercent"], 17.0);
+    }
+}
+#[tokio::test]
+async fn cli_output_usage_preserves_error_categories_and_redacts_private_credentials() {
+    for (result, stderr, expected_code, expected_text) in [
+        (
+            None,
+            "Network request failed: fixture-access fixture-refresh sk-ant-oat01-new-private-value",
+            "upstream_transport_error",
+            "Network request failed",
+        ),
+        (
+            Some("Failed to refresh OAuth token: another Claude Code process is refreshing it"),
+            "",
+            "upstream_transport_error",
+            "another Claude Code process",
+        ),
+        (
+            Some("OAuth session expired and could not be refreshed: fixture-access"),
+            "",
+            "authentication_required",
+            "Sign in",
+        ),
+    ] {
+        let directory = fixture::Directory::new();
+        let path = directory.0.join("claude-accounts/account-a");
+        let credentials = fixture::profile(&path);
+        let stdout = result
+            .map(|text| json!({"type":"result","is_error":true,"result":text}).to_string())
+            .unwrap_or_default();
+        std::fs::write(
+            path.join("fixture-usage.json"),
+            json!({"exit":1,"stdout":stdout,"stderr":stderr}).to_string(),
+        )
+        .unwrap();
+        let mut host = Host::new(&directory.0).await;
+        let id = host.send("usage", json!({"account":"work","credentials":credentials,"networkProxy":{"mode":"direct"}})).await;
+        let frame = host.frame(id).await;
+        assert_eq!(frame["error"]["code"], expected_code, "{frame}");
+        let message = frame["error"]["message"].as_str().unwrap();
+        assert!(message.contains(expected_text), "{frame}");
+        for secret in [
+            "fixture-access",
+            "fixture-refresh",
+            "sk-ant-oat01-new-private-value",
+        ] {
+            assert!(!message.contains(secret), "{frame}");
+        }
+    }
+}
+#[tokio::test]
+async fn cli_output_usage_reports_structured_errors_and_cli_failures_without_expired_login() {
+    for (exit, stdout, stderr, expected) in [
+        (
+            0,
+            json!({"type":"result","is_error":true,"result":"Network request failed"}).to_string(),
+            "",
+            "Network request failed",
+        ),
+        (
+            1,
+            json!([{"type":"result","is_error":true,"errors":["Connection timed out"]}])
+                .to_string(),
+            "",
+            "Connection timed out",
+        ),
+        (
+            2,
+            String::new(),
+            "unknown option '--strict-mcp-config'",
+            "unknown option",
+        ),
+        (1, String::new(), "", "stopped without a result"),
+    ] {
+        let directory = fixture::Directory::new();
+        let path = directory.0.join("claude-accounts/account-a");
+        let credentials = fixture::profile(&path);
+        std::fs::write(
+            path.join("fixture-usage.json"),
+            json!({"exit":exit,"stdout":stdout,"stderr":stderr}).to_string(),
+        )
+        .unwrap();
+        let mut host = Host::new(&directory.0).await;
+        let id = host.send("usage", json!({"account":"work","credentials":credentials,"networkProxy":{"mode":"direct"}})).await;
+        let frame = host.frame(id).await;
+        assert_eq!(
+            frame["error"]["code"], "upstream_transport_error",
+            "{frame}"
+        );
+        assert!(
+            frame["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains(expected),
+            "{frame}"
+        );
+    }
+}
+#[tokio::test]
+async fn cli_output_usage_trusts_explicit_authentication_failures_without_guessing_from_forbidden()
+{
+    for (payload, expected_code) in [
+        (
+            json!({"type":"result","is_error":true,"api_error_status":401,"result":"Unauthorized"}),
+            "authentication_required",
+        ),
+        (
+            json!({"type":"result","is_error":true,"error":{"type":"authentication_error","message":"Unauthorized"}}),
+            "authentication_required",
+        ),
+        (
+            json!({"type":"result","is_error":true,"api_error_status":403,"result":"Forbidden"}),
+            "upstream_transport_error",
+        ),
+        (
+            json!({"type":"result","is_error":true,"result":"Unauthorized"}),
+            "upstream_transport_error",
+        ),
+    ] {
+        let directory = fixture::Directory::new();
+        let path = directory.0.join("claude-accounts/account-a");
+        let credentials = fixture::profile(&path);
+        std::fs::write(
+            path.join("fixture-usage.json"),
+            json!({"exit":1,"stdout":payload.to_string()}).to_string(),
+        )
+        .unwrap();
+        let mut host = Host::new(&directory.0).await;
+        let id = host.send("usage", json!({"account":"work","credentials":credentials,"networkProxy":{"mode":"direct"}})).await;
+        let frame = host.frame(id).await;
+        assert_eq!(frame["error"]["code"], expected_code, "{frame}");
+    }
+}
+#[tokio::test]
 async fn cancelling_one_conversation_does_not_cancel_another_account_or_its_response() {
     let directory = fixture::Directory::new();
     let first = directory.0.join("claude-accounts/account-a");
@@ -524,11 +692,17 @@ async fn api_keys_keep_the_original_http_transport_without_starting_claude() {
     manifest["baseURL"] = json!(base);
     let id=host.send("initialize",json!({"apiVersion":1,"pluginID":"anthropic","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":directory.0,"manifest":manifest,"hostCapabilities":{"credentialUpdates":true}})).await;
     assert!(host.frame(id).await.get("error").is_none());
-    let id=host.send("fetch",json!({"credentials":{"type":"apiKey","provider":"apiKey","credentialProvider":"apiKey","access":"sk-private-api-key"},"networkProxy":{"mode":"direct"},"url":format!("{base}/v1/messages"),"method":"POST","headers":{"content-type":"application/json"},"body":STANDARD.encode(json!({"model":"claude-test","max_tokens":10,"messages":[{"role":"user","content":"hello"}]}).to_string())})).await;
+    let original_body = json!({"model":"claude-test","max_tokens":10,"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"web_search_20260318","name":"web_search","max_uses":1,"allowed_domains":["example.com"],"allowed_callers":["code_execution_20260120"],"response_inclusion":"excluded","cache_control":{"type":"ephemeral"},"strict":false}]});
+    let id=host.send("fetch",json!({"credentials":{"type":"apiKey","provider":"apiKey","credentialProvider":"apiKey","access":"sk-private-api-key"},"networkProxy":{"mode":"direct"},"url":format!("{base}/v1/messages"),"method":"POST","headers":{"content-type":"application/json"},"body":STANDARD.encode(original_body.to_string())})).await;
     let (status, body) = host.response(id).await;
     assert_eq!(status, 200);
     assert!(body.contains("api answer"));
     let (headers, body) = captured.await.unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&body).unwrap(),
+        original_body,
+        "API-key search versions and options must be sent unchanged"
+    );
     assert!(headers.contains("sk-private-api-key"));
     assert!(!String::from_utf8(body)
         .unwrap()

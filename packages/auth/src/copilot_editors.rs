@@ -23,6 +23,7 @@ pub enum EditorsError {
     NotSignedIn,
     InvalidFile,
     Rejected,
+    Unavailable,
     AccountChanged,
     InvalidSource,
 }
@@ -33,9 +34,18 @@ impl EditorsError {
             Self::NotSignedIn => "Copilot is not signed in on this Mac. Sign in to Copilot and try again.",
             Self::InvalidFile => "Copilot's local sign-in file could not be read.",
             Self::Rejected => "GitHub did not accept Copilot's local sign-in. Sign in to Copilot again.",
+            Self::Unavailable => "Copilot's local sign-in could not be verified right now. Credentials were kept; try again.",
             Self::AccountChanged => "Copilot is using a different account. The previous account's sign-in is unavailable.",
             Self::InvalidSource => "Reconnect this Copilot account in Nora.",
         }
+    }
+}
+
+fn verification_error(error: nora_ai::OAuthError) -> EditorsError {
+    if copilot_identity::authentication_rejected(&error) {
+        EditorsError::Rejected
+    } else {
+        EditorsError::Unavailable
     }
 }
 
@@ -212,7 +222,7 @@ pub async fn resolve_with_force(
     if force {
         sessions()
             .lock()
-            .map_err(|_| EditorsError::Rejected)?
+            .map_err(|_| EditorsError::Unavailable)?
             .retain(|session| {
                 session.path != source.auth_file_path
                     && source.fallback_cli_file_path.as_ref() != Some(&session.path)
@@ -251,8 +261,14 @@ async fn resolve_candidates(
             Ok(current) if current.extras.get(copilot_identity::IDENTITY_KEY) == Some(expected) => {
                 return Ok(current)
             }
-            Ok(_) => error = EditorsError::AccountChanged,
-            Err(failure) => error = failure,
+            Ok(_) if error != EditorsError::Unavailable => error = EditorsError::AccountChanged,
+            Ok(_) => {}
+            Err(failure)
+                if failure == EditorsError::Unavailable || error != EditorsError::Unavailable =>
+            {
+                error = failure
+            }
+            Err(_) => {}
         }
     }
     Err(error)
@@ -281,7 +297,7 @@ async fn transient(
 ) -> Result<OAuthCredentials, EditorsError> {
     if let Some(credentials) = sessions()
         .lock()
-        .map_err(|_| EditorsError::Rejected)?
+        .map_err(|_| EditorsError::Unavailable)?
         .iter()
         .find(|session| {
             session.path == candidate.source.auth_file_path
@@ -306,7 +322,7 @@ async fn transient(
         .unwrap_or(0)
         .min(25 * 60 * 1000);
     if remaining > 0 {
-        let mut sessions = sessions().lock().map_err(|_| EditorsError::Rejected)?;
+        let mut sessions = sessions().lock().map_err(|_| EditorsError::Unavailable)?;
         sessions.retain(|session| session.until > Instant::now());
         if sessions.len() >= MAX_ACCOUNTS {
             sessions.remove(0);
@@ -340,7 +356,7 @@ async fn fetch_session(
     );
     copilot_identity::enrich(&mut github, client)
         .await
-        .map_err(|_| EditorsError::Rejected)?;
+        .map_err(verification_error)?;
     if candidate.source.origin == Origin::Editor {
         let provider = GitHubCopilotOAuthProvider::new(
             copilot_identity::api_url(&candidate.source.host, "/copilot_internal/v2/token"),
@@ -349,7 +365,7 @@ async fn fetch_session(
         return provider
             .refresh(&github, client)
             .await
-            .map_err(|_| EditorsError::Rejected);
+            .map_err(verification_error);
     }
     let response = client
         .request(
@@ -362,12 +378,15 @@ async fn fetch_session(
             .with_header("user-agent", "copilot/1.0.88"),
         )
         .await
-        .map_err(|_| EditorsError::Rejected)?;
-    if response.status != 200 || response.body.len() > MAX_AUTH_BYTES as usize {
+        .map_err(|_| EditorsError::Unavailable)?;
+    if matches!(response.status, 401 | 403) {
         return Err(EditorsError::Rejected);
     }
+    if response.status != 200 || response.body.len() > MAX_AUTH_BYTES as usize {
+        return Err(EditorsError::Unavailable);
+    }
     let payload: Value =
-        serde_json::from_slice(&response.body).map_err(|_| EditorsError::Rejected)?;
+        serde_json::from_slice(&response.body).map_err(|_| EditorsError::Unavailable)?;
     if let Some(endpoint) = payload.pointer("/endpoints/api").and_then(Value::as_str) {
         github
             .extras
@@ -504,13 +523,13 @@ async fn keychain_token(account: &str) -> Result<Option<String>, EditorsError> {
         .kill_on_drop(true);
     let output = tokio::time::timeout(Duration::from_secs(5), command.output())
         .await
-        .map_err(|_| EditorsError::Rejected)?
-        .map_err(|_| EditorsError::Rejected)?;
+        .map_err(|_| EditorsError::Unavailable)?
+        .map_err(|_| EditorsError::Unavailable)?;
     if output.status.code() == Some(44) {
         return Ok(None);
     }
     if !output.status.success() {
-        return Err(EditorsError::Rejected);
+        return Err(EditorsError::Unavailable);
     }
     let token = String::from_utf8(output.stdout).map_err(|_| EditorsError::InvalidFile)?;
     Ok(valid_text(token.trim()).then(|| token.trim().to_owned()))

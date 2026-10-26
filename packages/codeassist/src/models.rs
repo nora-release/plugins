@@ -37,15 +37,24 @@ impl Flags {
         .into()
     }
     pub fn shown(&self, id: &str) -> String {
-        if id == "gemini-3-flash" {
-            return if self.flash {
-                "gemini-3.8-flash"
-            } else {
-                "gemini-3.5-flash"
+        match id {
+            "gemini-3-flash" | "gemini-3.5-flash" | "gemini-3.8-flash" => {
+                if self.flash {
+                    "gemini-3.8-flash"
+                } else {
+                    "gemini-3.5-flash"
+                }
             }
-            .into();
+            "gemini-3.1-flash-lite" | "gemini-3.5-flash-lite" => {
+                if self.lite {
+                    "gemini-3.5-flash-lite"
+                } else {
+                    "gemini-3.1-flash-lite"
+                }
+            }
+            _ => id,
         }
-        id.into()
+        .into()
     }
     pub fn offered(&self, quota: &Value) -> Vec<Model> {
         let preview = quota["buckets"].as_array().is_some_and(|rows| {
@@ -186,6 +195,9 @@ pub(crate) fn visible(id: &str) -> bool {
         && !id.starts_with("tab_")
         && !["gemini-2.5-flash-thinking", "gemini-2.5-pro"].contains(&id)
 }
+pub(crate) fn offered_row(id: &str, row: &Value) -> bool {
+    valid_id(id) && visible(id) && row.get("disabled").and_then(Value::as_bool) != Some(true)
+}
 pub(crate) fn valid_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 256
@@ -211,7 +223,7 @@ pub(crate) fn antigravity(payload: &Value) -> PluginResult<Catalog> {
         .collect::<BTreeMap<_, _>>();
     let mut rows = Vec::new();
     for (id, row) in raw {
-        if !valid_id(id) || !visible(id) {
+        if !offered_row(id, row) {
             continue;
         }
         let mut model = Model::new(id, "google-generative-ai", App::Antigravity.id());

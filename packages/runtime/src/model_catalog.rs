@@ -188,7 +188,7 @@ fn persist(path: &Path, bytes: &[u8]) -> Result<(), String> {
     result.map_err(str::to_string)
 }
 
-fn decode(bytes: &[u8]) -> Result<ModelsCatalog, String> {
+pub(crate) fn decode(bytes: &[u8]) -> Result<ModelsCatalog, String> {
     if bytes.len() > MAX_CATALOG_BYTES {
         return Err("The model catalog is larger than supported.".into());
     }

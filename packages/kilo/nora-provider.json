@@ -28,6 +28,7 @@
   ],
   "models": [],
   "config": {
+    "ownClient": true,
     "modelMetadata": true,
     "connectionOptions": true,
     "keyProvider": "kilo",

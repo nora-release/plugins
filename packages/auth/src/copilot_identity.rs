@@ -5,6 +5,10 @@ use serde_json::{json, Value};
 
 pub const IDENTITY_KEY: &str = "accountIdentity";
 
+pub fn authentication_rejected(error: &OAuthError) -> bool {
+    matches!(error, OAuthError::Missing(_) | OAuthError::RefreshFailed(_))
+}
+
 /// Only GitHub.com and GitHub Enterprise Cloud serve Copilot's GitHub API.
 pub fn normalize_host(value: &str) -> Option<String> {
     let value = value.trim().trim_end_matches('/');
@@ -112,10 +116,15 @@ pub async fn enrich_at(
         )
         .await?;
     if response.status != 200 {
-        return Err(OAuthError::RefreshFailed(format!(
-            "GitHub could not verify the account ({}).",
+        let message = format!(
+            "GitHub account verification returned HTTP {}.",
             response.status
-        )));
+        );
+        return Err(if matches!(response.status, 401 | 403) {
+            OAuthError::RefreshFailed(message)
+        } else {
+            OAuthError::Transport(message)
+        });
     }
     if response.body.len() > 1_048_576 {
         return Err(OAuthError::InvalidResponse(

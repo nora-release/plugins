@@ -36,10 +36,13 @@ fn context(credentials: Value) -> CallContext {
         account: "fixture".into(),
         credentials: Some(credentials),
         network_proxy: None,
+        ..Default::default()
     }
 }
 fn request(credentials: Value, url: String) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "fixture".into(),
         credentials: Some(credentials),
@@ -55,6 +58,86 @@ fn request(credentials: Value, url: String) -> FetchRequest {
         body_file: None,
     }
 }
+
+#[tokio::test]
+async fn adding_and_changing_an_additional_api_keeps_the_primary_request_working() {
+    let primary = Endpoint::start().await;
+    let additional = Endpoint::start().await;
+    let changed = Endpoint::start().await;
+    let original = json!({
+        "id":"profile-fixture","name":"Fixture","api":"openai-completions",
+        "baseURL":format!("{}/chat/v1",primary.base),
+        "config":{"keyProvider":"api-key","connectionOptions":true}
+    });
+    let value = json!({"type":"apiKey","access":"private-fixture-key"});
+    for extra in [&additional, &changed] {
+        let address = format!("{}/anthropic/v1", extra.base);
+        let plugin = plugin(
+            original.clone(),
+            original.clone(),
+            json!({
+                "endpoints":{"anthropic-messages":address}
+            }),
+        )
+        .await;
+        let models = plugin.models(context(value.clone())).await.unwrap();
+        assert_eq!(models["models"][0]["api"], "openai-completions");
+        assert_eq!(
+            models["models"][0]["baseUrl"],
+            format!("{}/chat/v1", primary.base)
+        );
+        for url in [
+            format!("{}/chat/v1/chat/completions", primary.base),
+            format!("{address}/messages"),
+        ] {
+            let response = plugin.fetch(request(value.clone(), url)).await.unwrap();
+            assert_eq!(response.status, 200);
+        }
+    }
+    assert_eq!(
+        primary
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|request| request.starts_with("POST /chat/v1/chat/completions "))
+            .count(),
+        2
+    );
+    for endpoint in [&additional, &changed] {
+        assert_eq!(
+            endpoint
+                .requests
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|request| request.starts_with("POST /anthropic/v1/messages "))
+                .count(),
+            1
+        );
+    }
+
+    let cleared = plugin(original.clone(), original, json!({"endpoints":{}})).await;
+    assert_eq!(
+        cleared
+            .fetch(request(
+                value.clone(),
+                format!("{}/chat/v1/chat/completions", primary.base)
+            ))
+            .await
+            .unwrap()
+            .status,
+        200
+    );
+    assert!(cleared
+        .fetch(request(
+            value,
+            format!("{}/anthropic/v1/messages", additional.base)
+        ))
+        .await
+        .is_err());
+}
+
 #[tokio::test]
 async fn default_and_auto_headers_preserve_each_profiles_real_endpoint_and_authentication() {
     let plan = Endpoint::start().await;

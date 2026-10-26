@@ -166,6 +166,7 @@ async fn refused_account_model_listing_retries_the_real_public_model_configurati
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -184,6 +185,8 @@ async fn quota_refusals_are_retryable_and_native_tools_are_unchanged() {
     let body = json!({"model":"MiniMax-M3","messages":[{"role":"user","content":"Hello"}],"tools":[{"name":"read","input_schema":{"type":"object"}}],"stop_sequences":["END"]});
     let result = plugin
         .fetch(FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),

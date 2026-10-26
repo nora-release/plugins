@@ -25,6 +25,6 @@ pub(crate) async fn resolve(
     .await
     .ok()?;
     let mut auth = base_auth("xai", &transient);
-    super::Xai.enrich_auth(&transient, &mut auth);
+    super::Xai::default().enrich_auth(&transient, &mut auth);
     Some(auth)
 }

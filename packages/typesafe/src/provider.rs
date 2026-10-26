@@ -194,6 +194,8 @@ async fn list_models(
     let request = transport::build_request(
         definition,
         FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: context.subscription_accounts_enabled,
             account: context.account,
             credentials: Some(credentials.clone()),

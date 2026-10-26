@@ -36,6 +36,9 @@ pub(crate) async fn send(
         .await?;
     let mut response =
         crate::auth_headers::send(client, definition, credentials, api, request).await?;
+    definition
+        .adapter
+        .observe_response(credentials, response.status, &response.headers);
     if observed_statuses.contains(&response.status) {
         if let Some(model) = model {
             let body = crate::http_response::error_prefix(&mut response).await;
@@ -168,6 +171,7 @@ pub async fn build_request(
     };
     let mut body = request.decode_body()?;
     let session = crate::extra_body::session(&request, body.as_deref());
+    let constraints = request.constraints.clone();
     let mut headers = request
         .headers
         .into_iter()
@@ -188,6 +192,12 @@ pub async fn build_request(
             )
         })
         .collect::<BTreeMap<_, _>>();
+    crate::caller_user_agent::apply(
+        definition,
+        value,
+        request.caller_user_agent.as_deref(),
+        &mut headers,
+    );
     headers.extend(definition.config.headers.clone());
     definition
         .adapter
@@ -200,7 +210,16 @@ pub async fn build_request(
             &mut resolved,
         )
         .await?;
+    let api = request_api(definition, value, target.as_str());
+    let gemini_thinking = (constraints.reasoning_disabled
+        && matches!(
+            api.as_str(),
+            "google-generative-ai" | "google-gemini-cli" | "google-antigravity" | "google-vertex"
+        ))
+    .then(|| crate::request_constraints::gemini_thinking(body.as_deref()))
+    .flatten();
     crate::extra_body::apply(definition, value, target.path(), &session, &mut body);
+    crate::request_constraints::apply(&api, &constraints, gemini_thinking.as_ref(), &mut body)?;
     for (key, value) in &definition.config.query_params {
         target.query_pairs_mut().append_pair(key, value);
     }

@@ -58,6 +58,8 @@ async fn provider_owned_options_remain_readable_without_becoming_http_fields() {
     let request = crate::transport::build_request(
         &definition,
         nora_provider_plugin_sdk::FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "fixture".into(),
             credentials: Some(json!({"type":"apiKey","access":"fixture-key"})),

@@ -1,3 +1,4 @@
+mod alpha_search;
 mod plugin;
 mod provider;
 

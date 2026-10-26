@@ -6,6 +6,8 @@ fn account() -> Account {
 }
 fn request(path: &str, body: &[u8]) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "key".into(),
         credentials: None,

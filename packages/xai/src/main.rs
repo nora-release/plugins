@@ -2,5 +2,5 @@ mod provider;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    nora_provider::run(provider::Xai).await;
+    nora_provider::run(provider::Xai::default()).await;
 }

@@ -1,0 +1,36 @@
+{
+  "apiVersion": 1,
+  "id": "qwenwork",
+  "name": "QwenWork",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "openai-completions",
+  "baseURL": "https://gateway.qwenwork.cn",
+  "authMethods": [
+    {
+      "id": "oauth",
+      "type": "oauth",
+      "label": "Sign in with QwenWork"
+    }
+  ],
+  "models": [
+    {
+      "id": "flash",
+      "name": "标准"
+    },
+    {
+      "id": "pro",
+      "name": "高级"
+    },
+    {
+      "id": "qwen3.8-max-preview",
+      "name": "Qwen3.8-Max"
+    }
+  ],
+  "config": {
+    "authTimeoutMs": 1050000
+  }
+}

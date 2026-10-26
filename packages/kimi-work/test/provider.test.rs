@@ -75,10 +75,13 @@ fn context() -> CallContext {
         account: "work".into(),
         credentials: Some(credentials()),
         network_proxy: None,
+        ..Default::default()
     }
 }
 fn request(url: &str, method: &str, body: &[u8]) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(credentials()),
@@ -196,6 +199,33 @@ async fn inference_preserves_messages_tools_and_streaming_while_replacing_all_ca
     assert!(!serde_json::to_string(&requests[0].headers)
         .unwrap()
         .contains("synthetic-membership-token"));
+}
+
+#[tokio::test]
+async fn actual_inference_rewrites_official_moonshot_schemas_from_inline_and_verified_body_files() {
+    let schema: Value =
+        serde_json::from_str(include_str!("fixtures/zod-derived-refs.json")).unwrap();
+    let body=serde_json::to_vec(&json!({"model":"k3-agent","messages":[{"role":"user","content":"hi"}],"tools":[{"type":"function","function":{"name":"tool","parameters":schema}}],"stream":true})).unwrap();
+    for file in [false, true] {
+        let (provider, client) = provider(vec![Reply::raw(200, b"data: [DONE]\n\n")]);
+        let mut req = request(CHAT, "POST", &body);
+        let path = std::env::temp_dir().join(format!(
+            "nora-kimi-work-body-{}",
+            nora_ai::oauth_pkce::random_hex(12)
+        ));
+        if file {
+            use sha2::{Digest, Sha256};
+            std::fs::write(&path, &body).unwrap();
+            req.body = None;
+            req.body_file=Some(serde_json::from_value(json!({"path":path,"length":body.len(),"sha256":format!("{:x}",Sha256::digest(&body))})).unwrap());
+        }
+        provider.fetch(req).await.unwrap();
+        let requests = client.requests.lock().unwrap();
+        assert_eq!(requests[0].body, Some(moonshot::rewrite(body.clone())));
+        if file {
+            std::fs::remove_file(path).unwrap();
+        }
+    }
 }
 
 #[tokio::test]
@@ -343,6 +373,7 @@ async fn selecting_a_desktop_source_saves_only_a_reference_and_reads_each_live_t
             account: "desktop".into(),
             credentials: Some(account.clone()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -361,7 +392,8 @@ async fn selecting_a_desktop_source_saves_only_a_reference_and_reads_each_live_t
             subscription_accounts_enabled: true,
             account: "desktop".into(),
             credentials: Some(account),
-            network_proxy: None
+            network_proxy: None,
+            ..Default::default()
         })
         .await
         .is_err());

@@ -38,6 +38,30 @@ fn real_captured_accounts_continue_on_credits_despite_a_full_allowance_or_spend_
         assert_eq!(full["usedPercent"], 100.0);
     }
 }
+
+#[test]
+fn an_explicitly_spent_balance_overrides_the_has_credits_flag() {
+    for balance in [
+        json!("0"),
+        json!(" -0.5 "),
+        json!(0),
+        json!(-1),
+        json!("NaN"),
+    ] {
+        let mut payload = pro();
+        payload["credits"]["balance"] = balance;
+        assert!(held(&payload));
+        let result = super::super::parse(&payload);
+        assert_eq!(result["routing"]["extraBalanceAvailable"], false);
+        payload["credits"]["unlimited"] = json!(true);
+        assert!(!held(&payload));
+    }
+    for balance in [json!("1.25"), Value::Null, json!("unknown")] {
+        let mut payload = pro();
+        payload["credits"]["balance"] = balance;
+        assert!(!held(&payload));
+    }
+}
 #[test]
 fn gate_matches_the_upstream_credit_allowed_and_workspace_matrix() {
     let mut cases = vec![("credits spent", no_credits(), true)];

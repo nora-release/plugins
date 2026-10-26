@@ -35,17 +35,24 @@ impl OpenAIPlugin {
         params: &Value,
         confirmation: bool,
     ) -> PluginResult<(nora_ai::ResolvedProviderAuth, ReqwestHttpClient)> {
-        if confirmation && params["confirmed"] != true
-            || params["account"].as_str().is_none_or(|account| {
-                account.is_empty()
-                    || account.len() > 128
-                    || account.trim() != account
-                    || account.chars().any(char::is_control)
-            })
-        {
+        if confirmation && params["confirmed"] != true {
             return Err(PluginError::invalid(
                 "Confirm the action for a saved account before using a reset credit.",
             ));
+        }
+        self.account_context(params).await
+    }
+    async fn account_context(
+        &self,
+        params: &Value,
+    ) -> PluginResult<(nora_ai::ResolvedProviderAuth, ReqwestHttpClient)> {
+        if params["account"].as_str().is_none_or(|account| {
+            account.is_empty()
+                || account.len() > 128
+                || account.trim() != account
+                || account.chars().any(char::is_control)
+        }) {
+            return Err(PluginError::invalid("Choose a saved ChatGPT account."));
         }
         let (definition, default_proxy) = self
             .config
@@ -57,7 +64,9 @@ impl OpenAIPlugin {
             .get("credentials")
             .ok_or_else(|| PluginError::authentication("Connect a ChatGPT account."))?;
         if auth::is_api(value) {
-            return Err(PluginError::unsupported("reset credits for an API key"));
+            return Err(PluginError::unsupported(
+                "ChatGPT account operations for an API key",
+            ));
         }
         let credentials = auth::decode(&definition, Some(value))?;
         if credentials.provider != OAuthProviderId::OpenAICodex {
@@ -85,6 +94,42 @@ impl OpenAIPlugin {
 
 #[async_trait]
 impl ProviderPlugin for OpenAIPlugin {
+    fn supports_client_observation(&self) -> bool {
+        true
+    }
+    async fn observe_client(
+        &self,
+        observation: nora_provider_plugin_sdk::ClientObservation,
+    ) -> PluginResult<()> {
+        observation.validate()?;
+        crate::provider::codex_version::observe(
+            observation.user_agent.as_deref(),
+            observation.version.as_deref(),
+            observation.originator.as_deref(),
+        );
+        Ok(())
+    }
+    fn supports_alpha_search(&self) -> bool {
+        true
+    }
+    async fn alpha_search(
+        &self,
+        context: CallContext,
+        request: Value,
+        headers: std::collections::BTreeMap<String, String>,
+    ) -> PluginResult<Value> {
+        if !context.subscription_accounts_enabled {
+            return Err(PluginError::unsupported(
+                "subscription account search while subscriptions are disabled",
+            ));
+        }
+        let (mut auth, client) = self.account_context(&serde_json::json!({"account":context.account,"credentials":context.credentials,"networkProxy":context.network_proxy})).await?;
+        crate::provider::codex_version::observe_headers(&headers);
+        auth.headers.extend(crate::provider::codex_version::headers(
+            &crate::provider::codex_version::current().await,
+        ));
+        crate::alpha_search::search(&auth, request, headers, &client).await
+    }
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
         let mut definition = Definition::parse(params.manifest.clone())?;
         definition.adapter = Arc::new(OpenAI);
@@ -133,6 +178,15 @@ impl ProviderPlugin for OpenAIPlugin {
         self.inner.refresh(params).await
     }
     async fn fetch(&self, request: FetchRequest) -> PluginResult<FetchResponse> {
+        if request.subscription_accounts_enabled
+            && nora_provider::adapter::is_oauth(request.credentials.as_ref())
+        {
+            crate::provider::codex_version::observe(
+                request.caller_user_agent.as_deref(),
+                request.metadata.get("callerVersion").map(String::as_str),
+                request.metadata.get("callerOriginator").map(String::as_str),
+            );
+        }
         self.inner.fetch(request).await
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
@@ -151,3 +205,7 @@ impl ProviderPlugin for OpenAIPlugin {
 #[cfg(test)]
 #[path = "../test/plugin.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/client_observation.test.rs"]
+mod client_observation_tests;

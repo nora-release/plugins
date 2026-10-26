@@ -77,6 +77,7 @@ async fn a_real_empty_authoritative_list_clears_old_remote_permissions() {
             account: "local-key".into(),
             credentials: Some(account.saved()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -95,7 +96,8 @@ async fn malformed_model_payloads_never_claim_an_authoritative_empty_success() {
             subscription_accounts_enabled: true,
             account: "local-key".into(),
             credentials: Some(account.saved()),
-            network_proxy: None
+            network_proxy: None,
+            ..Default::default()
         })
         .await
         .is_err());
@@ -111,7 +113,8 @@ async fn per_account_network_policy_is_validated_before_the_remote_is_contacted(
             credentials: Some(account.saved()),
             network_proxy: Some(NetworkProxy::Proxy {
                 url: "file:///tmp/not-a-proxy".into()
-            })
+            }),
+            ..Default::default()
         })
         .await
         .is_err());

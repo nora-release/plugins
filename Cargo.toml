@@ -1,5 +1,17 @@
 [workspace]
 members = [
+    "packages/cloudflare-workers-ai",
+    "packages/chatgpt-api",
+    "packages/nous-portal",
+    "packages/search-api",
+    "packages/tavily",
+    "packages/brave-search",
+    "packages/exa-search",
+    "packages/firecrawl",
+    "packages/you-search",
+    "packages/deepseek-search",
+    "packages/searxng",
+
     "packages/autoclaw",
     "packages/autoclaw-cn",
     "packages/remote-magpie",
@@ -22,6 +34,10 @@ members = [
     "packages/amazon-bedrock",
     "packages/amazon-bedrock-mantle",
     "packages/qoder",
+    "packages/qwenwork",
+    "packages/qwenwork-enterprise",
+    "packages/gcp-ai",
+    "packages/joycode",
     "packages/qoder-cn",
     "packages/commandcode-plan",
     "packages/zed",
@@ -76,5 +92,5 @@ license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
-nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "76620efda9c5c1fd41e85dfdc47df8871c58d8d6" }
-nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "76620efda9c5c1fd41e85dfdc47df8871c58d8d6" }
+nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }

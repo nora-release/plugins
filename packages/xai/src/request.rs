@@ -38,6 +38,38 @@ pub(super) fn rewrite(payload: &mut Value, x_search: bool) -> bool {
                 .and_then(Value::as_array)
                 .is_some_and(|tools| !tools.is_empty()));
     if let Some(tools) = root.get_mut("tools").and_then(Value::as_array_mut) {
+        let mut flattened = Vec::with_capacity(tools.len());
+        for tool in std::mem::take(tools) {
+            if tool.get("type").and_then(Value::as_str) != Some("namespace") {
+                flattened.push(tool);
+                continue;
+            }
+            changed = true;
+            let space = tool.get("name").and_then(Value::as_str).unwrap_or_default();
+            for nested in tool
+                .get("tools")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                if nested.get("type").and_then(Value::as_str) != Some("function") {
+                    continue;
+                }
+                let Some(name) = nested
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .filter(|name| !name.is_empty())
+                else {
+                    continue;
+                };
+                let mut nested = nested.clone();
+                if !space.is_empty() && space != "functions" {
+                    nested["name"] = json!(super::namespaces::flat_name(space, name));
+                }
+                flattened.push(nested);
+            }
+        }
+        *tools = flattened;
         tools.retain_mut(|tool| {
             let tool = match tool {
                 Value::Object(tool) => tool,
@@ -66,6 +98,9 @@ pub(super) fn rewrite(payload: &mut Value, x_search: bool) -> bool {
             }
             true
         });
+        if let Some(choice) = root.get_mut("tool_choice") {
+            changed |= super::namespaces::flatten_call(choice);
+        }
         if root
             .get("tool_choice")
             .filter(|choice| choice.is_object() || choice.is_array())
@@ -113,6 +148,7 @@ pub(super) fn rewrite(payload: &mut Value, x_search: bool) -> bool {
                 *item = message;
                 changed = true;
             }
+            changed |= super::namespaces::flatten_call(item);
             let Some(item) = item.as_object_mut() else {
                 continue;
             };

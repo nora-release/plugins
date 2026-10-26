@@ -1,6 +1,9 @@
 use super::*;
 use nora_provider::usage::parsing::{number, quantities, result};
 use std::collections::BTreeSet;
+
+#[path = "usage/pools.rs"]
+mod pools;
 fn item(
     id: &str,
     label: &str,
@@ -73,7 +76,7 @@ pub(crate) fn antigravity(payload: &Value, summary: Option<&Value>) -> PluginRes
     let mut items = Vec::new();
     let catalog = models::antigravity(payload).ok();
     for (id, model) in models {
-        if !models::valid_id(id) || !models::visible(id) {
+        if !models::offered_row(id, model) {
             continue;
         }
         let Some(quota) = model.get("quotaInfo").filter(|quota| quota.is_object()) else {
@@ -91,11 +94,13 @@ pub(crate) fn antigravity(payload: &Value, summary: Option<&Value>) -> PluginRes
                 .variants
                 .iter()
                 .find(|(_, levels)| levels.values().any(|wire| wire == id))
-                .map(|(family, _)| family.clone())
         });
         let scope = family
-            .filter(|family| family != id)
-            .map(|family| vec![id.clone(), family])
+            .map(|(family, levels)| {
+                let mut scope = levels.values().cloned().collect::<BTreeSet<_>>();
+                scope.insert(family.clone());
+                scope.into_iter().collect()
+            })
             .unwrap_or_else(|| vec![id.clone()]);
         if let Some(value) = item(
             id,
@@ -106,61 +111,39 @@ pub(crate) fn antigravity(payload: &Value, summary: Option<&Value>) -> PluginRes
             Some(18000),
             true,
         ) {
+            let mut value = value;
+            value["family"] = json!(vendor(
+                id,
+                text(model.get("displayName"), 512).unwrap_or(id)
+            ));
             items.push(value);
         }
     }
-    if let Some(groups) = summary.and_then(|value| value["groups"].as_array()) {
-        for (index, group) in groups.iter().enumerate() {
-            let name = text(group.get("displayName"), 512).unwrap_or("Shared allowance");
-            for (bucket_index, bucket) in group["buckets"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .enumerate()
-            {
-                if bucket["disabled"] == true {
-                    continue;
-                }
-                let span = match bucket["window"].as_str() {
-                    Some("5h") => Some(18000),
-                    Some("weekly") => Some(604800),
-                    _ => None,
-                };
-                let remaining = match bucket.get("remainingFraction") {
-                    None => Some(0.0),
-                    Some(value) => number(value),
-                };
-                let Some(remaining) = remaining else {
-                    continue;
-                };
-                let label = format!(
-                    "{name} · {}",
-                    text(
-                        bucket.get("displayName").or_else(|| bucket.get("window")),
-                        128
-                    )
-                    .unwrap_or("Allowance")
-                );
-                if let Some(value) = item(
-                    &format!("pool:{index}:{bucket_index}"),
-                    &label,
-                    remaining,
-                    bucket.get("resetTime"),
-                    Vec::new(),
-                    span,
-                    false,
-                ) {
-                    items.push(value);
-                }
-            }
-        }
-    }
+    pools::append(&mut items, summary);
     if items.is_empty() {
         return Err(PluginError::transport(
             "Antigravity returned no readable allowances.",
         ));
     }
     Ok(result(&json!({}), items, Vec::new()))
+}
+
+fn vendor(id: &str, name: &str) -> String {
+    let lower = id.to_ascii_lowercase();
+    for (prefix, family) in [
+        ("gemini", "Gemini"),
+        ("claude", "Claude"),
+        ("gpt-oss", "GPT-OSS"),
+    ] {
+        if lower.starts_with(prefix) {
+            return family.into();
+        }
+    }
+    name.split_whitespace()
+        .next()
+        .filter(|word| !word.is_empty())
+        .unwrap_or_else(|| id.split('-').next().unwrap_or(id))
+        .into()
 }
 #[cfg(test)]
 #[path = "../test/usage.test.rs"]

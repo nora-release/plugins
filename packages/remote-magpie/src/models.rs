@@ -104,6 +104,18 @@ pub(crate) fn parse(payload: &Value, account: &Account) -> PluginResult<Value> {
         if !kind.is_empty() && kind.len() <= 64 {
             model["info"]["nativeKind"] = json!(kind);
         }
+        if let Some(search) = entry
+            .get("web_search")
+            .and_then(Value::as_str)
+            .filter(|search| matches!(*search, "native" | "magpie"))
+        {
+            model["info"]["remoteWebSearch"] = json!(if search == "native" {
+                "native"
+            } else {
+                "proxy"
+            });
+            model["info"]["hostedToolCapabilities"] = json!({"hostedTools":["webSearch"]});
+        }
         if let Some(tools) = caps
             .get("tools")
             .and_then(Value::as_bool)

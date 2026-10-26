@@ -1,4 +1,4 @@
-use super::{cli, mcp, prompt, session::Run};
+use super::{cli, mcp, session::Run};
 use async_trait::async_trait;
 use futures::{stream, StreamExt};
 use nora_provider_plugin_sdk::{FetchResponse, PluginError, PluginResult};
@@ -60,27 +60,44 @@ pub(crate) fn status(value: &Value) -> u16 {
         502
     }
 }
+#[derive(Clone, Copy)]
+struct Failure {
+    status: u16,
+    message: &'static str,
+}
+impl Failure {
+    fn status(status: u16) -> Self {
+        Self {
+            status,
+            message: match status {
+                401 | 403 => "Claude Code could not use this account. Sign in again.",
+                429 => "Claude subscription usage or rate limit reached.",
+                400 => "The request is too long or invalid for Claude Code.",
+                503 => "Claude is temporarily overloaded.",
+                _ => "Claude Code stopped before completing the reply.",
+            },
+        }
+    }
+    fn payload(self) -> Value {
+        let kind = match self.status {
+            401 | 403 => "authentication_error",
+            429 => "rate_limit_error",
+            400 => "invalid_request_error",
+            503 => "overloaded_error",
+            _ => "api_error",
+        };
+        json!({"type":"error","error":{"type":kind,"message":self.message}})
+    }
+    fn response(self) -> FetchResponse {
+        FetchResponse::bytes(
+            self.status,
+            BTreeMap::from([("content-type".into(), "application/json".into())]),
+            serde_json::to_vec(&self.payload()).unwrap(),
+        )
+    }
+}
 pub(crate) fn failure(status: u16) -> FetchResponse {
-    let kind = match status {
-        401 | 403 => "authentication_error",
-        429 => "rate_limit_error",
-        400 => "invalid_request_error",
-        503 => "overloaded_error",
-        _ => "api_error",
-    };
-    let message = match status {
-        401 | 403 => "Claude Code could not use this account. Sign in again.",
-        429 => "Claude subscription usage or rate limit reached.",
-        400 => "The request is too long or invalid for Claude Code.",
-        503 => "Claude is temporarily overloaded.",
-        _ => "Claude Code stopped before completing the reply.",
-    };
-    FetchResponse::bytes(
-        status,
-        BTreeMap::from([("content-type".into(), "application/json".into())]),
-        serde_json::to_vec(&json!({"type":"error","error":{"type":kind,"message":message}}))
-            .unwrap(),
-    )
+    Failure::status(status).response()
 }
 pub(crate) async fn synchronize(
     account: &mut cli::Account,
@@ -96,6 +113,7 @@ pub(crate) async fn synchronize(
         return Ok(());
     }
     let mut next = account.clone();
+    next.session_binding = cli::hash(refresh);
     next.saved["access"] = json!(access);
     next.saved["refresh"] = json!(refresh);
     next.saved["expires"] = oauth["expiresAt"].clone();
@@ -104,25 +122,37 @@ pub(crate) async fn synchronize(
     Ok(())
 }
 struct State {
-    run: OwnedMutexGuard<Run>,
+    run: Running,
     persistence: Arc<dyn Persistence>,
     queued: VecDeque<Vec<u8>>,
     stream: bool,
     done: bool,
     complete: bool,
     visible: bool,
-    failed: Option<u16>,
+    failed: Option<Failure>,
     message: Value,
     content: BTreeMap<usize, Value>,
-    native_ids: std::collections::BTreeSet<String>,
     stopped: Option<String>,
     usage: Value,
     pending_stop: bool,
+    receiver: super::cli_messages::Receiver,
+}
+struct Running(Option<OwnedMutexGuard<Run>>);
+impl std::ops::Deref for Running {
+    type Target = Run;
+    fn deref(&self) -> &Run {
+        self.0.as_ref().unwrap()
+    }
+}
+impl std::ops::DerefMut for Running {
+    fn deref_mut(&mut self) -> &mut Run {
+        self.0.as_mut().unwrap()
+    }
 }
 impl Drop for State {
     fn drop(&mut self) {
         if !self.complete {
-            self.run.cancel();
+            super::session_control::cancel(self.run.0.take().unwrap());
         }
     }
 }
@@ -135,12 +165,21 @@ impl State {
         }
     }
     fn fail(&mut self, status: u16) {
-        self.failed = Some(status);
+        self.fail_with(Failure::status(status));
+    }
+    fn fail_schema(&mut self) {
+        self.fail_with(Failure {
+            status: 502,
+            message: super::structured_output::MISSING,
+        });
+    }
+    fn fail_with(&mut self, failure: Failure) {
+        self.failed = Some(failure);
         self.done = true;
         self.run.cancel();
         self.queued.clear();
         if self.visible {
-            self.queued.push_back(format!("event: error\ndata: {}\n\n",json!({"type":"error","error":{"type":if status==429{"rate_limit_error"}else{"api_error"},"message":if status==429{"Claude subscription usage or rate limit reached."}else{"Claude Code stopped before completing the reply."}}})).into_bytes());
+            self.send(failure.payload());
         }
     }
     async fn finish(&mut self, tool: bool) -> PluginResult<()> {
@@ -165,7 +204,11 @@ impl State {
         self.run
             .told
             .push(json!({"role":"assistant","content":content}));
+        self.run.cli_history = self.receiver.take_history();
         self.run.idle = std::time::Instant::now();
+        if !tool {
+            self.run.checkpoint = None;
+        }
         self.complete = true;
         self.done = true;
         self.send(json!({"type":"message_stop"}));
@@ -183,15 +226,18 @@ impl State {
         }
         Ok(())
     }
-    async fn native(&mut self, mut event: Value) -> PluginResult<()> {
+    async fn native(&mut self, event: Value) -> PluginResult<()> {
+        for event in self.receiver.push(event)? {
+            self.native_event(event).await?;
+        }
+        Ok(())
+    }
+    async fn native_event(&mut self, mut event: Value) -> PluginResult<()> {
         match event["type"].as_str().unwrap_or_default() {
             "message_start" => {
-                let id = cli::text(event.pointer("/message/id"), 256).ok_or_else(|| {
+                cli::text(event.pointer("/message/id"), 256).ok_or_else(|| {
                     PluginError::transport("Claude Code returned a message without an identifier.")
                 })?;
-                if !self.native_ids.insert(id.into()) {
-                    return Ok(());
-                }
                 if !self.message.is_null() {
                     return Err(PluginError::transport(
                         "Claude Code started a second reply before completing the first.",
@@ -267,7 +313,7 @@ impl State {
             "content_block_stop" => {
                 let index = event["index"].as_u64().ok_or_else(cli::error)? as usize;
                 let block = self.content.get_mut(&index).ok_or_else(cli::error)?;
-                if block["type"] == "tool_use" {
+                if block["type"] == "tool_use" || block["type"] == "server_tool_use" {
                     let input = block["_arguments"].as_str().unwrap_or_default();
                     let input = if input.is_empty() {
                         block["input"].clone()
@@ -281,17 +327,19 @@ impl State {
                             "Claude Code returned invalid tool arguments.",
                         ));
                     }
-                    let id = cli::text(block.get("id"), 256)
-                        .ok_or_else(cli::error)?
-                        .to_owned();
-                    let name = block["_wireName"]
-                        .as_str()
-                        .ok_or_else(cli::error)?
-                        .to_owned();
-                    let restored = self.run.bridge.declare(&id, &name, input.clone()).await?;
+                    if block["type"] == "tool_use" {
+                        let id = cli::text(block.get("id"), 256)
+                            .ok_or_else(cli::error)?
+                            .to_owned();
+                        let name = block["_wireName"]
+                            .as_str()
+                            .ok_or_else(cli::error)?
+                            .to_owned();
+                        let restored = self.run.bridge.declare(&id, &name, input.clone()).await?;
+                        block["name"] = json!(restored);
+                        block.as_object_mut().unwrap().remove("_wireName");
+                    }
                     block["input"] = input;
-                    block["name"] = json!(restored);
-                    block.as_object_mut().unwrap().remove("_wireName");
                     block.as_object_mut().unwrap().remove("_arguments");
                 }
             }
@@ -323,7 +371,20 @@ impl State {
         self.send(event);
         Ok(())
     }
+    async fn settle_whole(&mut self) -> PluginResult<()> {
+        for event in self.receiver.finish_whole()? {
+            self.native_event(event).await?;
+        }
+        Ok(())
+    }
     async fn outer(&mut self, value: Value) -> PluginResult<()> {
+        if self.receiver.should_settle(&value) {
+            self.settle_whole().await?;
+            if self.complete {
+                self.run.backlog.push_front(Ok(value));
+                return Ok(());
+            }
+        }
         match value["type"].as_str().unwrap_or_default() {
             "stream_event" => self.native(value["event"].clone()).await?,
             "assistant" => {
@@ -332,32 +393,17 @@ impl State {
                     self.fail(status(&value));
                     return Ok(());
                 }
-                let id = message["id"].as_str().unwrap_or_default();
-                if self.native_ids.contains(id) {
-                    return Ok(());
-                }
-                self.native(json!({"type":"message_start","message":message}))
-                    .await?;
-                for (index, block) in message["content"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .enumerate()
-                {
-                    self.native(
-                        json!({"type":"content_block_start","index":index,"content_block":block}),
-                    )
-                    .await?;
-                    if block["type"] == "text"
-                        && block["text"].as_str().is_some_and(|text| !text.is_empty())
+                for event in self.receiver.whole(message)? {
+                    if event["type"] == "content_block_start"
+                        && event["content_block"]["type"] == "text"
+                        && event["content_block"]["text"]
+                            .as_str()
+                            .is_some_and(|text| !text.is_empty())
                     {
                         self.visible = true;
                     }
-                    self.native(json!({"type":"content_block_stop","index":index}))
-                        .await?;
+                    self.native_event(event).await?;
                 }
-                self.native(json!({"type":"message_delta","delta":{"stop_reason":message["stop_reason"]},"usage":message["usage"]})).await?;
-                self.native(json!({"type":"message_stop"})).await?;
             }
             "result" => {
                 if value["is_error"] == true
@@ -365,7 +411,37 @@ impl State {
                         .as_str()
                         .is_some_and(|kind| kind.starts_with("error"))
                 {
-                    self.fail(status(&value));
+                    let status = status(&value);
+                    if self.run.output_schema.is_some()
+                        && ![401, 403, 429, 503].contains(&status)
+                        && (value["subtype"]
+                            .as_str()
+                            .is_some_and(|kind| kind.contains("structured_output"))
+                            || value["result"].as_str().is_none_or(str::is_empty))
+                    {
+                        self.fail_schema();
+                    } else {
+                        self.fail(status);
+                    }
+                } else if self.run.output_schema.is_some() {
+                    let Some(output) = value
+                        .get("structured_output")
+                        .filter(|output| !output.is_null())
+                    else {
+                        self.fail_schema();
+                        return Ok(());
+                    };
+                    let events = match self.receiver.structured_result(output) {
+                        Ok(events) => events,
+                        Err(_) => {
+                            self.fail_schema();
+                            return Ok(());
+                        }
+                    };
+                    for event in events {
+                        self.native_event(event).await?;
+                    }
+                    self.finish(false).await?;
                 } else if self.pending_stop && self.stopped.is_some() {
                     self.finish(false).await?;
                 } else {
@@ -374,7 +450,13 @@ impl State {
                     ));
                 }
             }
-            "system" | "user" | "control_response" | "command_lifecycle" | "rate_limit_event" => {}
+            "user" => {
+                for event in self.receiver.result(&value)? {
+                    self.native_event(event).await?;
+                }
+            }
+            "system" => self.run.capture_session(&value)?,
+            "control_response" | "command_lifecycle" | "rate_limit_event" => {}
             "control_request" => {
                 let response = json!({"type":"control_response","response":{"subtype":"error","request_id":value["request_id"],"error":"Only tools explicitly supplied by Nora are permitted."}});
                 self.run
@@ -399,12 +481,22 @@ impl State {
                 Some(value)
             } else {
                 match tokio::time::timeout(
-                    std::time::Duration::from_secs(120),
+                    if self.receiver.pending_whole() {
+                        std::time::Duration::from_millis(300)
+                    } else {
+                        std::time::Duration::from_secs(120)
+                    },
                     self.run.output.recv(),
                 )
                 .await
                 {
                     Ok(value) => value,
+                    Err(_) if self.receiver.pending_whole() => {
+                        if self.settle_whole().await.is_err() {
+                            self.fail(502);
+                        }
+                        continue;
+                    }
                     Err(_) => None,
                 }
             };
@@ -425,12 +517,15 @@ impl State {
 }
 use tokio::io::AsyncWriteExt;
 pub(crate) async fn response(
-    run: OwnedMutexGuard<Run>,
+    mut run: OwnedMutexGuard<Run>,
     streaming: bool,
     persistence: Arc<dyn Persistence>,
 ) -> PluginResult<FetchResponse> {
+    let mut receiver =
+        super::cli_messages::Receiver::new(run.web_search).with_schema(run.output_schema.is_some());
+    receiver.restore_history(std::mem::take(&mut run.cli_history));
     let mut state = State {
-        run,
+        run: Running(Some(run)),
         persistence,
         queued: VecDeque::new(),
         stream: streaming,
@@ -440,32 +535,41 @@ pub(crate) async fn response(
         failed: None,
         message: Value::Null,
         content: BTreeMap::new(),
-        native_ids: std::collections::BTreeSet::new(),
         stopped: None,
         usage: json!({}),
         pending_stop: false,
+        receiver,
     };
     let first = state.next().await;
-    if let Some(status) = state.failed.filter(|_| !state.visible || !streaming) {
-        return Ok(failure(status));
+    let allowance_headers = match state.run.learned.as_ref() {
+        Some(cache) => cache.headers().await,
+        None => BTreeMap::new(),
+    };
+    if let Some(failure) = state.failed.filter(|_| !state.visible || !streaming) {
+        let mut response = failure.response();
+        response.headers.extend(allowance_headers);
+        return Ok(response);
     }
     let Some(first) = first else {
         return Ok(failure(502));
     };
+    let mut headers = allowance_headers;
+    headers.insert(
+        "content-type".into(),
+        if streaming {
+            "text/event-stream"
+        } else {
+            "application/json"
+        }
+        .into(),
+    );
     let body = stream::once(async move { Ok(first) })
         .chain(stream::unfold(state, |mut state| async move {
             state.next().await.map(|chunk| (Ok(chunk), state))
         }));
     Ok(FetchResponse {
         status: 200,
-        headers: BTreeMap::from([(
-            "content-type".into(),
-            if streaming {
-                "text/event-stream".into()
-            } else {
-                "application/json".into()
-            },
-        )]),
+        headers,
         body: Box::pin(body),
     })
 }

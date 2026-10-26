@@ -40,7 +40,7 @@
           "key": "sourcePath",
           "type": "text",
           "label": "Command Code account file",
-          "required": true,
+          "required": false,
           "placeholder": "~/.commandcode/auth.json"
         }
       ]
@@ -55,6 +55,7 @@
         "type": "boolean",
         "default": false,
         "description": "Requests upstreams that keep no prompts or replies. They can cost more, and an unavailable upstream returns an error.",
+        "confirm": "ZDR requests usually cost more, and a model with no zero-data-retention upstream fails instead of falling back.",
         "id": "zdr"
       }
     ],

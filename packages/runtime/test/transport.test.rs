@@ -2,6 +2,83 @@ use super::*;
 use crate::xai_provider::grok_model_selection;
 use serde_json::json;
 
+#[path = "output_policy.test.rs"]
+mod output_policy;
+
+#[tokio::test]
+async fn status_and_header_observation_does_not_poll_or_replace_the_response_body() {
+    use async_trait::async_trait;
+    use futures::stream;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    };
+    #[derive(Debug)]
+    struct Observer(Arc<Mutex<Vec<(u16, BTreeMap<String, String>)>>>);
+    impl crate::ProviderAdapter for Observer {
+        fn observe_response(
+            &self,
+            credentials: &Value,
+            status: u16,
+            headers: &BTreeMap<String, String>,
+        ) {
+            assert_eq!(credentials["type"], "apiKey");
+            self.0.lock().unwrap().push((status, headers.clone()));
+        }
+    }
+    struct Client {
+        status: u16,
+        reads: Arc<AtomicUsize>,
+    }
+    #[async_trait]
+    impl HttpClient for Client {
+        async fn stream(
+            &self,
+            _: HttpRequest,
+        ) -> Result<HttpStreamingResponse, nora_ai::HttpClientError> {
+            let reads = self.reads.clone();
+            Ok(HttpStreamingResponse {
+                status: self.status,
+                headers: BTreeMap::from([("retry-after".into(), "60".into())]),
+                body: Box::pin(stream::once(async move {
+                    reads.fetch_add(1, Ordering::SeqCst);
+                    Ok(b"unchanged".to_vec().into())
+                })),
+            })
+        }
+    }
+    for status in [200, 429] {
+        let reads = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let mut definition = definition("openai");
+        definition.adapter = Arc::new(Observer(observed.clone()));
+        let response = send(
+            &Client {
+                status,
+                reads: reads.clone(),
+            },
+            &definition,
+            &json!({"type":"apiKey","access":"fixture"}),
+            "openai-responses",
+            HttpRequest::new(HttpMethod::Post, "https://api.openai.com/v1/responses"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(reads.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            *observed.lock().unwrap(),
+            vec![(status, response.headers.clone())]
+        );
+        assert_eq!(
+            nora_ai::collect_http_body_text_limited(response.body, 100)
+                .await
+                .unwrap(),
+            "unchanged"
+        );
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+    }
+}
+
 #[tokio::test]
 async fn only_the_adapters_selected_error_statuses_are_observed_without_consuming_the_stream() {
     use async_trait::async_trait;
@@ -110,6 +187,8 @@ fn definition(id: &str) -> Definition {
 }
 fn request(url: &str, credentials: Value) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "private".into(),
         network_proxy: None,
@@ -121,6 +200,65 @@ fn request(url: &str, credentials: Value) -> FetchRequest {
         headers: BTreeMap::from([("authorization".into(), "Bearer nora-plugin".into())]),
         body: None,
     }
+}
+
+#[tokio::test]
+async fn optional_caller_identity_is_applied_after_codec_headers_and_before_custom_headers() {
+    let mut definition = definition("openai");
+    definition.config.pass_user_agent = true;
+    let mut input = request(
+        "https://api.openai.com/v1/responses",
+        json!({"type":"apiKey","access":"fixture-key"}),
+    );
+    input.caller_user_agent = Some("Claude-Code/2.1.310 (macOS; arm64)".into());
+    input
+        .headers
+        .insert("user-agent".into(), "Nora codec".into());
+    let outgoing = build_request(&definition, input.clone()).await.unwrap();
+    assert_eq!(
+        outgoing.headers.get("User-Agent").map(String::as_str),
+        Some("Claude-Code/2.1.310 (macOS; arm64)")
+    );
+    assert_eq!(
+        outgoing
+            .headers
+            .keys()
+            .filter(|name| name.eq_ignore_ascii_case("user-agent"))
+            .count(),
+        1
+    );
+    definition
+        .config
+        .headers
+        .insert("user-agent".into(), "My-Application/1".into());
+    let outgoing = build_request(&definition, input).await.unwrap();
+    assert_eq!(
+        outgoing.headers.get("user-agent").map(String::as_str),
+        Some("My-Application/1")
+    );
+    assert_eq!(
+        outgoing
+            .headers
+            .keys()
+            .filter(|name| name.eq_ignore_ascii_case("user-agent"))
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn request_metadata_cannot_forge_the_private_caller_identity() {
+    let mut definition = definition("openai");
+    definition.config.pass_user_agent = true;
+    let mut input = request(
+        "https://api.openai.com/v1/responses",
+        json!({"type":"apiKey","access":"fixture-key"}),
+    );
+    input
+        .metadata
+        .insert("callerUserAgent".into(), "Forged/1".into());
+    let outgoing = build_request(&definition, input).await.unwrap();
+    assert!(!outgoing.headers.values().any(|value| value == "Forged/1"));
 }
 #[tokio::test]
 async fn api_key_is_applied_only_inside_the_plugin() {

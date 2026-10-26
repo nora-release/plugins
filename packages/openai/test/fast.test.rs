@@ -98,6 +98,8 @@ async fn api_priority_is_kept_after_the_entire_request_builder() {
     definition.adapter = std::sync::Arc::new(super::super::OpenAI);
     let body = json!({"model":"gpt-6-sol","input":"hello","service_tier":"priority"});
     let request = nora_provider_plugin_sdk::FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "fixture".into(),
         credentials: Some(json!({"type":"apiKey","access":"private-fixture-key"})),

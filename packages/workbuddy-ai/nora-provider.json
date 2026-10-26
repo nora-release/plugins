@@ -30,7 +30,14 @@
         "label": "Use WorkBuddy AI desktop sign-in (read only)"
       }
     ],
-    "authTimeoutMs": 420000
+    "authTimeoutMs": 420000,
+    "ownSearch": {
+      "version": 1,
+      "manual": false
+    },
+    "sdkCapabilities": {
+      "webSearch": 1
+    }
   },
   "localSignIns": [
     {

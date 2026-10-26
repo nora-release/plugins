@@ -45,7 +45,14 @@
     },
     "accountActions": [
       "checkin"
-    ]
+    ],
+    "ownSearch": {
+      "version": 1,
+      "manual": false
+    },
+    "sdkCapabilities": {
+      "webSearch": 1
+    }
   },
   "localSignIns": [
     {

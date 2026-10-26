@@ -13,6 +13,7 @@ pub(crate) struct Tokens {
     pub email: String,
     pub name: String,
     pub version: String,
+    pub identity: Option<Value>,
 }
 
 pub(crate) fn selected(path: &str, app: App) -> PluginResult<Tokens> {
@@ -77,7 +78,8 @@ pub(crate) fn selected(path: &str, app: App) -> PluginResult<Tokens> {
             .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
         {
             if claims
-                .get("aud")
+                .get("azp")
+                .or_else(|| claims.get("aud"))
                 .is_some_and(|aud| aud.as_str() != Some(app.client_id()))
             {
                 return Err(invalid(
@@ -151,16 +153,25 @@ pub(crate) fn current(value: Option<&Value>, app: App) -> PluginResult<(Tokens, 
             version: text(value.get("clientVersion"), 64)
                 .unwrap_or("2.9.1")
                 .into(),
+            identity: value
+                .get("accountIdentity")
+                .filter(|identity| identity.is_object())
+                .cloned(),
         },
         None,
     ))
 }
 
 pub(crate) fn saved(tokens: &Tokens, app: App, path: Option<&str>) -> Value {
-    if let Some(path) = path {
-        return json!({"type":"codeAssistSource","authMethod":"source","app":app.id(),"label":tokens.email,"email":tokens.email,"name":tokens.name,"accountId":tokens.uid,"project":tokens.project,"source":{"app":app.id(),"path":path,"uid":tokens.uid}});
+    let mut value = if let Some(path) = path {
+        json!({"type":"codeAssistSource","authMethod":"source","app":app.id(),"label":tokens.email,"email":tokens.email,"name":tokens.name,"accountId":tokens.uid,"project":tokens.project,"source":{"app":app.id(),"path":path,"uid":tokens.uid},"extras":{"noraAccountSource":{"kind":"codeAssistSource","path":path}}})
+    } else {
+        json!({"type":"oauth","authMethod":"oauth","app":app.id(),"label":tokens.email,"email":tokens.email,"name":tokens.name,"accountId":tokens.uid,"access":tokens.access,"refresh":tokens.refresh,"expires":tokens.expires,"project":tokens.project,"clientVersion":tokens.version})
+    };
+    if let Some(identity) = &tokens.identity {
+        value["accountIdentity"] = identity.clone();
     }
-    json!({"type":"oauth","authMethod":"oauth","app":app.id(),"label":tokens.email,"email":tokens.email,"name":tokens.name,"accountId":tokens.uid,"access":tokens.access,"refresh":tokens.refresh,"expires":tokens.expires,"project":tokens.project,"clientVersion":tokens.version})
+    value
 }
 
 #[cfg(test)]

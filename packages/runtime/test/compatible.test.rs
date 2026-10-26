@@ -19,6 +19,8 @@ async fn an_explicit_private_auth_header_does_not_add_other_authentication_heade
         value["config"]["apiKeyAuth"] = serde_json::to_value(&scheme).unwrap();
         let definition = crate::definition::Definition::parse(value).unwrap();
         let request = nora_provider_plugin_sdk::FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "account".into(),
             credentials: Some(json!({"type":"apiKey","access":"private-custom-key"})),
@@ -107,6 +109,8 @@ async fn custom_provider_uses_the_configured_protocol_and_destination_without_ve
         assert!(definition.models.is_empty());
         assert!(definition.config.catalog.is_empty());
         let request = nora_provider_plugin_sdk::FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "account".into(),
             credentials: Some(json!({"type":"apiKey","access":"private-custom-key"})),

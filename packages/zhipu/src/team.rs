@@ -1,6 +1,6 @@
 use nora_ai::{HttpClient, JsonValue, OAuthCredentials, ResolvedProviderAuth};
 use nora_provider_plugin_sdk::{PluginError, PluginResult};
-use nora_provider_quota::{fetch, fetch_between, unsupported_origin};
+use nora_provider_quota::{fetch_between, unsupported_origin};
 use serde_json::Value;
 
 pub fn configure(inputs: &Value, credentials: &mut OAuthCredentials) -> PluginResult<()> {
@@ -59,13 +59,7 @@ pub async fn usage(
         .get("glmProjectID")
         .and_then(|value| value.as_str());
     let (Some(organization), Some(project)) = (organization, project) else {
-        let Some(payload) = fetch(auth, host, endpoint, false, client)
-            .await
-            .map_err(|error| error.to_string())?
-        else {
-            return Ok(unsupported_origin());
-        };
-        return super::usage::parse(&payload);
+        return super::personal::usage(auth, host, endpoint, client).await;
     };
     let headers = vec![
         ("Bigmodel-Organization".into(), organization.into()),

@@ -113,6 +113,8 @@ async fn fast_is_applied_after_custom_headers_and_body_overrides() {
     let mut definition = nora_provider::definition::Definition::parse(raw).unwrap();
     definition.adapter = std::sync::Arc::new(super::super::Anthropic);
     let request = nora_provider_plugin_sdk::FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "fixture".into(),
         credentials: Some(json!({"type":"apiKey","access":"private-fixture-key"})),

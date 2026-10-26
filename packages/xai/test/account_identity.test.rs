@@ -36,10 +36,12 @@ async fn local_and_owned_sessions_have_the_same_identity_without_matching_displa
         None,
         BTreeMap::new(),
     );
-    Xai.enrich_account(&mut local, &UserClient, None)
+    Xai::default()
+        .enrich_account(&mut local, &UserClient, None)
         .await
         .unwrap();
-    Xai.enrich_account(&mut owned, &UserClient, None)
+    Xai::default()
+        .enrich_account(&mut owned, &UserClient, None)
         .await
         .unwrap();
     assert_eq!(
@@ -72,10 +74,12 @@ async fn separate_billing_organizations_are_not_merged_just_because_the_person_i
     second
         .extras
         .insert("organizationId".into(), JsonValue::string("org-b"));
-    Xai.enrich_account(&mut first, &UserClient, None)
+    Xai::default()
+        .enrich_account(&mut first, &UserClient, None)
         .await
         .unwrap();
-    Xai.enrich_account(&mut second, &UserClient, None)
+    Xai::default()
+        .enrich_account(&mut second, &UserClient, None)
         .await
         .unwrap();
     assert_ne!(
@@ -119,8 +123,9 @@ async fn an_expired_owned_or_bound_session_still_uses_its_verified_stored_user_i
         } else {
             json!({"userId":"person-a","teamId":"team-a"})
         };
-        Xai.enrich_credentials(&old, &mut credentials);
-        Xai.enrich_account(&mut credentials, &ExpiredSession, None)
+        Xai::default().enrich_credentials(&old, &mut credentials);
+        Xai::default()
+            .enrich_account(&mut credentials, &ExpiredSession, None)
             .await
             .unwrap();
         assert_eq!(

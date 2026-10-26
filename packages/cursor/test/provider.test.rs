@@ -185,6 +185,7 @@ async fn model_discovery_is_remote_and_respects_the_account_list() {
             account: "one".into(),
             credentials: Some(fixture::credential()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -205,6 +206,8 @@ async fn custom_urls_sampling_and_invalid_proxy_are_rejected_before_any_key_leav
     let client = Client::new(vec![]);
     let plugin = plugin(client.clone()).await;
     let request = |url: &str, body: Value| FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(fixture::credential()),
@@ -255,6 +258,8 @@ fn provider_http_errors_preserve_status_without_reflecting_bodies() {
 fn fetch_chat(chat: Value) -> FetchRequest {
     use base64::Engine;
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(fixture::credential()),

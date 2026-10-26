@@ -56,3 +56,15 @@ fn bad_prices_and_bad_entries_do_not_lose_the_whole_remote_list() {
     assert!(list["models"][1].get("cost").is_none());
     assert!(parse(&json!({"data":{}}), &account()).is_err());
 }
+#[test]
+fn native_and_proxy_searches_are_distinct_metadata_and_never_inference_body_options() {
+    let list=parse(&json!({"data":[{"id":"native","web_search":"native"},{"id":"proxy","web_search":"magpie"},{"id":"plain","web_search":"unknown"}]}),&account()).unwrap();
+    assert_eq!(list["models"][0]["info"]["remoteWebSearch"], "native");
+    assert_eq!(list["models"][1]["info"]["remoteWebSearch"], "proxy");
+    assert_eq!(
+        list["models"][0]["info"]["hostedToolCapabilities"],
+        json!({"hostedTools":["webSearch"]})
+    );
+    assert!(list["models"][2]["info"].get("remoteWebSearch").is_none());
+    assert!(list["models"][0].get("providerOptions").is_none());
+}

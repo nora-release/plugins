@@ -1,3 +1,4 @@
+use crate::package_manifest::{filename_component, PackageManifest};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -21,20 +22,15 @@ pub fn write_catalog(
         let value: Value =
             serde_json::from_slice(&std::fs::read(&path).map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())?;
-        let definition = crate::definition::Definition::parse(value.clone())
-            .map_err(|error| error.to_string())?;
-        let version = value
-            .get("version")
-            .and_then(Value::as_str)
-            .ok_or("A provider version is required")?;
-        if !safe_component(&definition.id) || !safe_component(version) {
-            return Err("A provider ID or version contains invalid filename characters".into());
-        }
-        let description = value
-            .pointer("/config/description")
+        let manifest = PackageManifest::parse(&value)
+            .map_err(|error| format!("Invalid provider manifest {}: {error}", path.display()))?;
+        let version = manifest.version;
+        let description = manifest
+            .config
+            .and_then(|config| config.get("description"))
             .and_then(Value::as_str)
             .unwrap_or_else(|| {
-                if definition
+                if manifest
                     .auth_methods
                     .iter()
                     .any(|method| method.get("type").and_then(Value::as_str) == Some("oauth"))
@@ -44,15 +40,21 @@ pub fn write_catalog(
                     "Connect with your API key."
                 }
             });
+        if description.len() > 4096 || description.chars().any(char::is_control) {
+            return Err(format!(
+                "The provider description is invalid: {}",
+                manifest.id
+            ));
+        }
         let mut packages = BTreeMap::new();
         if let Some((archives, target, base)) = release {
-            if !safe_component(target) {
+            if !filename_component(target) {
                 return Err("The release target is invalid".into());
             }
-            let filename = format!("{}-{version}-{target}.zip", definition.id);
+            let filename = format!("{}-{version}-{target}.zip", manifest.id);
             let path = archives.join(&filename);
             let mut file = std::fs::File::open(&path)
-                .map_err(|error| format!("Missing provider archive {}: {error}", definition.id))?;
+                .map_err(|error| format!("Missing provider archive {}: {error}", manifest.id))?;
             let mut digest = Sha256::new();
             let mut bytes = [0; 64 * 1024];
             loop {
@@ -64,7 +66,12 @@ pub fn write_catalog(
             }
             let base = url::Url::parse(&format!("{}/", base.trim_end_matches('/')))
                 .map_err(|_| "The package download base URL is invalid")?;
-            if base.scheme() != "https" || !base.username().is_empty() || base.password().is_some()
+            if base.scheme() != "https"
+                || base.host_str().is_none()
+                || !base.username().is_empty()
+                || base.password().is_some()
+                || base.query().is_some()
+                || base.fragment().is_some()
             {
                 return Err(
                     "Published provider packages require an HTTPS download base URL".into(),
@@ -79,18 +86,19 @@ pub fn write_catalog(
             );
         }
         let mut provider = json!({
-            "id":definition.id,"name":definition.name,"description":description,"version":version,
-            "repository":format!("https://github.com/nora-release/plugins/tree/agent/router/packages/{}",definition.id),
+            "apiVersion":manifest.api_version,
+            "id":manifest.id,"name":manifest.name,"description":description,"version":version,
+            "repository":format!("https://github.com/nora-release/plugins/tree/agent/router/packages/{}",manifest.id),
             "packages":packages
         });
-        // Nora finds these sign-ins on a Mac before the provider is installed.
-        if let Some(sign_ins) = value
-            .get("localSignIns")
-            .filter(|sign_ins| sign_ins.as_array().is_some_and(|items| !items.is_empty()))
-        {
-            provider["localSignIns"] = sign_ins.clone();
+        if let Some(minimum) = manifest.minimum_host_version {
+            provider["minimumHostVersion"] = json!(minimum);
         }
-        if providers.insert(definition.id, provider).is_some() {
+        // Nora finds these sign-ins on a Mac before the provider is installed.
+        if !manifest.local_sign_ins.is_empty() {
+            provider["localSignIns"] = json!(manifest.local_sign_ins);
+        }
+        if providers.insert(manifest.id.to_owned(), provider).is_some() {
             return Err("The provider catalog contains duplicate IDs".into());
         }
     }
@@ -104,15 +112,6 @@ pub fn write_catalog(
         serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?,
     )
     .map_err(|error| error.to_string())
-}
-
-fn safe_component(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
-        && !matches!(value, "." | "..")
 }
 
 #[cfg(test)]

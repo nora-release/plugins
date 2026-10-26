@@ -1,0 +1,1945 @@
+[
+  {
+    "name": "zod-derived-refs",
+    "input": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "offset": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "limit": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "pageSize": {
+          "minimum": 0,
+          "description": "page size",
+          "$ref": "#/$defs/__schema1"
+        },
+        "threadId": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "run",
+          "$ref": "#/$defs/__schema2"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "a",
+            "b"
+          ]
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "x"
+            },
+            {
+              "type": "string",
+              "const": "y"
+            }
+          ]
+        },
+        "retries": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "offset",
+        "limit",
+        "pageSize",
+        "threadId",
+        "runId",
+        "mode",
+        "retries"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "type": "number",
+          "minimum": 0
+        },
+        "__schema1": {
+          "type": "integer",
+          "maximum": 9007199254740991,
+          "$ref": "#/$defs/__schema0"
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "expected": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "properties": {
+        "offset": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "limit": {
+          "$ref": "#/$defs/__schema1"
+        },
+        "pageSize": {
+          "minimum": 0,
+          "description": "page size",
+          "$ref": "#/$defs/__schema1"
+        },
+        "threadId": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "runId": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "description": "run"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "a",
+            "b"
+          ]
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": "x"
+            },
+            {
+              "type": "string",
+              "const": "y"
+            }
+          ]
+        },
+        "retries": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/__schema1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "offset",
+        "limit",
+        "pageSize",
+        "threadId",
+        "runId",
+        "mode",
+        "retries"
+      ],
+      "additionalProperties": false,
+      "$defs": {
+        "__schema0": {
+          "type": "number",
+          "minimum": 0
+        },
+        "__schema1": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "__schema2": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  {
+    "name": "codex-automation-update",
+    "input": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "view"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "mode",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "model": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "reasoningEffort": {
+                  "$ref": "#/$defs/__schema10"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema11"
+                },
+                "destination": {
+                  "type": "string",
+                  "const": "local"
+                },
+                "executionEnvironment": {
+                  "type": "string",
+                  "const": "local"
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "projectId",
+                "model",
+                "reasoningEffort",
+                "mode",
+                "executionEnvironment"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema12"
+                },
+                "destination": {
+                  "$ref": "#/$defs/__schema13"
+                },
+                "targetThreadId": {
+                  "$ref": "#/$defs/__schema14"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema11"
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "mode"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema15"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "model": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "reasoningEffort": {
+                  "$ref": "#/$defs/__schema10"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema16"
+                },
+                "id": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "destination": {
+                  "type": "string",
+                  "enum": [
+                    "local",
+                    "worktree"
+                  ]
+                },
+                "executionEnvironment": {
+                  "description": "env",
+                  "type": "string",
+                  "enum": [
+                    "worktree",
+                    "local"
+                  ]
+                },
+                "localEnvironmentConfigPath": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "projectId",
+                "model",
+                "reasoningEffort",
+                "mode",
+                "id",
+                "executionEnvironment"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema15"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema12"
+                },
+                "destination": {
+                  "$ref": "#/$defs/__schema13"
+                },
+                "targetThreadId": {
+                  "$ref": "#/$defs/__schema14"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema16"
+                },
+                "id": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "mode",
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "delete"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "mode",
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "description": "Automation id.",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__schema2": {
+          "description": "name",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema3": {
+          "description": "prompt",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema4": {
+          "description": "rrule create",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema5": {
+          "description": "status",
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "PAUSED"
+          ]
+        },
+        "__schema6": {
+          "description": "np",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "all",
+                "failed_runs_only"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "__schema7": {
+          "description": "cron",
+          "type": "string",
+          "const": "cron"
+        },
+        "__schema8": {
+          "description": "project",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "__schema9": {
+          "description": "model",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema10": {
+          "description": "effort",
+          "type": "string",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "ultra"
+          ]
+        },
+        "__schema11": {
+          "type": "string",
+          "enum": [
+            "create",
+            "suggested_create"
+          ]
+        },
+        "__schema12": {
+          "description": "hb",
+          "type": "string",
+          "const": "heartbeat"
+        },
+        "__schema13": {
+          "description": "dest",
+          "type": "string",
+          "enum": [
+            "local",
+            "thread"
+          ]
+        },
+        "__schema14": {
+          "format": "uuid",
+          "description": "tt",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema15": {
+          "description": "rrule",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema16": {
+          "type": "string",
+          "enum": [
+            "update",
+            "suggested_update"
+          ]
+        }
+      }
+    },
+    "expected": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "view"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "mode",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "model": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "reasoningEffort": {
+                  "$ref": "#/$defs/__schema10"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema11"
+                },
+                "destination": {
+                  "type": "string",
+                  "const": "local"
+                },
+                "executionEnvironment": {
+                  "type": "string",
+                  "const": "local"
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "projectId",
+                "model",
+                "reasoningEffort",
+                "mode",
+                "executionEnvironment"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema12"
+                },
+                "destination": {
+                  "$ref": "#/$defs/__schema13"
+                },
+                "targetThreadId": {
+                  "$ref": "#/$defs/__schema14"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema11"
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "mode"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema15"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema7"
+                },
+                "projectId": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "model": {
+                  "$ref": "#/$defs/__schema9"
+                },
+                "reasoningEffort": {
+                  "$ref": "#/$defs/__schema10"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema16"
+                },
+                "id": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "destination": {
+                  "type": "string",
+                  "enum": [
+                    "local",
+                    "worktree"
+                  ]
+                },
+                "executionEnvironment": {
+                  "description": "env",
+                  "type": "string",
+                  "enum": [
+                    "worktree",
+                    "local"
+                  ]
+                },
+                "localEnvironmentConfigPath": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "projectId",
+                "model",
+                "reasoningEffort",
+                "mode",
+                "id",
+                "executionEnvironment"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "prompt": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "rrule": {
+                  "$ref": "#/$defs/__schema15"
+                },
+                "status": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "notificationPolicy": {
+                  "$ref": "#/$defs/__schema6"
+                },
+                "kind": {
+                  "$ref": "#/$defs/__schema12"
+                },
+                "destination": {
+                  "$ref": "#/$defs/__schema13"
+                },
+                "targetThreadId": {
+                  "$ref": "#/$defs/__schema14"
+                },
+                "mode": {
+                  "$ref": "#/$defs/__schema16"
+                },
+                "id": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "name",
+                "prompt",
+                "rrule",
+                "status",
+                "kind",
+                "mode",
+                "id"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "delete"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "mode",
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$defs": {
+        "__schema0": {
+          "description": "Automation id.",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema1": {
+          "type": "string",
+          "minLength": 1
+        },
+        "__schema2": {
+          "description": "name",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema3": {
+          "description": "prompt",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema4": {
+          "description": "rrule create",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema5": {
+          "description": "status",
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "PAUSED"
+          ]
+        },
+        "__schema6": {
+          "description": "np",
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "all",
+                "failed_runs_only"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "__schema7": {
+          "description": "cron",
+          "type": "string",
+          "const": "cron"
+        },
+        "__schema8": {
+          "description": "project",
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "__schema9": {
+          "description": "model",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema10": {
+          "description": "effort",
+          "type": "string",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max",
+            "ultra"
+          ]
+        },
+        "__schema11": {
+          "type": "string",
+          "enum": [
+            "create",
+            "suggested_create"
+          ]
+        },
+        "__schema12": {
+          "description": "hb",
+          "type": "string",
+          "const": "heartbeat"
+        },
+        "__schema13": {
+          "description": "dest",
+          "type": "string",
+          "enum": [
+            "local",
+            "thread"
+          ]
+        },
+        "__schema14": {
+          "format": "uuid",
+          "description": "tt",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema15": {
+          "description": "rrule",
+          "$ref": "#/$defs/__schema1"
+        },
+        "__schema16": {
+          "type": "string",
+          "enum": [
+            "update",
+            "suggested_update"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "recursive-reference",
+    "input": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "type": "object",
+          "$ref": "#/$defs/node"
+        }
+      },
+      "$defs": {
+        "node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/$defs/node"
+            }
+          }
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "$defs": {
+        "node": {
+          "type": "object",
+          "properties": {
+            "next": {
+              "$ref": "#/$defs/node"
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "enum-const-and-unions",
+    "input": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "string",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "b": {
+          "enum": [
+            "x",
+            "y"
+          ]
+        },
+        "c": {
+          "enum": [
+            "x",
+            null
+          ]
+        },
+        "d": {
+          "const": 3
+        },
+        "e": {
+          "$ref": "#/$defs/one"
+        },
+        "f": {
+          "$ref": "#/$defs/open"
+        }
+      },
+      "$defs": {
+        "one": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "open": {
+          "description": "anything"
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "b": {
+          "type": "string",
+          "enum": [
+            "x",
+            "y"
+          ]
+        },
+        "c": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "x",
+            null
+          ]
+        },
+        "d": {
+          "type": "integer",
+          "const": 3
+        },
+        "e": {
+          "$ref": "#/$defs/one"
+        },
+        "f": {
+          "$ref": "#/$defs/open"
+        }
+      },
+      "$defs": {
+        "one": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "open": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "object",
+            "array",
+            "null"
+          ],
+          "description": "anything"
+        }
+      }
+    }
+  },
+  {
+    "name": "numeric-null-enums",
+    "input": {
+      "properties": {
+        "ints": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "nums": {
+          "enum": [
+            1,
+            2.5,
+            null
+          ]
+        },
+        "mixed": {
+          "enum": [
+            "one",
+            true
+          ]
+        },
+        "nil": {
+          "enum": [
+            null
+          ]
+        },
+        "empty": {
+          "enum": []
+        },
+        "obj": {
+          "const": {}
+        },
+        "arr": {
+          "const": []
+        },
+        "bool": {
+          "const": true
+        }
+      }
+    },
+    "expected": {
+      "properties": {
+        "ints": {
+          "type": "integer",
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "nums": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "enum": [
+            1,
+            2.5,
+            null
+          ]
+        },
+        "mixed": {
+          "enum": [
+            "one",
+            true
+          ]
+        },
+        "nil": {
+          "enum": [
+            null
+          ]
+        },
+        "empty": {
+          "enum": []
+        },
+        "obj": {
+          "const": {}
+        },
+        "arr": {
+          "const": []
+        },
+        "bool": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    }
+  },
+  {
+    "name": "reference-escaping",
+    "input": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "number",
+          "$ref": "#/$defs/a~1b"
+        },
+        "b": {
+          "type": "integer",
+          "$ref": "#/$defs/a~0b"
+        },
+        "c": {
+          "$ref": "#/$defs/%E4%BD%A0%E5%A5%BD"
+        },
+        "d": {
+          "$ref": "#/$defs/a%2Bb"
+        },
+        "invalid": {
+          "$ref": "#/$defs/%zz"
+        }
+      },
+      "$defs": {
+        "a/b": {
+          "minimum": 1
+        },
+        "a~b": {
+          "minimum": 2
+        },
+        "你好": {
+          "description": "open"
+        },
+        "a+b": {
+          "maxLength": 4
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "minimum": 1,
+          "type": "number"
+        },
+        "b": {
+          "minimum": 2,
+          "type": "integer"
+        },
+        "c": {
+          "$ref": "#/$defs/%E4%BD%A0%E5%A5%BD"
+        },
+        "d": {
+          "$ref": "#/$defs/a%2Bb"
+        },
+        "invalid": {
+          "$ref": "#/$defs/%zz"
+        }
+      },
+      "$defs": {
+        "a/b": {
+          "minimum": 1
+        },
+        "a~b": {
+          "minimum": 2
+        },
+        "你好": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "object",
+            "array",
+            "null"
+          ],
+          "description": "open"
+        },
+        "a+b": {
+          "type": "string",
+          "maxLength": 4
+        }
+      }
+    }
+  },
+  {
+    "name": "all-schema-locations",
+    "input": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "enum": [
+            "a"
+          ]
+        }
+      },
+      "$defs": {
+        "a": {
+          "const": 2
+        }
+      },
+      "definitions": {
+        "b": {
+          "const": false
+        }
+      },
+      "dependentSchemas": {
+        "x": {
+          "enum": [
+            1,
+            null
+          ]
+        }
+      },
+      "patternProperties": {
+        "x": {
+          "enum": [
+            "a"
+          ]
+        }
+      },
+      "items": [
+        {
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "additionalProperties": {
+        "enum": [
+          "a"
+        ]
+      },
+      "contains": {
+        "enum": [
+          "a"
+        ]
+      },
+      "propertyNames": {
+        "enum": [
+          "a"
+        ]
+      },
+      "not": {
+        "enum": [
+          "a"
+        ]
+      },
+      "if": {
+        "enum": [
+          "a"
+        ]
+      },
+      "then": {
+        "enum": [
+          "a"
+        ]
+      },
+      "else": {
+        "enum": [
+          "a"
+        ]
+      },
+      "allOf": [
+        {
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "anyOf": [
+        {
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "oneOf": [
+        {
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "prefixItems": [
+        {
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "unevaluatedProperties": {
+        "enum": [
+          "a"
+        ]
+      },
+      "unevaluatedItems": {
+        "enum": [
+          "a"
+        ]
+      },
+      "contentSchema": {
+        "enum": [
+          "a"
+        ]
+      },
+      "default": {
+        "enum": [
+          "literal-data"
+        ]
+      },
+      "examples": [
+        {
+          "enum": [
+            "literal-data"
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "properties": {
+        "a": {
+          "type": "string",
+          "enum": [
+            "a"
+          ]
+        }
+      },
+      "$defs": {
+        "a": {
+          "type": "integer",
+          "const": 2
+        }
+      },
+      "definitions": {
+        "b": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "dependentSchemas": {
+        "x": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "enum": [
+            1,
+            null
+          ]
+        }
+      },
+      "patternProperties": {
+        "x": {
+          "type": "string",
+          "enum": [
+            "a"
+          ]
+        }
+      },
+      "items": [
+        {
+          "type": "string",
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "contains": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "not": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "if": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "then": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "else": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "allOf": [
+        {
+          "type": "string",
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "prefixItems": [
+        {
+          "type": "string",
+          "enum": [
+            "a"
+          ]
+        }
+      ],
+      "unevaluatedProperties": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "unevaluatedItems": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "contentSchema": {
+        "type": "string",
+        "enum": [
+          "a"
+        ]
+      },
+      "default": {
+        "enum": [
+          "literal-data"
+        ]
+      },
+      "examples": [
+        {
+          "enum": [
+            "literal-data"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "inference-keywords",
+    "input": {
+      "properties": {
+        "o": {
+          "$ref": "#/$defs/object"
+        },
+        "a": {
+          "$ref": "#/$defs/array"
+        },
+        "s": {
+          "$ref": "#/$defs/string"
+        },
+        "n": {
+          "$ref": "#/$defs/number"
+        },
+        "all": {
+          "$ref": "#/$defs/all"
+        },
+        "any": {
+          "$ref": "#/$defs/any"
+        }
+      },
+      "$defs": {
+        "object": {
+          "required": [
+            "x"
+          ]
+        },
+        "array": {
+          "minItems": 2
+        },
+        "string": {
+          "pattern": "x"
+        },
+        "number": {
+          "minimum": 1
+        },
+        "all": {
+          "allOf": [
+            {
+              "description": "unknown"
+            },
+            {
+              "minimum": 1
+            }
+          ]
+        },
+        "any": {
+          "oneOf": [
+            {
+              "description": "unknown"
+            },
+            {
+              "minimum": 1
+            }
+          ]
+        }
+      }
+    },
+    "expected": {
+      "properties": {
+        "o": {
+          "$ref": "#/$defs/object"
+        },
+        "a": {
+          "$ref": "#/$defs/array"
+        },
+        "s": {
+          "$ref": "#/$defs/string"
+        },
+        "n": {
+          "$ref": "#/$defs/number"
+        },
+        "all": {
+          "$ref": "#/$defs/all"
+        },
+        "any": {
+          "$ref": "#/$defs/any"
+        }
+      },
+      "$defs": {
+        "object": {
+          "type": "object",
+          "required": [
+            "x"
+          ]
+        },
+        "array": {
+          "type": "array",
+          "minItems": 2
+        },
+        "string": {
+          "type": "string",
+          "pattern": "x"
+        },
+        "number": {
+          "type": "number",
+          "minimum": 1
+        },
+        "all": {
+          "type": "number",
+          "allOf": [
+            {
+              "description": "unknown"
+            },
+            {
+              "minimum": 1
+            }
+          ]
+        },
+        "any": {
+          "type": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "object",
+            "array",
+            "null"
+          ],
+          "oneOf": [
+            {
+              "description": "unknown"
+            },
+            {
+              "minimum": 1
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "remote-and-missing-refs",
+    "input": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "string",
+          "$ref": "https://example.test/schema"
+        },
+        "b": {
+          "type": "string",
+          "$ref": "#/missing"
+        },
+        "self": {
+          "type": "object",
+          "$ref": "#"
+        },
+        "empty": {
+          "$ref": "#/$defs/empty"
+        }
+      },
+      "$defs": {
+        "empty": {}
+      }
+    },
+    "expected": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "$ref": "https://example.test/schema"
+        },
+        "b": {
+          "$ref": "#/missing"
+        },
+        "self": {
+          "$ref": "#"
+        },
+        "empty": {
+          "$ref": "#/$defs/empty"
+        }
+      },
+      "$defs": {
+        "empty": {}
+      }
+    }
+  },
+  {
+    "name": "untyped-cycle",
+    "input": {
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "$defs": {
+        "node": {
+          "$ref": "#/$defs/node"
+        }
+      }
+    },
+    "expected": {
+      "properties": {
+        "node": {
+          "$ref": "#/$defs/node"
+        }
+      },
+      "$defs": {
+        "node": {
+          "$ref": "#/$defs/node"
+        }
+      }
+    }
+  },
+  {
+    "name": "derived-keywords-win",
+    "input": {
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 3,
+          "$ref": "#/$defs/n"
+        }
+      },
+      "$defs": {
+        "n": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    },
+    "expected": {
+      "properties": {
+        "n": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 10
+        }
+      },
+      "$defs": {
+        "n": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    }
+  },
+  {
+    "name": "accepted-schema",
+    "input": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "string"
+        },
+        "b": {
+          "$ref": "#/$defs/x"
+        }
+      },
+      "$defs": {
+        "x": {
+          "type": "number"
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "string"
+        },
+        "b": {
+          "$ref": "#/$defs/x"
+        }
+      },
+      "$defs": {
+        "x": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  {
+    "name": "ordered-derived-definitions",
+    "input": {
+      "$defs": {
+        "z": {
+          "type": "object",
+          "$ref": "#/$defs/a"
+        },
+        "b": {
+          "type": "integer",
+          "$ref": "#/$defs/z"
+        },
+        "a": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "expected": {
+      "$defs": {
+        "z": {
+          "type": "object",
+          "minimum": 0
+        },
+        "b": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "a": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "reverse-ordered-derived-definitions",
+    "input": {
+      "$defs": {
+        "b": {
+          "type": "integer",
+          "$ref": "#/$defs/z"
+        },
+        "z": {
+          "type": "object",
+          "$ref": "#/$defs/a"
+        },
+        "a": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "expected": {
+      "$defs": {
+        "b": {
+          "$ref": "#/$defs/z"
+        },
+        "z": {
+          "type": "object",
+          "minimum": 0
+        },
+        "a": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  {
+    "name": "integer-key-derived-definitions",
+    "input": {
+      "$defs": {
+        "3": {
+          "type": "object",
+          "$ref": "#/$defs/a"
+        },
+        "20": {
+          "type": "integer",
+          "$ref": "#/$defs/3"
+        },
+        "a": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "expected": {
+      "$defs": {
+        "3": {
+          "type": "object",
+          "minimum": 0
+        },
+        "20": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "a": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  }
+]

@@ -131,6 +131,17 @@ pub(crate) fn parse(text: &str, now: chrono::DateTime<chrono::Utc>) -> PluginRes
     {
         return Err(cli::error());
     }
+    // Claude can print an allowance before discovering that it cannot read
+    // this account. Never keep that partial reading as a successful refresh.
+    let denied = regex::Regex::new(
+        r"(?i)\b(401|403)\b|signed out|sign-in (has )?expired|forbidden|authentication (failed|required)|invalid (access )?token|(session|usage) limit|hit your limit|using your overages",
+    )
+    .unwrap();
+    if denied.is_match(&text) {
+        return Err(PluginError::transport(
+            "Claude Code's usage command could not read this account's allowances.",
+        ));
+    }
     let pattern = regex::Regex::new(
         r"^Current (session|week(?: \(([^)]+)\))?):\s*([0-9.]+)% used(?:\s*·\s*resets (.+))?$",
     )
@@ -183,12 +194,7 @@ pub(crate) fn parse(text: &str, now: chrono::DateTime<chrono::Utc>) -> PluginRes
         )
         .unwrap();
         item["windowSeconds"] = json!(span);
-        let model = match scope.to_ascii_lowercase().as_str() {
-            "opus" => Some("*opus*"),
-            "sonnet" => Some("*sonnet*"),
-            "fable" => Some("*fable*"),
-            _ => None,
-        };
+        let model = model_scope(scope);
         item["countsForRouting"] =
             json!(scope.is_empty() || scope.eq_ignore_ascii_case("all models") || model.is_some());
         if let Some(model) = model {
@@ -212,6 +218,20 @@ pub(crate) fn parse(text: &str, now: chrono::DateTime<chrono::Utc>) -> PluginRes
         items,
         Vec::new(),
     ))
+}
+
+fn model_scope(scope: &str) -> Option<String> {
+    let pattern =
+        regex::Regex::new(r"(?i)^(opus|sonnet|fable)(?:\s+[0-9]+(?:\.[0-9]+)*)?$").unwrap();
+    pattern.is_match(scope).then(|| {
+        let normalized = scope
+            .to_ascii_lowercase()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join("-")
+            .replace('.', "-");
+        format!("*{normalized}*")
+    })
 }
 #[cfg(test)]
 #[path = "../test/cli_usage.test.rs"]

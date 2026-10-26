@@ -81,6 +81,7 @@ async fn live_models_repick_an_unsubscribed_organization_only_after_host_ack() {
             account: "one".into(),
             credentials: Some(fixture::saved("team")),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -122,7 +123,8 @@ async fn rejected_credential_save_prevents_using_a_new_organization() {
             subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(fixture::saved("team")),
-            network_proxy: None
+            network_proxy: None,
+            ..Default::default()
         })
         .await
         .is_err());
@@ -143,6 +145,7 @@ async fn stale_model_token_is_minted_once_without_replacing_the_account_pair() {
             account: "one".into(),
             credentials: Some(fixture::saved("personal")),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -209,6 +212,7 @@ async fn usage_returns_only_published_plan_and_period_without_a_fabricated_quota
             account: "one".into(),
             credentials: Some(fixture::saved("personal")),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -261,6 +265,7 @@ fn model_context() -> CallContext {
         account: "one".into(),
         credentials: Some(fixture::saved("personal")),
         network_proxy: None,
+        ..Default::default()
     }
 }
 

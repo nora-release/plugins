@@ -222,6 +222,7 @@ async fn credit_balance_is_kept_when_clinepass_is_absent() {
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -243,6 +244,8 @@ async fn native_tools_and_sampling_survive_nonstreaming_envelope_removal() {
     let body = json!({"model":"maker/model","messages":[{"role":"tool","tool_call_id":"call","content":"done"}],"top_p":0.25,"stop":["END"],"tools":[{"type":"function","function":{"name":"read"}}]});
     let response = plugin
         .fetch(FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "one".into(),
             credentials: Some(credentials()),

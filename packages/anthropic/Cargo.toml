@@ -21,6 +21,7 @@ libc = "0.2"
 regex = "1"
 chrono-tz = "0.10"
 unicode-normalization = "0.1"
+fs2 = "0.4"
 
 [[test]]
 name = "claude-cli"

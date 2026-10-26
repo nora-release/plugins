@@ -34,6 +34,10 @@ impl ProviderAdapter for OpenAI {
     fn id(&self) -> Option<&'static str> {
         Some("openai")
     }
+    fn initialize_data_directory(&self, directory: &std::path::Path) -> PluginResult<()> {
+        codex_version::initialize(directory);
+        Ok(())
+    }
     fn account_import_kind(&self) -> Option<nora_provider::account_import::LoginKind> {
         Some(nora_provider::account_import::LoginKind::Codex)
     }

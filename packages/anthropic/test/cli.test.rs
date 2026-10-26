@@ -1,6 +1,67 @@
 use super::*;
 use crate::fixture;
 #[tokio::test]
+async fn cli_output_signed_out_status_with_exit_one_is_not_a_failed_command() {
+    let directory = fixture::Directory::new();
+    let path = directory.0.join("profile");
+    fixture::profile(&path);
+    std::fs::write(
+        path.join("fixture-status.json"),
+        json!({"exit":1,"stdout":json!({"loggedIn":false,"authMethod":"none"}).to_string()})
+            .to_string(),
+    )
+    .unwrap();
+    let account = signed_in(
+        &fixture::binary(),
+        &Home::Isolated(path),
+        Proxy::new(None).await.unwrap(),
+        None,
+    )
+    .await
+    .unwrap();
+    assert!(account.is_none());
+}
+#[tokio::test]
+async fn cli_output_buffers_are_bounded_and_preserve_the_exit_status() {
+    let directory = fixture::Directory::new();
+    let path = directory.0.join("profile");
+    fixture::profile(&path);
+    std::fs::write(
+        path.join("fixture-usage.json"),
+        json!({"exit":7,"stdout":"x".repeat(4 * 1024 * 1024 + 8192),"stderr":"e".repeat(128 * 1024)}).to_string(),
+    ).unwrap();
+    let result = output(
+        &fixture::binary(),
+        &["-p", "/usage"],
+        &Home::Isolated(path),
+        Proxy::new(None).await.unwrap(),
+        true,
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.status.code(), Some(7));
+    assert_eq!(result.stdout.len(), 4 * 1024 * 1024);
+    assert_eq!(result.stderr.len(), 64 * 1024);
+}
+#[test]
+fn cli_output_file_failures_do_not_report_expired_credentials() {
+    let directory = fixture::Directory::new();
+    let path = directory.0.join("missing/profile.json");
+    assert_eq!(read(&path).unwrap_err().code, "upstream_transport_error");
+    assert_eq!(
+        write(&path, b"{}").unwrap_err().code,
+        "upstream_transport_error"
+    );
+    let parent_file = directory.0.join("file");
+    std::fs::write(&parent_file, "").unwrap();
+    assert_eq!(
+        self::directory(&parent_file.join("nested"))
+            .unwrap_err()
+            .code,
+        "upstream_transport_error"
+    );
+}
+#[tokio::test]
 async fn real_executable_status_is_scoped_to_the_private_profile_and_identity() {
     let directory = fixture::Directory::new();
     let root = directory.0.join("claude-accounts");
@@ -97,6 +158,7 @@ fn an_own_sign_in_account_is_saved_without_tokens_and_found_again_by_identity() 
         organization: String::new(),
         plan: "max".into(),
         saved: json!({"extras":{"scopes":["user:inference"]}}),
+        session_binding: "login-1".into(),
     };
     let saved = account.saved();
     assert!(saved.get("access").is_none());

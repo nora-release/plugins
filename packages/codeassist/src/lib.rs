@@ -5,6 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod account_import;
 mod auth;
 mod envelope;
+mod gemini_source;
 mod models;
 mod project;
 mod provider;

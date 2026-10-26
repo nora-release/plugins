@@ -175,10 +175,12 @@ pub(crate) async fn identify_with_identity(
             .to_lowercase()
     ));
     tokens.name = text(user.get("name"), 512).unwrap_or_default().into();
-    Ok(match text(user.get("id"), 512) {
+    let identity = match text(user.get("id"), 512) {
         Some(id) => json!({"issuer":"https://accounts.google.com","subject":id}),
         None => json!({"issuer":"urn:nora:google-email","subject":tokens.email.to_lowercase()}),
-    })
+    };
+    tokens.identity = Some(identity.clone());
+    Ok(identity)
 }
 
 pub(crate) async fn json_request(

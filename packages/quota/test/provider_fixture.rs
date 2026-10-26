@@ -40,6 +40,16 @@ pub async fn verify(
     bearer: bool,
     payload: &Value,
 ) {
+    verify_with_request_count(adapter, base, endpoint, bearer, payload, 1).await;
+}
+pub async fn verify_with_request_count(
+    adapter: &dyn ProviderAdapter,
+    base: &str,
+    endpoint: &str,
+    bearer: bool,
+    payload: &Value,
+    request_count: usize,
+) {
     let client = Client::json(payload);
     let mut auth = ResolvedProviderAuth {
         token: Some("private-api-key".into()),
@@ -64,7 +74,7 @@ pub async fn verify(
     assert!(!usage.to_string().contains("private-api-key"));
     assert!(!usage.to_string().contains("unexposed-private-field"));
     let requests = client.requests.lock().unwrap();
-    assert_eq!(requests.len(), 1);
+    assert_eq!(requests.len(), request_count);
     assert_eq!(requests[0].url, endpoint);
     assert_eq!(
         requests[0].headers["authorization"],
@@ -75,6 +85,10 @@ pub async fn verify(
         }
     );
     assert!(requests[0].body.is_none());
+    assert!(requests.iter().all(|request| {
+        request.headers["authorization"] == requests[0].headers["authorization"]
+            && request.body.is_none()
+    }));
     drop(requests);
     for status in [401, 403, 410, 500] {
         let denied = Client {

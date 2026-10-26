@@ -169,10 +169,13 @@ async fn every_source_operation_receives_the_effective_proxy_and_explicit_direct
             account: "fixture".into(),
             credentials: Some(credentials.clone()),
             network_proxy: override_proxy.clone(),
+            ..Default::default()
         };
         provider.models(context.clone()).await.unwrap();
         assert!(provider.usage(context).await.is_err());
         let request = FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "fixture".into(),
             credentials: Some(credentials),

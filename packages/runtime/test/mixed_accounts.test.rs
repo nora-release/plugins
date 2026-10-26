@@ -160,11 +160,14 @@ async fn installed_vendor_configuration_is_restored_for_signed_in_accounts_only(
                 account: "fixture".into(),
                 credentials: Some(credentials.clone()),
                 network_proxy: None,
+                ..Default::default()
             })
             .await
             .unwrap();
         assert_eq!(result["source"], "remote", "{result}");
         let request = FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "fixture".into(),
             credentials: Some(credentials.clone()),
@@ -194,6 +197,7 @@ async fn installed_vendor_configuration_is_restored_for_signed_in_accounts_only(
             account: "signed".into(),
             credentials: Some(signed_in),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();

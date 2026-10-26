@@ -2,7 +2,7 @@ use crate::*;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 const CAMPAIGNS: &str = "/sash/api/v1/me/campaigns";
-async fn page(
+pub(crate) async fn page(
     provider: &Qoder,
     client: &dyn HttpClient,
     credentials: &mut Value,
@@ -24,7 +24,7 @@ async fn page(
         let mut headers = BTreeMap::from([
             ("accept".into(), "application/json".into()),
             ("authorization".into(), format!("Bearer {token}")),
-            ("cosy-clienttype".into(), "10".into()),
+            ("cosy-clienttype".into(), provider.site.client_type().into()),
             ("user-agent".into(), "Qoder".into()),
         ]);
         headers.extend(machine.clone());
@@ -48,7 +48,9 @@ async fn page(
         )
         .await?;
         if [401, 403].contains(&status) && attempt == 0 && !pat {
-            if credentials.get("deviceChat").and_then(Value::as_bool) == Some(true) {
+            if !provider.site.is_work()
+                && credentials.get("deviceChat").and_then(Value::as_bool) == Some(true)
+            {
                 return Err(authentication(
                     "Renew the Qoder CN account sign-in before reading its account page.",
                 ));

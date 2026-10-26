@@ -35,6 +35,7 @@ fn context(app: App) -> CallContext {
         account: "work".into(),
         credentials: Some(credentials(app)),
         network_proxy: None,
+        ..Default::default()
     }
 }
 fn project() -> fixture::Reply {
@@ -45,6 +46,8 @@ fn project() -> fixture::Reply {
 fn request(app: App, model: &str) -> FetchRequest {
     use base64::Engine;
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(credentials(app)),
@@ -62,6 +65,143 @@ fn request(app: App, model: &str) -> FetchRequest {
         ),
         body_file: None,
     }
+}
+
+struct GeminiFiles(std::path::PathBuf);
+impl GeminiFiles {
+    fn new(access: &str, refresh: &str, expiry: i64) -> Self {
+        let dir = std::env::temp_dir().join(format!(
+            "nora-gemini-discover-{}",
+            nora_ai::oauth_pkce::random_hex(12)
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let value = Self(dir);
+        value.write(access, refresh, expiry);
+        value
+    }
+    fn path(&self) -> std::path::PathBuf {
+        self.0.join("oauth_creds.json")
+    }
+    fn write(&self, access: &str, refresh: &str, expiry: i64) {
+        std::fs::write(self.path(),serde_json::to_vec(&json!({"access_token":access,"refresh_token":refresh,"expiry_date":expiry,"retained":"keep-me"})).unwrap()).unwrap();
+    }
+}
+impl Drop for GeminiFiles {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+fn google_person(id: &str) -> fixture::Reply {
+    fixture::Reply::json(
+        json!({"id":id,"email":"person@example.test","verified_email":true,"name":"Person"}),
+    )
+}
+#[derive(Default)]
+struct SavedCredentials(std::sync::Mutex<Vec<Value>>);
+#[async_trait]
+impl nora_provider::account_import::CredentialPersistence for SavedCredentials {
+    async fn save(&self, value: Value) -> PluginResult<()> {
+        self.0.lock().unwrap().push(value);
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn old_owned_account_profile_backfills_the_same_verified_identity_as_auto_discovery() {
+    let files = GeminiFiles::new("source-access", "source-refresh", now() + 3600000);
+    let (mut provider, client) = provider(
+        App::GeminiCLI,
+        vec![google_person("123"), google_person("123")],
+    )
+    .await;
+    let saved = Arc::new(SavedCredentials::default());
+    provider.persistence = saved.clone();
+    let mut existing = credentials(App::GeminiCLI);
+    existing["accountId"] = json!(fingerprint("google-account\0123"));
+    let mut ctx = context(App::GeminiCLI);
+    ctx.credentials = Some(existing);
+    provider.accounts(ctx).await.unwrap();
+    let discovered = provider
+        .discover_gemini_at(&files.path(), client.as_ref())
+        .await
+        .unwrap();
+    let saved = saved.0.lock().unwrap();
+    assert_eq!(saved.len(), 1);
+    assert_eq!(
+        saved[0]["accountIdentity"],
+        discovered["accounts"][0]["credentials"]["accountIdentity"]
+    );
+    assert_eq!(saved[0]["refresh"], "private-refresh");
+}
+
+#[tokio::test]
+async fn local_gemini_is_automatically_discovered_once_and_bound_to_verified_identity() {
+    let files = GeminiFiles::new("private-access", "private-refresh", now() + 3600000);
+    let (provider, client) = provider(App::GeminiCLI, vec![google_person("123")]).await;
+    let before = std::fs::read(files.path()).unwrap();
+    let first = provider
+        .discover_gemini_at(&files.path(), client.as_ref())
+        .await
+        .unwrap();
+    let second = provider
+        .discover_gemini_at(&files.path(), client.as_ref())
+        .await
+        .unwrap();
+    assert_eq!(first, second);
+    let saved = &first["accounts"][0]["credentials"];
+    assert_eq!(
+        saved["accountIdentity"],
+        json!({"issuer":"https://accounts.google.com","subject":"123"})
+    );
+    assert_eq!(saved["extras"]["noraAccountSource"]["kind"], "geminiCLI");
+    assert!(!saved.to_string().contains("private-"));
+    assert_eq!(client.requests.lock().unwrap().len(), 1);
+    assert_eq!(std::fs::read(files.path()).unwrap(), before);
+    assert!(provider
+        .discover_gemini_at(&files.0.join("absent.json"), client.as_ref())
+        .await
+        .unwrap()["accounts"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn expired_gemini_source_refreshes_original_file_and_a_new_login_cannot_replace_bound_account(
+) {
+    let files = GeminiFiles::new("old-access", "old-refresh", 1);
+    let (provider,client)=provider(App::GeminiCLI,vec![fixture::Reply::json(json!({"access_token":"renewed-access","refresh_token":"renewed-refresh","expires_in":3600})),google_person("123"),google_person("other-person")]).await;
+    let discovered = provider
+        .discover_gemini_at(&files.path(), client.as_ref())
+        .await
+        .unwrap();
+    let saved = &discovered["accounts"][0]["credentials"];
+    let renewed: Value = serde_json::from_slice(&std::fs::read(files.path()).unwrap()).unwrap();
+    assert_eq!(renewed["access_token"], "renewed-access");
+    assert_eq!(renewed["refresh_token"], "renewed-refresh");
+    assert_eq!(renewed["retained"], "keep-me");
+    files.write("other-access", "other-refresh", now() + 3600000);
+    let other = std::fs::read(files.path()).unwrap();
+    assert!(provider
+        .live(Some(saved), client.as_ref(), false)
+        .await
+        .is_err());
+    assert_eq!(std::fs::read(files.path()).unwrap(), other);
+    assert_eq!(client.requests.lock().unwrap().len(), 3);
+}
+
+#[tokio::test]
+async fn source_changed_during_renewal_is_not_overwritten_or_returned_as_current() {
+    let files = GeminiFiles::new("old-access", "old-refresh", 1);
+    let snapshot = gemini_source::Snapshot::read(&files.path()).unwrap();
+    files.write("new-login-access", "new-login-refresh", now() + 3600000);
+    let current = std::fs::read(files.path()).unwrap();
+    let (provider,client)=provider(App::GeminiCLI,vec![fixture::Reply::json(json!({"access_token":"stale-renewal","refresh_token":"stale-refresh","expires_in":3600})),google_person("123")]).await;
+    assert!(provider
+        .live_gemini_source(snapshot, None, client.as_ref(), false)
+        .await
+        .is_err());
+    assert_eq!(std::fs::read(files.path()).unwrap(), current);
 }
 #[tokio::test]
 async fn gemini_models_usage_and_chat_use_real_code_assist_routes_and_model_mapping() {
@@ -173,6 +313,7 @@ async fn selected_source_identity_changes_fail_without_writing_or_saving_its_tok
             account: "work".into(),
             credentials: Some(saved.clone()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .err()

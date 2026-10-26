@@ -10,6 +10,7 @@ pub(crate) struct Failure {
     pub message: String,
     pub retry_after: Option<u64>,
     pub sign_in: Option<String>,
+    pub queue: Option<queue::State>,
 }
 impl Failure {
     fn new(status: u16, message: impl Into<String>) -> Self {
@@ -18,6 +19,7 @@ impl Failure {
             message: message.into(),
             retry_after: None,
             sign_in: None,
+            queue: None,
         }
     }
     pub fn response(self) -> FetchResponse {
@@ -50,7 +52,7 @@ pub(crate) fn failure(status: u16, raw: &str) -> Failure {
     };
     let mut message = raw.trim().to_owned();
     let mut code = String::new();
-    let mut queue = Value::Null;
+    let mut queue = None;
     if let Ok(mut value) = serde_json::from_str::<Value>(raw) {
         let outer = value
             .get("code")
@@ -99,37 +101,24 @@ pub(crate) fn failure(status: u16, raw: &str) -> Failure {
             message.push_str(": ");
             message.push_str(detail);
         }
-        queue = value
-            .get("queue")
-            .filter(|queue| queue.is_object())
-            .cloned()
-            .unwrap_or_else(|| {
-                serde_json::from_str(text(&value, "message")).unwrap_or(Value::Null)
-            });
+        queue = queue::state(&value);
     }
     if message.is_empty() {
         message = format!("Qoder returned HTTP {status}.");
     }
-    if code == "10605"
-        || queue.get("isQueued").and_then(Value::as_bool) == Some(true)
-        || queue.get("serviceAvailable").and_then(Value::as_bool) == Some(false)
-    {
-        let after = queue
-            .get("retryAfterSeconds")
-            .and_then(number)
-            .filter(|value| *value > 0.0)
-            .map(|value| value.ceil() as u64)
-            .unwrap_or(30);
-        let model = if text(&queue, "modelKey").is_empty() {
-            String::new()
-        } else {
-            format!(" for {}", text(&queue, "modelKey"))
-        };
+    if code == "10605" || queue.as_ref().is_some_and(queue::State::busy) {
+        let queue = queue.unwrap_or_default();
+        let after = queue.retry_after();
+        let model = queue
+            .model()
+            .map(|model| format!(" for {model}"))
+            .unwrap_or_default();
         return Failure {
             status: 503,
             message: format!("Qoder is busy{model}; try again in {after}s."),
             retry_after: Some(after),
             sign_in: Some(String::new()),
+            queue: Some(queue),
         };
     }
     if [
@@ -504,17 +493,33 @@ fn chunk(event: Event, id: &str, model: &str, created: u64) -> Vec<u8> {
     }
     format!("data: {value}\n\n").into_bytes()
 }
+pub(crate) struct Opened {
+    events: std::pin::Pin<Box<dyn futures::Stream<Item = Event> + Send>>,
+    first: Event,
+}
+pub(crate) async fn open(response: HttpStreamingResponse) -> Result<Opened, Failure> {
+    let mut events: std::pin::Pin<Box<dyn futures::Stream<Item = Event> + Send>> =
+        Box::pin(events(response.body));
+    let Some(first) = events.next().await else {
+        return Err(Failure::new(502, "Qoder ended without an answer."));
+    };
+    if let Event::Error(error) = first {
+        return Err(error);
+    }
+    Ok(Opened { events, first })
+}
+#[cfg(test)]
 pub(crate) async fn answer(
     response: HttpStreamingResponse,
     chat: &Value,
 ) -> PluginResult<FetchResponse> {
-    let mut events = Box::pin(events(response.body));
-    let Some(first) = events.next().await else {
-        return Ok(Failure::new(502, "Qoder ended without an answer.").response());
-    };
-    if let Event::Error(error) = first {
-        return Ok(error.response());
+    match open(response).await {
+        Ok(opened) => answer_opened(opened, chat).await,
+        Err(error) => Ok(error.response()),
     }
+}
+pub(crate) async fn answer_opened(opened: Opened, chat: &Value) -> PluginResult<FetchResponse> {
+    let Opened { mut events, first } = opened;
     let id = format!("chatcmpl-{}", id());
     let model = text(chat, "model").to_owned();
     let created = now() / 1000;

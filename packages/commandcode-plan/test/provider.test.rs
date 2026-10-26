@@ -121,6 +121,8 @@ fn credentials() -> Value {
 }
 fn fetch_request(credentials: Value, body: Value) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials),
@@ -292,6 +294,7 @@ async fn a_go_refusal_changes_subsequent_models_and_routing_even_with_the_old_cr
             account: "one".into(),
             credentials: Some(original.clone()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -373,6 +376,7 @@ async fn live_go_catalog_uses_no_key_and_keeps_real_entitlements() {
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -406,6 +410,7 @@ async fn actual_usage_is_saved_but_temporary_credit_outages_keep_the_account() {
             account: "one".into(),
             credentials: Some(credentials()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();

@@ -142,12 +142,17 @@ fn installed_executable(home: Option<&Path>, path: &std::ffi::OsStr) -> Option<P
 }
 
 pub(crate) fn directory(path: &Path) -> PluginResult<()> {
-    std::fs::create_dir_all(path).map_err(|_| error())?;
+    std::fs::create_dir_all(path).map_err(|_| {
+        PluginError::transport("The Claude Code account directory could not be created.")
+    })?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
-            .map_err(|_| error())?;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).map_err(|_| {
+            PluginError::transport(
+                "The Claude Code account directory permissions could not be set.",
+            )
+        })?;
     }
     Ok(())
 }
@@ -162,10 +167,18 @@ pub(crate) fn write(path: &Path, bytes: &[u8]) -> PluginResult<()> {
         options.mode(0o600);
     }
     let result = (|| {
-        let mut file = options.open(&temporary).map_err(|_| error())?;
-        file.write_all(bytes).map_err(|_| error())?;
-        file.sync_all().map_err(|_| error())?;
-        std::fs::rename(&temporary, path).map_err(|_| error())
+        let mut file = options.open(&temporary).map_err(|_| {
+            PluginError::transport("The Claude Code account file could not be created.")
+        })?;
+        file.write_all(bytes).map_err(|_| {
+            PluginError::transport("The Claude Code account file could not be written.")
+        })?;
+        file.sync_all().map_err(|_| {
+            PluginError::transport("The Claude Code account file could not be saved.")
+        })?;
+        std::fs::rename(&temporary, path).map_err(|_| {
+            PluginError::transport("The Claude Code account file could not be replaced.")
+        })
     })();
     let _ = std::fs::remove_file(temporary);
     result
@@ -173,15 +186,19 @@ pub(crate) fn write(path: &Path, bytes: &[u8]) -> PluginResult<()> {
 pub(crate) fn read(path: &Path) -> PluginResult<Value> {
     nora_provider_plugin_sdk::require_subscription_accounts()?;
     use std::io::Read;
-    let file = std::fs::File::open(path).map_err(|_| error())?;
+    let file = std::fs::File::open(path)
+        .map_err(|_| PluginError::transport("The Claude Code account file could not be opened."))?;
     let mut bytes = Vec::new();
     file.take(1024 * 1024 + 1)
         .read_to_end(&mut bytes)
-        .map_err(|_| error())?;
+        .map_err(|_| PluginError::transport("The Claude Code account file could not be read."))?;
     if bytes.len() > 1024 * 1024 {
-        return Err(error());
+        return Err(PluginError::transport(
+            "The Claude Code account file is too large.",
+        ));
     }
-    serde_json::from_slice(&bytes).map_err(|_| error())
+    serde_json::from_slice(&bytes)
+        .map_err(|_| PluginError::transport("The Claude Code account file contains invalid JSON."))
 }
 pub(crate) fn env(home: &Home, proxy: &Proxy, usage: bool) -> BTreeMap<String, String> {
     let blocked = [
@@ -252,12 +269,16 @@ impl Process {
     ) -> PluginResult<Self> {
         nora_provider_plugin_sdk::require_subscription_accounts()?;
         #[cfg(unix)]
-        let mut command = Command::new(super::supervisor::executable().map_err(|_| error())?);
+        let mut command = Command::new(super::supervisor::executable().map_err(|_| {
+            PluginError::transport("The Claude Code process supervisor could not be found.")
+        })?);
         #[cfg(not(unix))]
         let mut command = Command::new(executable);
         #[cfg(unix)]
         let mut lifetime =
-            super::supervisor::configure(&mut command, executable, args).map_err(|_| error())?;
+            super::supervisor::configure(&mut command, executable, args).map_err(|_| {
+                PluginError::transport("The Claude Code process supervisor could not be prepared.")
+            })?;
         #[cfg(not(unix))]
         command.args(args);
         command
@@ -300,6 +321,7 @@ pub(crate) struct Account {
     pub organization: String,
     pub plan: String,
     pub saved: Value,
+    pub session_binding: String,
 }
 impl Account {
     pub fn saved(&self) -> Value {
@@ -350,7 +372,7 @@ pub(crate) async fn output(
     home: &Home,
     proxy: Arc<Proxy>,
     usage: bool,
-) -> PluginResult<Vec<u8>> {
+) -> PluginResult<std::process::Output> {
     let args = args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
     let mut process = Process::spawn(
         executable,
@@ -359,42 +381,53 @@ pub(crate) async fn output(
         env(home, &proxy, usage),
     )?;
     drop(process.child.stdin.take());
-    let mut stdout = process.child.stdout.take().ok_or_else(error)?;
-    let mut stderr = process.child.stderr.take().ok_or_else(error)?;
+    let stdout = process
+        .child
+        .stdout
+        .take()
+        .ok_or_else(|| PluginError::transport("Claude Code's output could not be read."))?;
+    let stderr =
+        process.child.stderr.take().ok_or_else(|| {
+            PluginError::transport("Claude Code's error output could not be read.")
+        })?;
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(if usage { 40 } else { 20 }),
         async {
-            let read = async {
-                let mut bytes = Vec::new();
-                stdout
-                    .take(4 * 1024 * 1024 + 1)
-                    .read_to_end(&mut bytes)
-                    .await
-                    .map_err(|_| error())?;
-                if bytes.len() > 4 * 1024 * 1024 {
-                    return Err(error());
-                }
-                Ok(bytes)
-            };
-            let drain = async {
-                let mut ignored = [0; 4096];
-                while let Ok(size) = stderr.read(&mut ignored).await {
-                    if size == 0 {
-                        break;
-                    }
-                }
-            };
-            let (bytes, ()) = tokio::join!(read, drain);
-            let status = process.child.wait().await.map_err(|_| error())?;
-            if !status.success() {
-                return Err(error());
-            }
-            bytes
+            let (stdout, stderr) = tokio::join!(
+                bounded_output(stdout, 4 * 1024 * 1024),
+                bounded_output(stderr, 64 * 1024)
+            );
+            let status = process.child.wait().await.map_err(|_| {
+                PluginError::transport("Claude Code's exit status could not be read.")
+            })?;
+            Ok(std::process::Output {
+                status,
+                stdout: stdout?,
+                stderr: stderr?,
+            })
         },
     )
     .await
     .map_err(|_| PluginError::transport("Claude Code did not reply in time."))?;
     result
+}
+async fn bounded_output(
+    mut stream: impl tokio::io::AsyncRead + Unpin,
+    limit: usize,
+) -> PluginResult<Vec<u8>> {
+    let mut bytes = Vec::new();
+    let mut buffer = [0; 8192];
+    loop {
+        let size = stream
+            .read(&mut buffer)
+            .await
+            .map_err(|_| PluginError::transport("Claude Code's command output stopped."))?;
+        if size == 0 {
+            return Ok(bytes);
+        }
+        let keep = size.min(limit.saturating_sub(bytes.len()));
+        bytes.extend_from_slice(&buffer[..keep]);
+    }
 }
 pub(crate) async fn credentials(home: &Home) -> PluginResult<Value> {
     nora_provider_plugin_sdk::require_subscription_accounts()?;
@@ -444,7 +477,7 @@ pub(crate) async fn signed_in(
     proxy: Arc<Proxy>,
     expected: Option<&str>,
 ) -> PluginResult<Option<Account>> {
-    let bytes = output(
+    let output = output(
         executable,
         &["auth", "status", "--json"],
         home,
@@ -452,7 +485,10 @@ pub(crate) async fn signed_in(
         false,
     )
     .await?;
-    let status: Value = serde_json::from_slice(&bytes).map_err(|_| error())?;
+    let status: Value = match serde_json::from_slice::<Value>(&output.stdout) {
+        Ok(status) if status["loggedIn"].is_boolean() => status,
+        _ => return Err(super::cli_output::failure(&output, home).await),
+    };
     if status["loggedIn"] == false
         || status["authMethod"]
             .as_str()
@@ -509,6 +545,7 @@ pub(crate) async fn signed_in(
             .into(),
         plan,
         saved,
+        session_binding: hash(refresh),
     }))
 }
 pub(crate) fn materialize(

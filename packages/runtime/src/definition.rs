@@ -26,6 +26,11 @@ pub struct Definition {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
+    #[serde(default)]
+    pub pass_user_agent: bool,
+    /// Client-specific gateways sign requests as their own application.
+    #[serde(default)]
+    pub own_client: bool,
     #[serde(default, rename = "modelsURL")]
     pub models_url: String,
     #[serde(default, rename = "balanceURL")]
@@ -120,45 +125,7 @@ impl Definition {
 }
 
 pub fn validate_package(value: &Value) -> Result<&str, String> {
-    let id = value
-        .get("id")
-        .and_then(Value::as_str)
-        .filter(|id| {
-            !id.is_empty()
-                && id.len() <= 128
-                && id
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
-        })
-        .ok_or("The provider package identity is invalid.")?;
-    for (field, limit) in [("name", 128), ("version", 64), ("api", 128)] {
-        if !value
-            .get(field)
-            .and_then(Value::as_str)
-            .is_some_and(|text| !text.trim().is_empty() && text.len() <= limit)
-        {
-            return Err(format!("The provider package {field} is invalid."));
-        }
-    }
-    if value.get("apiVersion").and_then(Value::as_u64) != Some(1)
-        || value.pointer("/runtime/type").and_then(Value::as_str) != Some("native")
-        || !value
-            .pointer("/runtime/entry")
-            .and_then(Value::as_str)
-            .is_some_and(|entry| !entry.is_empty())
-    {
-        return Err("The provider package requires a native executable and API version 1.".into());
-    }
-    if value
-        .get("models")
-        .is_some_and(|models| !models.as_array().is_some_and(|models| models.len() <= 4096))
-        || value
-            .get("config")
-            .is_some_and(|config| !config.is_null() && !config.is_object())
-    {
-        return Err("The provider package model or configuration shape is invalid.".into());
-    }
-    Ok(id)
+    Ok(crate::package_manifest::PackageManifest::parse(value)?.id)
 }
 
 pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {

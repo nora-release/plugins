@@ -1,4 +1,12 @@
 use super::*;
+
+#[test]
+fn native_web_search_is_not_exposed_as_a_caller_mcp_tool() {
+    let (tools, names) = tools(&json!({"tools":[{"type":"web_search_20250305","name":"web_search"},{"name":"read","input_schema":{"type":"object"}}]})).unwrap();
+    assert_eq!(tools.len(), 1);
+    assert_eq!(names.len(), 1);
+    assert_eq!(tools[0]["name"], "read");
+}
 use crate::fixture;
 #[tokio::test]
 async fn authenticated_callback_waits_for_exact_declared_call_and_keeps_results_separate() {
@@ -66,4 +74,28 @@ fn names_are_collision_resistant_within_claudes_complete_mcp_name_limit() {
     assert_eq!(tool_name(&"a".repeat(54)).len(), 53);
     let reserved = tool_name("a.b");
     assert_ne!(tool_name(&reserved), reserved);
+}
+
+#[test]
+fn caller_tool_choice_filters_none_and_named_tools_and_rejects_unknown_names() {
+    let base = json!({"tools":[{"name":"selected","input_schema":{"type":"object"}},{"name":"other","input_schema":{"type":"object"}}]});
+    let mut request = base.clone();
+    request["tool_choice"] = json!({"type":"none"});
+    let (off, names) = tools(&request).unwrap();
+    assert!(off.is_empty() && names.is_empty());
+    request["tool_choice"] = json!({"type":"tool","name":"selected"});
+    let (selected, names) = tools(&request).unwrap();
+    assert_eq!(selected.len(), 1);
+    assert_eq!(selected[0]["name"], "selected");
+    assert_eq!(names.len(), 1);
+    assert!(tool_choice_ask(&request)
+        .unwrap()
+        .contains("mcp__nora__selected"));
+    request["tool_choice"] = json!({"type":"tool","name":"missing"});
+    assert!(tools(&request).is_err());
+    request["tool_choice"] = json!({"type":"any","disable_parallel_tool_use":true});
+    let ask = tool_choice_ask(&request).unwrap();
+    assert!(
+        ask.contains("at least one available tool") && ask.contains("at most one tool at a time")
+    );
 }

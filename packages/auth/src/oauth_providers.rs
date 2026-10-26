@@ -341,18 +341,19 @@ impl OAuthProvider for GitHubCopilotOAuthProvider {
 
         let response = client.request(request).await?;
         if response.status >= 400 {
-            return Err(OAuthError::RefreshFailed(format!(
-                "github-copilot {}: {}",
-                response.status,
-                String::from_utf8_lossy(&response.body)
-            )));
+            let message = format!(
+                "GitHub Copilot token exchange returned HTTP {}.",
+                response.status
+            );
+            return Err(if matches!(response.status, 401 | 403) {
+                OAuthError::RefreshFailed(message)
+            } else {
+                OAuthError::Transport(message)
+            });
         }
 
         let value = serde_json::from_slice::<Value>(&response.body).map_err(|_| {
-            OAuthError::InvalidResponse(format!(
-                "could not decode GitHub Copilot token response: {}",
-                String::from_utf8_lossy(&response.body)
-            ))
+            OAuthError::InvalidResponse("GitHub Copilot returned an invalid token response.".into())
         })?;
         let token = value.get("token").and_then(Value::as_str).ok_or_else(|| {
             OAuthError::InvalidResponse("github-copilot response missing token".to_string())

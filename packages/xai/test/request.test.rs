@@ -21,10 +21,12 @@ async fn outgoing_with(
         manifest["config"]["x_search"] = value;
     }
     let mut definition = Definition::parse(manifest).unwrap();
-    definition.adapter = Arc::new(Xai);
+    definition.adapter = Arc::new(Xai::default());
     nora_provider::transport::build_request(
         &definition,
         FetchRequest {
+            caller_user_agent: None,
+            constraints: Default::default(),
             subscription_accounts_enabled: true,
             account: "test-account".into(),
             credentials: Some(if oauth {
@@ -232,4 +234,24 @@ async fn malformed_array_tools_and_choices_follow_the_reference_filter() {
         json!([{"type":"function","name":"x","parameters":{"type":"object"}}])
     );
     assert!(sent.get("tool_choice").is_none());
+}
+
+#[tokio::test]
+async fn namespace_functions_choices_and_history_share_the_same_flat_name() {
+    let sent=rewritten(json!({"tools":[{"type":"namespace","name":"collaboration","tools":[{"type":"function","name":"spawn_agent","parameters":{"type":"object"}},{"type":"custom","name":"unsupported"}]},{"type":"namespace","name":"functions","tools":[{"type":"function","name":"view_image","parameters":{"type":"object"}}]}],"tool_choice":{"type":"function","namespace":"collaboration","name":"spawn_agent"},"input":[{"type":"function_call","call_id":"c1","namespace":"collaboration","name":"spawn_agent","arguments":"{}"},{"type":"function_call_output","call_id":"c1","output":"ok"},{"type":"function_call","namespace":"functions","name":"view_image","call_id":"c2","arguments":"{}"}]})).await;
+    assert_eq!(sent["tools"][0]["name"], "collaboration__spawn_agent");
+    assert_eq!(sent["tools"][1]["name"], "view_image");
+    assert_eq!(sent["tools"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        sent["tool_choice"],
+        json!({"type":"function","name":"collaboration__spawn_agent"})
+    );
+    assert_eq!(sent["input"][0]["name"], "collaboration__spawn_agent");
+    assert!(sent["input"][0].get("namespace").is_none());
+    assert_eq!(
+        sent["input"][1],
+        json!({"type":"function_call_output","call_id":"c1","output":"ok"})
+    );
+    assert_eq!(sent["input"][2]["name"], "view_image");
+    assert!(sent["input"][2].get("namespace").is_none());
 }

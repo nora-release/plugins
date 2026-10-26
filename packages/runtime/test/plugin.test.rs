@@ -34,7 +34,7 @@ async fn provider_at(directory: PathBuf) -> BundledProvider {
 
 #[tokio::test]
 async fn native_provider_rejects_a_different_providers_manifest() {
-    let provider = BundledProvider::new(crate::xai_provider::Xai);
+    let provider = BundledProvider::new(crate::xai_provider::Xai::default());
     let result = provider
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,
@@ -161,6 +161,7 @@ async fn saved_codex_accounts_derive_a_safe_profile_without_signing_in_again() {
             account: "work".into(),
             network_proxy: None,
             credentials: Some(credentials),
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -181,6 +182,7 @@ async fn api_account_usage_exposes_its_profile_without_requiring_a_usage_endpoin
         account:"personal".into(),
         network_proxy:None,
         credentials:Some(json!({"type":"apiKey","access":"private-api-secret","extras":{"email":"api@example.com","name":"API Member","plan":"team"}})),
+        ..Default::default()
     }).await.unwrap();
     assert_eq!(usage["account"]["email"], "api@example.com");
     assert_eq!(usage["account"]["id"], "personal");

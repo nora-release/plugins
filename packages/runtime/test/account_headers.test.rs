@@ -66,6 +66,8 @@ async fn account_headers_are_applied_privately_after_auth_and_never_added_to_mod
     let definition = definition();
     let credentials = json!({"type":"apiKey","access":"key","extras":{"noraAccountHeaders":{"anthropic-workspace-id":"workspace-one"},"authHeader":"bearer"}});
     let request = nora_provider_plugin_sdk::FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials.clone()),

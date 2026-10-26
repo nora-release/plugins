@@ -28,14 +28,28 @@ const WORKSPACE_PLANS: &[&str] = &[
 const RESERVE_PLANS: &[&str] = &["team", "self_serve_business_prolite"];
 
 fn credits(payload: &Value) -> bool {
-    payload
-        .pointer("/credits/has_credits")
+    if payload
+        .pointer("/credits/unlimited")
         .and_then(Value::as_bool)
         == Some(true)
-        || payload
-            .pointer("/credits/unlimited")
-            .and_then(Value::as_bool)
-            == Some(true)
+    {
+        return true;
+    }
+    if payload
+        .pointer("/credits/has_credits")
+        .and_then(Value::as_bool)
+        != Some(true)
+    {
+        return false;
+    }
+    payload
+        .pointer("/credits/balance")
+        .and_then(|balance| {
+            balance
+                .as_f64()
+                .or_else(|| balance.as_str()?.trim().parse::<f64>().ok())
+        })
+        .is_none_or(|balance| balance > 0.0)
 }
 fn overage(payload: &Value) -> bool {
     let plan = payload

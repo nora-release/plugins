@@ -32,10 +32,18 @@ pub(crate) fn credential(input: &Value, method: &str) -> PluginResult<Value> {
 }
 pub(crate) fn read_source(path: &str) -> PluginResult<(PathBuf, Value)> {
     nora_provider_plugin_sdk::require_subscription_accounts()?;
+    read_source_with_home(path, std::env::var_os("HOME").map(PathBuf::from))
+}
+
+fn read_source_with_home(path: &str, home: Option<PathBuf>) -> PluginResult<(PathBuf, Value)> {
+    let path = path.trim();
+    let path = if path.is_empty() {
+        "~/.commandcode/auth.json"
+    } else {
+        path
+    };
     let path = if let Some(rest) = path.strip_prefix("~/") {
-        std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .ok_or_else(|| PluginError::invalid("Select an absolute Command Code account file."))?
+        home.ok_or_else(|| PluginError::invalid("Select an absolute Command Code account file."))?
             .join(rest)
     } else {
         Path::new(path).to_owned()

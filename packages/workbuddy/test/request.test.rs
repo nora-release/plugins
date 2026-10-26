@@ -5,6 +5,8 @@ use futures::StreamExt;
 
 fn request(body: Value) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "member".into(),
         credentials: Some(

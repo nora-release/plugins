@@ -26,11 +26,13 @@ fn definition() -> Definition {
     let mut definition =
         Definition::parse(serde_json::from_str(include_str!("../nora-provider.json")).unwrap())
             .unwrap();
-    definition.adapter = Arc::new(super::super::Xai);
+    definition.adapter = Arc::new(super::super::Xai::default());
     definition
 }
 fn request(url: &str) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "account".into(),
         credentials: Some(json!({"type":"api","key":"private-video-key"})),

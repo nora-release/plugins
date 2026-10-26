@@ -280,7 +280,13 @@ impl ProviderPlugin for CommandCode {
                 Ok(json!({"ok":true,"credentials":credentials}))
             }
             "cli" => {
-                let path = core::required(core::inputs(&params), "sourcePath")?.to_owned();
+                let path = match core::inputs(&params).get("sourcePath") {
+                    None | Some(Value::Null) => String::new(),
+                    Some(Value::String(path)) => path.clone(),
+                    Some(_) => {
+                        return Err(PluginError::invalid("Select a Command Code account file."))
+                    }
+                };
                 let (path, source) = tokio::task::spawn_blocking(move || auth::read_source(&path))
                     .await
                     .map_err(|_| {

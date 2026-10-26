@@ -2,6 +2,8 @@ use super::*;
 use std::collections::BTreeMap;
 fn request(session: Option<&str>) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "public".into(),
         credentials: None,

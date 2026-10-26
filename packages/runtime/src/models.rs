@@ -2,6 +2,11 @@ use crate::definition::Definition;
 use nora_ai::{InputModality, JsonValue, Model, ModelsCatalog};
 use serde_json::Value;
 
+/// Decode models.dev metadata consistently for providers that own discovery.
+pub fn models_dev_catalog(value: &Value) -> Result<ModelsCatalog, String> {
+    crate::model_catalog::decode(&serde_json::to_vec(value).map_err(|error| error.to_string())?)
+}
+
 pub fn catalog_models_with_catalog(
     definition: &Definition,
     credentials: Option<&Value>,

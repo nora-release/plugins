@@ -7,6 +7,9 @@ use serde_json::Value;
 #[path = "../../zhipu/src/usage.rs"]
 mod usage;
 
+#[path = "../../zhipu/src/personal.rs"]
+mod personal;
+
 #[path = "../../zhipu/src/team.rs"]
 mod team;
 

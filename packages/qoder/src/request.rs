@@ -1,7 +1,6 @@
 use crate::*;
 use serde_json::Map;
 use std::collections::BTreeSet;
-const SYSTEM:&str="You are a Qoder agent. Use the instructions below and the tools available to you to assist the user.";
 pub(crate) async fn fetch(provider: &Qoder, request: FetchRequest) -> PluginResult<FetchResponse> {
     let credentials = checked(request.credentials.as_ref().ok_or_else(signed_out)?)?;
     let deployment = provider.deployment(&credentials)?;
@@ -10,6 +9,8 @@ pub(crate) async fn fetch(provider: &Qoder, request: FetchRequest) -> PluginResu
         || ![
             format!("{}/chat/completions", deployment.api),
             format!("{}/chat/completions", public.api),
+            format!("{}/v1/chat/completions", deployment.api),
+            format!("{}/v1/chat/completions", public.api),
         ]
         .contains(&request.url)
     {
@@ -42,30 +43,100 @@ pub(crate) async fn fetch(provider: &Qoder, request: FetchRequest) -> PluginResu
             .find(|entry| entry.key == model)
             .ok_or_else(|| invalid(format!("Qoder does not enable the model {model}.")))?
     };
-    let body = body(&chat, &entry)?;
+    let mut body = body_for_site(&chat, &entry, provider.site)?;
+    let request_id = id();
+    body["request_id"] = json!(request_id);
+    body["chat_record_id"] = body["request_id"].clone();
+    body["request_set_id"] = body["business"]["id"].clone();
+    body["session_id"] = json!(session(
+        &chat,
+        request
+            .metadata
+            .get("sessionID")
+            .map(String::as_str)
+            .unwrap_or_default()
+    ));
     let wire = codec::encode(&body.to_string());
     let url = format!("{}{CHAT_PATH}", deployment.api);
-    let mut headers = codec::headers(&url, &credentials, &wire)?;
-    headers.insert("accept".into(), "text/event-stream".into());
-    headers.insert("cache-control".into(), "no-cache".into());
-    headers.insert("x-model-key".into(), entry.key);
-    headers.insert("x-model-source".into(), entry.source);
-    let response = send(
-        client.as_ref(),
-        HttpRequest {
-            method: HttpMethod::Post,
-            url,
-            headers,
-            body: Some(wire.into_bytes()),
-        },
-        120,
-    )
-    .await?;
-    if !(200..300).contains(&response.status) {
-        let (status, _, bytes) = read(response, 1024 * 1024).await?;
-        return Ok(response::failure(status, &String::from_utf8_lossy(&bytes)).response());
+    let deadline = tokio::time::Instant::now() + queue::BUDGET;
+    for waited in 0..=queue::RECOVERIES {
+        let mut headers = codec::headers_for(provider.site, &url, &credentials, &wire)?;
+        headers.insert("accept".into(), "text/event-stream".into());
+        headers.insert("cache-control".into(), "no-cache".into());
+        headers.insert("x-model-key".into(), entry.key.clone());
+        headers.insert("x-model-source".into(), entry.source.clone());
+        let response = send(
+            client.as_ref(),
+            HttpRequest {
+                method: HttpMethod::Post,
+                url: url.clone(),
+                headers,
+                body: Some(wire.as_bytes().to_vec()),
+            },
+            120,
+        )
+        .await?;
+        let failure = if !(200..300).contains(&response.status) {
+            let (status, _, bytes) = read(response, 1024 * 1024).await?;
+            response::failure(status, &String::from_utf8_lossy(&bytes))
+        } else {
+            match response::open(response).await {
+                Ok(opened) => return response::answer_opened(opened, &chat).await,
+                Err(error) => error,
+            }
+        };
+        let Some(state) = failure.queue.clone().filter(|_| waited < queue::RECOVERIES) else {
+            return Ok(failure.response());
+        };
+        if !queue::wait(
+            client.as_ref(),
+            provider.site,
+            &deployment.api,
+            &credentials,
+            &body,
+            &entry.key,
+            state,
+            deadline,
+        )
+        .await
+        {
+            return Ok(failure.response());
+        }
     }
-    response::answer(response, &chat).await
+    unreachable!("the final queue refusal is returned without another recovery")
+}
+fn session(chat: &Value, named: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let seed = if !named.trim().is_empty() {
+        format!("session\0{}", named.trim())
+    } else if !text(chat, "prompt_cache_key").is_empty() {
+        format!("key\0{}", text(chat, "prompt_cache_key"))
+    } else if !text(chat, "user").is_empty() {
+        format!("user\0{}", text(chat, "user"))
+    } else {
+        let messages = chat["messages"].as_array().cloned().unwrap_or_default();
+        let system = messages
+            .iter()
+            .filter(|m| ["system", "developer"].contains(&text(m, "role")))
+            .map(|m| text_of(&m["content"]))
+            .collect::<Vec<_>>();
+        let first = messages
+            .iter()
+            .find(|m| text(m, "role") == "user")
+            .and_then(|m| m.get("content"))
+            .cloned()
+            .unwrap_or(json!(""));
+        format!("chat\0{}", json!([system, first]))
+    };
+    let hash = format!("{:x}", Sha256::digest(seed));
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hash[..8],
+        &hash[8..12],
+        &hash[12..16],
+        &hash[16..20],
+        &hash[20..32]
+    )
 }
 fn blocks(value: &Value) -> Vec<Value> {
     match value {
@@ -268,7 +339,11 @@ pub(crate) fn window(chat: &Value, entry: &models::Entry, reply: u64) -> u64 {
         .find(|window| *window >= need)
         .unwrap_or(entry.context)
 }
+#[cfg(test)]
 pub(crate) fn body(chat: &Value, entry: &models::Entry) -> PluginResult<Value> {
+    body_for_site(chat, entry, Site::International)
+}
+fn body_for_site(chat: &Value, entry: &models::Entry, site: Site) -> PluginResult<Value> {
     let messages = chat
         .get("messages")
         .and_then(Value::as_array)
@@ -282,9 +357,9 @@ pub(crate) fn body(chat: &Value, entry: &models::Entry) -> PluginResult<Value> {
         .join("\n\n");
     let tools=chat.get("tools").and_then(Value::as_array).into_iter().flatten().filter(|tool|text(chat,"tool_choice")!="none" && text(tool,"type")=="function" && !text(&tool["function"],"name").is_empty()).map(|tool|json!({"type":"function","function":{"name":tool["function"]["name"],"description":tool["function"].get("description").cloned().unwrap_or(json!("")),"parameters":tool["function"].get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}})).collect::<Vec<_>>();
     let mut system = if system.is_empty() {
-        SYSTEM.into()
+        site.system_prompt().into()
     } else {
-        format!("{SYSTEM}\n\n{system}")
+        format!("{}\n\n{system}", site.system_prompt())
     };
     if text(chat, "tool_choice") == "required" && !tools.is_empty() {
         system.push_str("\nYou must call an available function in this response.");
@@ -310,7 +385,7 @@ pub(crate) fn body(chat: &Value, entry: &models::Entry) -> PluginResult<Value> {
     }
     let mut turns = vec![json!({"role":"system","content":[system.clone()]})];
     turns.extend(self::messages(messages)?);
-    let mut body = json!({"parameters":parameters,"business":{"product":"app","version":VERSION,"type":"agent","id":id(),"name":"Nora session","begin_at":now(),"stage":"start"},"agent_id":"agent_common","task_id":"common","session_type":"app","model_config":entry.config,"system":[system],"messages":turns});
+    let mut body = json!({"parameters":parameters,"business":{"product":site.product(),"version":site.version(),"type":"agent","id":id(),"name":"Nora session","begin_at":now(),"stage":"start"},"agent_id":"agent_common","task_id":"common","session_type":site.product(),"model_config":entry.config,"system":[system],"messages":turns});
     if !tools.is_empty() {
         body["tools"] = json!(tools);
     }

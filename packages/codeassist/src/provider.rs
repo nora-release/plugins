@@ -24,6 +24,7 @@ pub struct CodeAssist {
     version: Mutex<Option<(std::time::Instant, String)>>,
     experiments: Mutex<BTreeMap<String, (std::time::Instant, models::Flags)>>,
     catalogs: Mutex<BTreeMap<String, (std::time::Instant, Value)>>,
+    persistence: Arc<dyn nora_provider::account_import::CredentialPersistence>,
 }
 impl CodeAssist {
     pub fn new(app: App) -> Self {
@@ -37,6 +38,7 @@ impl CodeAssist {
             version: Mutex::new(None),
             experiments: Mutex::new(BTreeMap::new()),
             catalogs: Mutex::new(BTreeMap::new()),
+            persistence: Arc::new(nora_provider::account_import::HostPersistence),
         }
     }
     fn config(&self) -> PluginResult<Config> {
@@ -128,6 +130,19 @@ impl CodeAssist {
         client: &dyn HttpClient,
         force: bool,
     ) -> PluginResult<session::Tokens> {
+        if let Some(value) = value.filter(|value| gemini_source::bound(value)) {
+            if self.app != App::GeminiCLI
+                || value.pointer("/source/app").and_then(Value::as_str) != Some(self.app.id())
+            {
+                return Err(expired());
+            }
+            let path = text(value.pointer("/source/path"), 16 * 1024).ok_or_else(expired)?;
+            let uid = text(value.pointer("/source/uid"), 128).ok_or_else(expired)?;
+            let snapshot = gemini_source::Snapshot::read(std::path::Path::new(path))?;
+            return self
+                .live_gemini_source(snapshot, Some(uid), client, force)
+                .await;
+        }
         let (mut tokens, expected) = session::current(value, self.app)?;
         let version = self.client_version(client).await;
         let key = fingerprint(&format!(
@@ -174,6 +189,74 @@ impl CodeAssist {
         tokens.version = version;
         cache.insert(key, tokens.clone());
         Ok(tokens)
+    }
+    async fn live_gemini_source(
+        &self,
+        snapshot: gemini_source::Snapshot,
+        expected: Option<&str>,
+        client: &dyn HttpClient,
+        force: bool,
+    ) -> PluginResult<session::Tokens> {
+        nora_provider_plugin_sdk::require_subscription_accounts()?;
+        let mut cache = self.tokens.lock().await;
+        if !force {
+            if let Some(cached) = cache
+                .get(&snapshot.key)
+                .filter(|tokens| tokens.expires > now() + 120_000)
+            {
+                if expected.is_some_and(|uid| uid != cached.uid) {
+                    return Err(expired());
+                }
+                snapshot.ensure_current()?;
+                return Ok(cached.clone());
+            }
+        }
+        let mut tokens = snapshot.tokens.clone();
+        let renewed = force || tokens.access.is_empty() || tokens.expires <= now() + 120_000;
+        if renewed {
+            let reply = auth::exchange(
+                App::GeminiCLI,
+                &[
+                    ("grant_type", "refresh_token"),
+                    ("refresh_token", &tokens.refresh),
+                ],
+                client,
+            )
+            .await?;
+            tokens = auth::read_tokens(&reply, Some(&tokens))?;
+        }
+        auth::identify(&mut tokens, client).await?;
+        if expected.is_some_and(|uid| uid != tokens.uid) {
+            return Err(expired());
+        }
+        snapshot.ensure_current()?;
+        if renewed {
+            snapshot.write_renewed(&tokens)?;
+        }
+        if cache.len() >= 32 {
+            cache.retain(|_, tokens| tokens.expires > now());
+        }
+        if cache.len() >= 32 {
+            cache.clear();
+        }
+        cache.insert(snapshot.key, tokens.clone());
+        Ok(tokens)
+    }
+    async fn discover_gemini_at(
+        &self,
+        path: &std::path::Path,
+        client: &dyn HttpClient,
+    ) -> PluginResult<Value> {
+        if !path.exists() {
+            return Ok(json!({"accounts":[]}));
+        }
+        let snapshot = gemini_source::Snapshot::read(path)?;
+        let tokens = self
+            .live_gemini_source(snapshot, None, client, false)
+            .await?;
+        Ok(
+            json!({"accounts":[{"sourceID":gemini_source::METHOD,"credentials":gemini_source::saved(&tokens,path)?}]}),
+        )
     }
     pub(crate) async fn project(
         &self,
@@ -339,16 +422,38 @@ impl ProviderPlugin for CodeAssist {
                 methods: params.manifest["authMethods"].clone(),
             });
         Ok(
-            json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true,"sdkFeatures":{"accountImport":1}}}),
+            json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true,"accountDiscovery":self.app==App::GeminiCLI,"sdkFeatures":{"accountImport":1}}}),
         )
     }
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
         Ok(self.config()?.methods)
     }
     async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
-        let Some(value) = context.credentials else {
+        let Some(mut value) = context.credentials else {
             return Ok(json!([]));
         };
+        if value.get("accountIdentity").is_none() {
+            let client = self.client(context.network_proxy.as_ref())?;
+            let mut tokens = self.live(Some(&value), client.as_ref(), false).await?;
+            if tokens.identity.is_none() {
+                auth::identify(&mut tokens, client.as_ref()).await?;
+            }
+            if text(value.get("accountId"), 128).is_some_and(|uid| uid != tokens.uid) {
+                return Err(expired());
+            }
+            let path = text(value.pointer("/source/path"), 16 * 1024);
+            let mut credentials = if gemini_source::bound(&value) {
+                gemini_source::saved(&tokens, std::path::Path::new(path.ok_or_else(expired)?))?
+            } else {
+                session::saved(&tokens, self.app, path)
+            };
+            nora_provider::account_import::preserve_metadata(&value, &mut credentials);
+            if let Some(plan) = value.get("plan") {
+                credentials["plan"] = plan.clone();
+            }
+            self.persistence.save(credentials.clone()).await?;
+            value = credentials;
+        }
         let mut profile = json!({"id":context.account});
         for key in ["email", "name", "plan", "accountId"] {
             if let Some(value) = text(value.get(key), 512) {
@@ -356,6 +461,15 @@ impl ProviderPlugin for CodeAssist {
             }
         }
         Ok(json!([profile]))
+    }
+    async fn discover_accounts(&self, context: CallContext) -> PluginResult<Value> {
+        nora_provider_plugin_sdk::require_subscription_accounts()?;
+        if self.app != App::GeminiCLI {
+            return Ok(json!({"accounts":[]}));
+        }
+        let path = gemini_source::default_path()?;
+        let client = self.client(context.network_proxy.as_ref())?;
+        self.discover_gemini_at(&path, client.as_ref()).await
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let client = self.params_client(&params)?;
@@ -375,6 +489,15 @@ impl ProviderPlugin for CodeAssist {
             .and_then(Value::as_str)
             .unwrap_or("oauth")
         {
+            gemini_source::METHOD if self.app == App::GeminiCLI => {
+                nora_provider_plugin_sdk::require_subscription_accounts()?;
+                let path = gemini_source::default_path()?;
+                let snapshot = gemini_source::Snapshot::read(&path)?;
+                let tokens = self
+                    .live_gemini_source(snapshot, None, client.as_ref(), false)
+                    .await?;
+                Ok(json!({"ok":true,"credentials":gemini_source::saved(&tokens,&path)?}))
+            }
             "oauth" => {
                 let (pending, url) = auth::start(self.app, project, client).await?;
                 let session = nora_ai::oauth_pkce::random_hex(24);

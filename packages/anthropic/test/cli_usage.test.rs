@@ -70,3 +70,64 @@ fn unknown_model_subsets_are_displayed_without_hiding_all_chat_models() {
     .unwrap();
     assert_eq!(usage["items"][0]["countsForRouting"], false);
 }
+
+#[test]
+fn account_denials_take_precedence_over_partial_usage_readings() {
+    for denial in [
+        "HTTP 401",
+        "HTTP 403 Forbidden",
+        "Signed out",
+        "Sign-in has expired",
+        "Invalid access token",
+        "Authentication required",
+        "Usage limit reached",
+        "Session limit reached",
+        "You've hit your limit",
+        "You are using your overages",
+    ] {
+        for text in [
+            format!("Current session: 25% used\n{denial}"),
+            format!("{denial}\nCurrent session: 25% used"),
+        ] {
+            let error = parse(&text, chrono::Utc::now()).unwrap_err();
+            assert!(
+                matches!(
+                    error.code.as_str(),
+                    "authentication_required" | "upstream_transport_error"
+                ),
+                "{text}"
+            );
+            assert!(!error.message.contains(denial));
+        }
+    }
+}
+
+#[test]
+fn quota_denials_are_not_reported_as_expired_sign_ins() {
+    for text in [
+        "Usage limit reached",
+        "You've hit your limit",
+        "HTTP 403 Forbidden",
+    ] {
+        let error = parse(text, chrono::Utc::now()).unwrap_err();
+        assert_eq!(error.code, "upstream_transport_error");
+        assert!(!error.message.contains("Sign in"));
+    }
+}
+
+#[test]
+fn versioned_model_allowances_apply_only_to_the_version_the_vendor_names() {
+    for (scope, expected) in [
+        ("Fable 5.1", "*fable-5-1*"),
+        ("Opus 5.5", "*opus-5-5*"),
+        ("Sonnet 5", "*sonnet-5*"),
+    ] {
+        let usage = parse(
+            &format!("Current week ({scope}): 100% used"),
+            chrono::Utc::now(),
+        )
+        .unwrap();
+        assert_eq!(usage["items"][0]["countsForRouting"], true);
+        assert_eq!(usage["items"][0]["modelIDs"], json!([expected]));
+    }
+}

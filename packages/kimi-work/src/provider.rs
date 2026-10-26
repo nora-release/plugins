@@ -12,6 +12,8 @@ use std::time::Duration;
 
 #[path = "models.rs"]
 mod models;
+#[path = "moonshot.rs"]
+mod moonshot;
 #[path = "session.rs"]
 mod session;
 #[path = "usage.rs"]
@@ -164,7 +166,7 @@ fn inference_request(
             "Kimi Work only accepts POST requests to its official chat endpoint.",
         ));
     }
-    let body = request.decode_body()?;
+    let body = request.decode_body()?.map(moonshot::rewrite);
     let mut headers = request
         .headers
         .into_iter()

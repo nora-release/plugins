@@ -61,3 +61,19 @@ async fn the_common_binary_only_claims_its_own_implemented_features() {
     assert!(features.get("accountImport").is_none());
     assert!(features.get("accountAutomation").is_none());
 }
+
+#[test]
+fn only_dedicated_packages_declare_their_account_and_client_hooks() {
+    for (id, key) in [
+        ("chatgpt-api", "accountRevocation"),
+        ("anthropic", "sessionActivity"),
+        ("openai", "clientObservation"),
+    ] {
+        let mut manifest = json!({"id":id,"config":{}});
+        declare(&mut manifest);
+        assert_eq!(manifest["config"]["sdkCapabilities"][key], 1);
+        let mut unrelated = json!({"id":"unrelated","config":{}});
+        declare(&mut unrelated);
+        assert!(unrelated["config"]["sdkCapabilities"].get(key).is_none());
+    }
+}

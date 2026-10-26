@@ -172,6 +172,7 @@ async fn cli_and_ide_report_the_same_verified_identity_without_copying_or_writin
             account: "owned".into(),
             credentials: Some(fixture::saved()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -400,6 +401,7 @@ async fn legacy_owned_profiles_gain_the_same_identity_as_a_verified_source_witho
             account: "legacy".into(),
             credentials: Some(saved),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();
@@ -462,7 +464,8 @@ async fn legacy_owned_account_inspection_does_not_replace_a_saved_person_with_an
             subscription_accounts_enabled: true,
             account: "legacy".into(),
             credentials: Some(saved),
-            network_proxy: None
+            network_proxy: None,
+            ..Default::default()
         })
         .await
         .is_err());

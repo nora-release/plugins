@@ -143,12 +143,23 @@ pub(crate) fn adapt(body: &mut Value, wire: Wire) {
                 Value::Array(parts) => parts,
                 _ => Vec::new(),
             };
-            system.retain(|p| {
-                p["type"] != "text"
-                    || p["text"].as_str().is_some_and(|s| {
-                        !s.trim().is_empty()
-                            && !s.starts_with("x-anthropic-billing-header: cc_version=")
-                    })
+            system.retain_mut(|part| {
+                if part["type"] != "text" {
+                    return true;
+                }
+                let Some(text) = part["text"].as_str() else {
+                    return false;
+                };
+                if text.starts_with("x-anthropic-billing-header: cc_version=") {
+                    let rest = text
+                        .split_once('\n')
+                        .map_or("", |(_, rest)| rest)
+                        .to_owned();
+                    part["text"] = json!(rest);
+                }
+                part["text"]
+                    .as_str()
+                    .is_some_and(|text| !text.trim().is_empty())
             });
             for part in &mut system {
                 if let Some(text) = part["text"].as_str().map(str::to_owned) {

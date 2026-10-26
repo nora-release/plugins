@@ -44,10 +44,81 @@ pub(crate) fn tool_name(original: &str) -> String {
         .collect::<String>();
     format!("{head}_{}", &cli::hash(original)[..HASH_BYTES])
 }
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum ToolChoice {
+    Auto,
+    None,
+    Required,
+    Named(String),
+}
+pub(crate) fn choice(request: &Value) -> PluginResult<ToolChoice> {
+    let Some(value) = request.get("tool_choice").filter(|value| !value.is_null()) else {
+        return Ok(ToolChoice::Auto);
+    };
+    if value
+        .get("disable_parallel_tool_use")
+        .is_some_and(|value| !value.is_boolean())
+    {
+        return Err(PluginError::invalid("The Claude tool choice is invalid."));
+    }
+    match value["type"].as_str() {
+        Some("auto") => Ok(ToolChoice::Auto),
+        Some("none") => Ok(ToolChoice::None),
+        Some("any") => Ok(ToolChoice::Required),
+        Some("tool") => {
+            let name = cli::text(value.get("name"), 4096)
+                .ok_or_else(|| PluginError::invalid("The required Claude tool name is invalid."))?;
+            if !request["tools"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|tool| tool["name"] == name)
+            {
+                return Err(PluginError::invalid(
+                    "The required Claude tool was not supplied.",
+                ));
+            }
+            Ok(ToolChoice::Named(name.into()))
+        }
+        _ => Err(PluginError::invalid("The Claude tool choice is invalid.")),
+    }
+}
+pub(crate) fn tool_choice_ask(request: &Value) -> PluginResult<String> {
+    let mut ask = match choice(request)? {
+        ToolChoice::Required => {
+            "\nYou must call at least one available tool before answering.".into()
+        }
+        ToolChoice::Named(name) => {
+            let native = request["tools"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|tool| tool["name"] == name && super::web_search::is_search(tool));
+            format!(
+                "\nYou must call the {} tool.",
+                if native {
+                    "WebSearch".into()
+                } else {
+                    format!("{PREFIX}{}", tool_name(&name))
+                }
+            )
+        }
+        _ => String::new(),
+    };
+    if request.pointer("/tool_choice/disable_parallel_tool_use") == Some(&Value::Bool(true)) {
+        ask.push_str("\nCall at most one tool at a time.");
+    }
+    Ok(ask)
+}
 pub(crate) fn tools(request: &Value) -> PluginResult<(Vec<Value>, BTreeMap<String, String>)> {
+    super::web_search::requested(request)?;
+    let choice = choice(request)?;
     let mut tools = Vec::new();
     let mut names = BTreeMap::new();
     for tool in request["tools"].as_array().into_iter().flatten() {
+        if super::web_search::is_search(tool) {
+            continue;
+        }
         let original = cli::text(tool.get("name"), 4096)
             .ok_or_else(|| PluginError::invalid("The Claude tool name is invalid."))?;
         if tool.get("type").is_some_and(|kind| kind != "custom")
@@ -56,6 +127,11 @@ pub(crate) fn tools(request: &Value) -> PluginResult<(Vec<Value>, BTreeMap<Strin
             return Err(PluginError::unsupported(
                 "Claude Code built-in or server tools",
             ));
+        }
+        if choice == ToolChoice::None
+            || matches!(&choice, ToolChoice::Named(required) if required != original)
+        {
+            continue;
         }
         let wire = tool_name(original);
         if names.insert(wire.clone(), original.into()).is_some() {

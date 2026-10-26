@@ -120,6 +120,8 @@ pub fn configs() -> Vec<u8> {
 pub fn fetch(body: Value) -> nora_provider_plugin_sdk::FetchRequest {
     use base64::Engine;
     nora_provider_plugin_sdk::FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(saved()),

@@ -370,3 +370,134 @@ async fn cli_json_comments_and_trailing_commas_preserve_tokens_that_contain_url_
         "fixture-https://token.example/*literal*/"
     );
 }
+
+struct FaultClient {
+    path: &'static str,
+    status: u16,
+}
+#[async_trait]
+impl HttpClient for FaultClient {
+    async fn stream(&self, _: HttpRequest) -> Result<HttpStreamingResponse, HttpClientError> {
+        unreachable!()
+    }
+    async fn request(&self, request: HttpRequest) -> Result<HttpResponse, HttpClientError> {
+        if request.url == format!("https://api.github.com{}", self.path) {
+            if self.status == 0 {
+                return Err(HttpClientError::Transport("private-network-detail".into()));
+            }
+            return Ok(HttpResponse {
+                status: self.status,
+                headers: BTreeMap::new(),
+                body: if self.status == 200 {
+                    b"invalid-json".to_vec()
+                } else {
+                    br#"{"private":"must-not-escape"}"#.to_vec()
+                },
+            });
+        }
+        TokenClient::default().request(request).await
+    }
+}
+#[tokio::test]
+async fn temporary_failures_at_every_source_endpoint_preserve_credentials_and_retry_in_place() {
+    for (path, cli) in [
+        ("/user", false),
+        ("/copilot_internal/v2/token", false),
+        ("/copilot_internal/user", true),
+    ] {
+        for status in [0, 200, 429, 500, 502, 503, 504] {
+            let directory = Directory::new();
+            let file = if cli {
+                directory.cli("fixture-cli")
+            } else {
+                directory.apps("fixture-editor")
+            };
+            let before = std::fs::read(&file).unwrap();
+            let client = FaultClient { path, status };
+            assert_eq!(
+                discover(&directory.0, &BTreeMap::new(), &client)
+                    .await
+                    .unwrap_err(),
+                EditorsError::Unavailable,
+                "{path} {status}"
+            );
+            let account = discover(&directory.0, &BTreeMap::new(), &TokenClient::default())
+                .await
+                .unwrap()
+                .remove(0);
+            let saved = account.clone();
+            assert_eq!(
+                resolve_with_force(&account, true, &client)
+                    .await
+                    .unwrap_err(),
+                EditorsError::Unavailable
+            );
+            assert_eq!(account, saved);
+            assert_eq!(std::fs::read(&file).unwrap(), before);
+            assert!(resolve(&account, &TokenClient::default()).await.is_ok());
+        }
+    }
+}
+#[tokio::test]
+async fn actual_401_and_403_source_refusals_remain_authentication_errors_without_erasing_files() {
+    for (path, cli) in [
+        ("/user", false),
+        ("/copilot_internal/v2/token", false),
+        ("/copilot_internal/user", true),
+    ] {
+        for status in [401, 403] {
+            let directory = Directory::new();
+            let file = if cli {
+                directory.cli("fixture-cli")
+            } else {
+                directory.apps("fixture-editor")
+            };
+            let before = std::fs::read(&file).unwrap();
+            assert_eq!(
+                discover(
+                    &directory.0,
+                    &BTreeMap::new(),
+                    &FaultClient { path, status }
+                )
+                .await
+                .unwrap_err(),
+                EditorsError::Rejected
+            );
+            assert_eq!(std::fs::read(&file).unwrap(), before);
+        }
+    }
+}
+
+struct OneAccountUnavailable;
+#[async_trait]
+impl HttpClient for OneAccountUnavailable {
+    async fn stream(&self, _: HttpRequest) -> Result<HttpStreamingResponse, HttpClientError> {
+        unreachable!()
+    }
+    async fn request(&self, request: HttpRequest) -> Result<HttpResponse, HttpClientError> {
+        if request
+            .headers
+            .get("authorization")
+            .is_some_and(|value| value.contains("fixture-first"))
+        {
+            return Err(HttpClientError::Transport("temporary".into()));
+        }
+        TokenClient::default().request(request).await
+    }
+}
+#[tokio::test]
+async fn another_successful_account_does_not_turn_the_selected_accounts_network_failure_into_an_account_change(
+) {
+    let directory = Directory::new();
+    let path = directory.apps("fixture-first");
+    let account = take_over(&path, &TokenClient::default()).await.unwrap();
+    directory.file(".config/github-copilot/apps.json",json!({"github.com:A":{"user":"octocat","oauth_token":"fixture-first"},"github.com:B":{"user":"hubot","oauth_token":"fixture-other"}}));
+    let before = std::fs::read(&path).unwrap();
+    assert_eq!(
+        resolve_with_force(&account, true, &OneAccountUnavailable)
+            .await
+            .unwrap_err(),
+        EditorsError::Unavailable
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+}

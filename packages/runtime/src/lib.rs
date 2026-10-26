@@ -1,5 +1,6 @@
 mod pricing;
 pub mod profiles;
+mod request_constraints;
 mod request_metadata;
 extern crate self as nora_provider;
 
@@ -11,6 +12,7 @@ mod auth_headers;
 mod balance_path;
 mod balance_sources;
 mod build_capabilities;
+mod caller_user_agent;
 pub mod catalog;
 mod connection_patch;
 pub mod definition;
@@ -23,6 +25,7 @@ mod model_catalog;
 mod model_metadata;
 pub mod models;
 mod network_client;
+mod package_manifest;
 mod plugin;
 mod tls_verifier;
 pub mod transport;

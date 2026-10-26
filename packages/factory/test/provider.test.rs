@@ -248,6 +248,7 @@ async fn api_key_usage_queries_real_billing_limits() {
             account: "one".into(),
             credentials: Some(fixture::key()),
             network_proxy: None,
+            ..Default::default()
         })
         .await
         .unwrap();

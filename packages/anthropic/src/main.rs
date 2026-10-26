@@ -1,14 +1,22 @@
 mod cli;
+mod cli_messages;
+mod cli_output;
+mod cli_sessions;
 mod cli_usage;
+mod learned_usage;
 mod login;
 mod mcp;
 mod plugin;
 mod prompt;
 mod provider;
 mod proxy;
+mod search_results;
 mod session;
+mod session_control;
 mod stream;
+mod structured_output;
 mod supervisor;
+mod web_search;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {

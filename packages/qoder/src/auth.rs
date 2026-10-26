@@ -26,12 +26,33 @@ pub(crate) async fn authorize(provider: &Qoder, params: Value) -> PluginResult<V
         .get("inputs")
         .or_else(|| params.get("fields"))
         .unwrap_or(&params);
-    let deployment = match method {
-        "oauth" | "pat" => provider.site.deployment(None)?,
-        "vpc" if provider.site == Site::China => {
-            provider.site.deployment(Some(text(fields, "vpc")))?
+    if provider.site.is_work() && method != "oauth" {
+        return Err(PluginError::unsupported(method));
+    }
+    let enterprise = if provider.site == Site::QwenWorkEnterprise {
+        let input = text(fields, "domain");
+        let supplied = if input.is_empty() {
+            std::env::var("QWENWORK_ENT_DOMAIN").unwrap_or_default()
+        } else {
+            input.into()
+        };
+        Some(
+            site::enterprise_domain(&supplied)
+                .ok_or_else(|| invalid("Enter your QwenWork enterprise domain."))?,
+        )
+    } else {
+        None
+    };
+    let deployment = if let Some(domain) = enterprise.as_deref() {
+        provider.site.deployment(Some(domain))?
+    } else {
+        match method {
+            "oauth" | "pat" => provider.site.deployment(None)?,
+            "vpc" if provider.site == Site::China => {
+                provider.site.deployment(Some(text(fields, "vpc")))?
+            }
+            _ => return Err(PluginError::unsupported(method)),
         }
-        _ => return Err(PluginError::unsupported(method)),
     };
     if method == "vpc" && deployment.vpc.is_none() {
         return Err(invalid("Enter the enterprise's Qoder VPC instance."));
@@ -63,6 +84,10 @@ pub(crate) async fn authorize(provider: &Qoder, params: Value) -> PluginResult<V
             .append_pair("nonce", &nonce)
             .append_pair("machine_id", &machine)
             .append_pair("client_id", provider.site.client_id());
+        if provider.site == Site::QwenWork {
+            url.query_pairs_mut()
+                .append_pair("redirect_uri", "qwenwork-cn://");
+        }
         (
             id(),
             url.to_string(),
@@ -133,17 +158,22 @@ pub(crate) async fn callback(provider: &Qoder, params: Value) -> PluginResult<Va
                 }
                 tokio::time::sleep(Duration::from_secs(2)).await;
             };
-            let (status, job) = openapi(
-                client.as_ref(),
-                &flow.site,
-                "/api/v1/me/jobToken",
-                HttpMethod::Post,
-                Some(text(&device, "token")),
-                Some(json!({"clientId":provider.site.client_id()})),
-                vec![],
-            )
-            .await?;
-            let device_chat = status >= 400 && status < 500 && provider.site == Site::China;
+            let (status, job) = if provider.site.is_work() {
+                (0, json!({}))
+            } else {
+                openapi(
+                    client.as_ref(),
+                    &flow.site,
+                    "/api/v1/me/jobToken",
+                    HttpMethod::Post,
+                    Some(text(&device, "token")),
+                    Some(json!({"clientId":provider.site.client_id()})),
+                    vec![],
+                )
+                .await?
+            };
+            let device_chat = provider.site.is_work()
+                || status >= 400 && status < 500 && provider.site == Site::China;
             let (access, refresh, expires) = if status == 200 && !text(&job, "token").is_empty() {
                 (
                     text(&job, "token"),
@@ -165,7 +195,7 @@ pub(crate) async fn callback(provider: &Qoder, params: Value) -> PluginResult<Va
             if let Ok((200, profile)) = openapi(
                 client.as_ref(),
                 &flow.site,
-                "/api/v1/userinfo",
+                provider.site.user_info(),
                 HttpMethod::Get,
                 Some(text(&device, "token")),
                 None,
@@ -173,13 +203,27 @@ pub(crate) async fn callback(provider: &Qoder, params: Value) -> PluginResult<Va
             )
             .await
             {
-                value["email"] = json!(text(&profile, "email"));
+                let profile = if provider.site.is_work() {
+                    profile
+                        .pointer("/data/user")
+                        .or_else(|| profile.get("user"))
+                        .unwrap_or(&profile)
+                } else {
+                    &profile
+                };
+                value["email"] = json!(text(profile, "email"));
                 if !text(&profile, "name").is_empty() {
                     value["name"] = profile["name"].clone();
                 }
-                if text(&value, "uid").is_empty() {
-                    value["uid"] = json!(profile_id(&profile));
+                if text(&value, "uid").is_empty() || provider.site.is_work() {
+                    let uid = profile_id(profile);
+                    if !uid.is_empty() {
+                        value["uid"] = json!(uid);
+                    }
                 }
+            }
+            if provider.site == Site::QwenWorkEnterprise {
+                value["enterpriseHost"] = json!(flow.site.vpc);
             }
             finish_identity(&mut value, &flow.site)?;
             checked(&value)?;
@@ -335,7 +379,11 @@ pub(crate) async fn renew(
             path,
             HttpMethod::Post,
             None,
-            Some(json!({"refresh_token":refresh})),
+            Some(if provider.site.is_work() {
+                json!({"refresh_token":refresh,"target":"c"})
+            } else {
+                json!({"refresh_token":refresh})
+            }),
             vec![],
         )
         .await?;

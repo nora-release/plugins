@@ -301,7 +301,7 @@ fn copilot_preserves_remaining_counts_and_separates_unlimited_from_exhausted_poo
     assert_eq!(item(&result, "premium_interactions")["remaining"], 70.0);
     assert_eq!(item(&result, "completions")["usedPercent"], 100.0);
     assert_eq!(balance(&result, "chat")["unlimited"], true);
-    assert_eq!(result["account"]["plan"], "business");
+    assert_eq!(result["account"]["plan"], "Business");
     let exhausted = parse_usage(
         "github-copilot",
         &json!({"quota_snapshots":{"premium_interactions":{"unlimited":true,"has_quota":false}}}),

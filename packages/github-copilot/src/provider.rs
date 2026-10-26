@@ -96,9 +96,10 @@ impl ProviderAdapter for Copilot {
             copilot_identity::api_url(&host, "/copilot_internal/v2/token"),
             GitHubCopilotOAuthProvider::default().extra_headers,
         );
-        let mut renewed = provider.refresh(credentials, client).await.map_err(|_| {
-            PluginError::authentication("The provider account could not be renewed. Sign in again.")
-        })?;
+        let mut renewed = provider
+            .refresh(credentials, client)
+            .await
+            .map_err(oauth_error)?;
         self.enrich_account(&mut renewed, client, None).await?;
         Ok(renewed)
     }
@@ -116,9 +117,7 @@ impl ProviderAdapter for Copilot {
         }
         copilot_identity::enrich(credentials, client)
             .await
-            .map_err(|_| {
-                PluginError::authentication("GitHub could not verify the account. Sign in again.")
-            })
+            .map_err(oauth_error)
     }
     fn supports_account_discovery(&self) -> bool {
         true
@@ -373,7 +372,20 @@ fn local_home() -> PluginResult<std::path::PathBuf> {
 }
 
 fn source_error(error: copilot_editors::EditorsError) -> PluginError {
-    PluginError::authentication(error.message())
+    match error {
+        copilot_editors::EditorsError::Unavailable | copilot_editors::EditorsError::InvalidFile => {
+            PluginError::transport(error.message())
+        }
+        _ => PluginError::authentication(error.message()),
+    }
+}
+
+fn oauth_error(error: OAuthError) -> PluginError {
+    if copilot_identity::authentication_rejected(&error) {
+        PluginError::authentication("GitHub refused this Copilot sign-in. Sign in again.")
+    } else {
+        PluginError::transport("GitHub Copilot could not verify this account right now. Credentials were kept; try again.")
+    }
 }
 
 fn source_client(proxy: Option<&NetworkProxy>) -> PluginResult<nora_ai::ReqwestHttpClient> {
@@ -458,3 +470,7 @@ fn model_api(endpoints: &[Value]) -> Option<&'static str> {
 #[cfg(test)]
 #[path = "../test/login.test.rs"]
 mod login_tests;
+
+#[cfg(test)]
+#[path = "../test/renewal.test.rs"]
+mod renewal_tests;

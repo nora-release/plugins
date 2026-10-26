@@ -29,6 +29,8 @@ fn definition(base: &str) -> Definition {
 }
 fn request(base: &str, file: &File) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "work".into(),
         credentials: Some(json!({"type":"api","key":"private-upload-key"})),

@@ -4,6 +4,8 @@ use nora_provider::ProviderAdapter;
 use nora_provider_quota::{fetch, unsupported_origin};
 use serde_json::Value;
 
+#[path = "search.rs"]
+mod search;
 #[path = "usage.rs"]
 mod usage;
 
@@ -12,6 +14,17 @@ pub struct KimiCoding;
 
 #[async_trait]
 impl ProviderAdapter for KimiCoding {
+    fn supports_web_search(&self) -> bool {
+        true
+    }
+    async fn web_search(
+        &self,
+        auth: &ResolvedProviderAuth,
+        query: &str,
+        client: &dyn HttpClient,
+    ) -> nora_provider_plugin_sdk::PluginResult<Value> {
+        search::search(auth, query, client).await
+    }
     fn id(&self) -> Option<&'static str> {
         Some("kimi-coding")
     }

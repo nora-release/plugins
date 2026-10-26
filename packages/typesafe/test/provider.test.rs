@@ -61,6 +61,7 @@ fn context() -> CallContext {
         account: "one".into(),
         credentials: Some(credentials()),
         network_proxy: None,
+        ..Default::default()
     }
 }
 fn question() -> Value {
@@ -68,6 +69,8 @@ fn question() -> Value {
 }
 fn request(body: Value) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials()),

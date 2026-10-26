@@ -63,6 +63,7 @@ fn context() -> CallContext {
         account: String::new(),
         credentials: None,
         network_proxy: None,
+        ..Default::default()
     }
 }
 
@@ -139,6 +140,7 @@ async fn account_enrichment_returns_private_credentials_separately_from_the_publ
     let result = fixture(Profile).await.accounts(CallContext { subscription_accounts_enabled: true,
         account:"saved-account".into(), network_proxy:None,
         credentials:Some(json!({"provider":"xAI","type":"oauth","access":"private-token","refresh":"private-refresh"})),
+        ..Default::default()
     }).await.unwrap();
     assert_eq!(
         result["credentials"]["accountIdentity"]["subject"],

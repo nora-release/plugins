@@ -131,7 +131,7 @@ async fn live(
         .await
 }
 fn fetch(credentials: Value) -> FetchRequest {
-    FetchRequest { subscription_accounts_enabled: true,account:"source".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",session::BASE),method:"POST".into(),headers:BTreeMap::new(),metadata:BTreeMap::new(),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"auto","stream":true,"messages":[{"role":"user","content":"hello"}]})).unwrap())),body_file:None}
+    FetchRequest { caller_user_agent: None, constraints: Default::default(), subscription_accounts_enabled: true,account:"source".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",session::BASE),method:"POST".into(),headers:BTreeMap::new(),metadata:BTreeMap::new(),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"auto","stream":true,"messages":[{"role":"user","content":"hello"}]})).unwrap())),body_file:None}
 }
 
 #[test]

@@ -49,10 +49,11 @@ fn context(credentials: Value) -> CallContext {
         account: "work".into(),
         credentials: Some(credentials),
         network_proxy: None,
+        ..Default::default()
     }
 }
 fn fetch(credentials: Value) -> FetchRequest {
-    FetchRequest{ subscription_accounts_enabled: true,account:"work".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",session::BASE),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"caller-secret".into())]),metadata:BTreeMap::from([("reasoningEffort".into(),"high".into()),("sessionID".into(),"private-session".into())]),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"auto","stream":true,"messages":[{"role":"user","content":"hello"}]})).unwrap())),body_file:None}
+    FetchRequest{ caller_user_agent: None, constraints: Default::default(), subscription_accounts_enabled: true,account:"work".into(),credentials:Some(credentials),network_proxy:None,url:format!("{}/v1/messages",session::BASE),method:"POST".into(),headers:BTreeMap::from([("authorization".into(),"caller-secret".into())]),metadata:BTreeMap::from([("reasoningEffort".into(),"high".into()),("sessionID".into(),"private-session".into())]),body:Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&json!({"model":"auto","stream":true,"messages":[{"role":"user","content":"hello"}]})).unwrap())),body_file:None}
 }
 #[tokio::test]
 async fn startup_and_disconnected_catalog_do_not_read_or_import_accounts() {

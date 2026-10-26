@@ -16,6 +16,20 @@ use url::Url;
 /// only coordinates the plugin protocol, safe HTTP transport, and model caching.
 #[async_trait]
 pub trait ProviderAdapter: Debug + Send + Sync + 'static {
+    fn supports_web_search(&self) -> bool {
+        false
+    }
+    async fn web_search(
+        &self,
+        _auth: &ResolvedProviderAuth,
+        _query: &str,
+        _client: &dyn HttpClient,
+    ) -> PluginResult<Value> {
+        Err(PluginError::unsupported("webSearch"))
+    }
+    fn initialize_data_directory(&self, _directory: &std::path::Path) -> PluginResult<()> {
+        Ok(())
+    }
     fn id(&self) -> Option<&'static str> {
         None
     }
@@ -194,6 +208,14 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
     ) -> PluginResult<()> {
         Ok(())
     }
+    /// Restores a provider's wire adaptations using only this request's context.
+    fn transform_response(
+        &self,
+        _request: &FetchRequest,
+        response: FetchResponse,
+    ) -> PluginResult<FetchResponse> {
+        Ok(response)
+    }
     async fn before_send(
         &self,
         _definition: &Definition,
@@ -212,6 +234,14 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
         _model: &str,
         _status: u16,
         _body: &[u8],
+    ) {
+    }
+    /// Observes status and headers without reading or replacing the response body.
+    fn observe_response(
+        &self,
+        _credentials: &Value,
+        _status: u16,
+        _headers: &BTreeMap<String, String>,
     ) {
     }
     /// Applies vendor requirements after user body, authentication and header overrides.

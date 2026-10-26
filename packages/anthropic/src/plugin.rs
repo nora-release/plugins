@@ -1,5 +1,5 @@
 use super::{
-    cli, cli_usage, login,
+    cli, cli_output, cli_usage, login, mcp,
     provider::Anthropic,
     proxy::Proxy,
     session::Pool,
@@ -112,6 +112,64 @@ impl Claude {
 }
 #[async_trait]
 impl ProviderPlugin for Claude {
+    fn supports_session_activity(&self) -> bool {
+        true
+    }
+    async fn session_activity(
+        &self,
+        context: CallContext,
+    ) -> PluginResult<nora_provider_plugin_sdk::SessionActivity> {
+        if !context.subscription_accounts_enabled
+            || !nora_provider_plugin_sdk::subscription_accounts_enabled()
+        {
+            return Ok(Default::default());
+        }
+        let Some(credentials) = context
+            .credentials
+            .as_ref()
+            .filter(|credentials| !is_api(credentials))
+        else {
+            return Ok(Default::default());
+        };
+        Ok(nora_provider_plugin_sdk::SessionActivity {
+            tools: self.pool.parked(credentials).await,
+        })
+    }
+    fn supports_learned_usage(&self) -> bool {
+        true
+    }
+    async fn learned_usage(&self, context: CallContext) -> PluginResult<Option<Value>> {
+        if !context.subscription_accounts_enabled
+            || !nora_provider_plugin_sdk::subscription_accounts_enabled()
+        {
+            return Ok(None);
+        }
+        let Some(value) = context.credentials.as_ref().filter(|value| !is_api(value)) else {
+            return Ok(None);
+        };
+        let Some(cache) = super::learned_usage::Cache::for_credentials(&self.config()?.root, value)
+        else {
+            return Ok(None);
+        };
+        let Some(mut usage) = cache.usage().await else {
+            return Ok(None);
+        };
+        usage["account"] = json!({"id":context.account});
+        for key in ["email", "plan"] {
+            if let Some(text) = cli::text(
+                value
+                    .get(key)
+                    .or_else(|| value.pointer(&format!("/extras/{key}"))),
+                512,
+            ) {
+                usage["account"][key] = json!(text);
+            }
+        }
+        if let Some(plan) = usage["account"].get("plan").cloned() {
+            usage["plan"] = plan;
+        }
+        Ok(Some(usage))
+    }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
         self.inner.call(method, params).await
     }
@@ -245,9 +303,12 @@ impl ProviderPlugin for Claude {
         if is_api(value) {
             return self.inner.usage(context).await;
         }
+        if let Some(usage) = self.learned_usage(context.clone()).await? {
+            return Ok(usage);
+        }
         let proxy = self.proxy(context.network_proxy.as_ref()).await?;
         let mut account = self.account(&context.account, value, proxy.clone()).await?;
-        let bytes = cli::output(
+        let output = cli::output(
             &account.executable,
             &[
                 "-p",
@@ -266,17 +327,12 @@ impl ProviderPlugin for Claude {
             true,
         )
         .await?;
-        let payload: Value = serde_json::from_slice(&bytes).map_err(|_| {
-            PluginError::transport("Claude Code's usage command returned invalid JSON.")
-        })?;
-        if payload["is_error"] == true {
-            if stream::status(&payload) == 401 {
-                return Err(cli::error());
+        let payload = match cli_output::result(&output.stdout) {
+            Some(payload) if payload["is_error"] != true && payload["result"].is_string() => {
+                payload
             }
-            return Err(PluginError::transport(
-                "Claude Code could not read its subscription allowances.",
-            ));
-        }
+            _ => return Err(cli_output::failure(&output, &account.home).await),
+        };
         stream::synchronize(&mut account, self.persistence.as_ref()).await?;
         let parsed = cli_usage::parse(
             payload["result"].as_str().unwrap_or_default(),
@@ -331,7 +387,7 @@ impl ProviderPlugin for Claude {
             ));
         }
         let credentials = value.clone();
-        let proxy = self.proxy(request.network_proxy.as_ref()).await?;
+        let network_proxy = request.network_proxy.clone();
         let metadata = request.metadata.clone();
         let account_id = request.account.clone();
         let mut body = tokio::task::spawn_blocking(move || {
@@ -343,6 +399,9 @@ impl ProviderPlugin for Claude {
         })
         .await
         .map_err(|_| PluginError::invalid("The Claude request body could not be read."))??;
+        mcp::tools(&body)?;
+        super::structured_output::schema(&body)?;
+        let proxy = self.proxy(network_proxy.as_ref()).await?;
         if let Some(effort) = metadata.get("reasoningEffort").filter(|effort| {
             [
                 "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra",
@@ -366,7 +425,10 @@ impl ProviderPlugin for Claude {
             .account(&account_id, &credentials, proxy.clone())
             .await?;
         let streaming = body["stream"] == true;
-        let run = self.pool.acquire(account, &body, &metadata, proxy).await?;
+        let run = self
+            .pool
+            .acquire(account, &body, &metadata, proxy, &self.config()?.root)
+            .await?;
         stream::response(run, streaming, self.persistence.clone()).await
     }
 }

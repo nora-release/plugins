@@ -26,6 +26,11 @@
       ]
     },
     {
+      "id": "geminiCLI",
+      "type": "oauth",
+      "label": "Use the current Gemini CLI account"
+    },
+    {
       "id": "source",
       "type": "oauth",
       "label": "Use an explicitly selected Google account file",
@@ -52,7 +57,7 @@
     "catalog": "",
     "keyProvider": "gemini-cli",
     "oauthProvider": "gemini-cli",
-    "description": "Connect Gemini CLI with Google sign-in or an explicitly selected read-only account file.",
+    "description": "Connect Gemini CLI with Google sign-in. The current Gemini CLI login is discovered automatically and renewed in its original file.",
     "modelDiscovery": {
       "defaultBaseURL": "https://cloudcode-pa.googleapis.com",
       "bases": [
@@ -76,5 +81,14 @@
       "maxEntries": 200,
       "maxBytes": 4194304
     }
-  }
+  },
+  "localSignIns": [
+    {
+      "method": "geminiCLI",
+      "label": "Gemini CLI",
+      "paths": [
+        "~/.gemini/oauth_creds.json"
+      ]
+    }
+  ]
 }

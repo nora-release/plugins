@@ -3,6 +3,8 @@ use crate::tests::{collect, configured, credentials, Client};
 use base64::{engine::general_purpose::STANDARD, Engine};
 fn request(site: Site, body: Value) -> FetchRequest {
     FetchRequest {
+        caller_user_agent: None,
+        constraints: Default::default(),
         subscription_accounts_enabled: true,
         account: "one".into(),
         credentials: Some(credentials(site)),

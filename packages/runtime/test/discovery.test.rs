@@ -13,6 +13,53 @@ struct Reply {
 }
 
 #[tokio::test]
+async fn declared_model_protocols_survive_discovery_without_becoming_request_options() {
+    let definition = definition("openai-completions", "https://relay.invalid/v1");
+    let client = client(vec![Reply::json(json!({"data":[
+        {"id":"claude","supported_endpoints":["/v1/messages/"]},
+        {"id":"chat","supported_endpoints":["/chat/completions","/responses","/responses/"]},
+        {"id":"native","supported_endpoints":["/chat/completions"],"native_endpoints":["/messages"]},
+        {"id":"family","type_target":"anthropic"},
+        {"id":"unknown"}, {"id":"empty","supported_endpoints":[]},
+        {"id":"websocket","supported_endpoints":["ws:/responses"]}
+    ]}))]);
+    let directory =
+        std::env::temp_dir().join(format!("nora-protocol-discovery-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let result = discover(&definition, Some(&api_credentials()), &directory, &client)
+        .await
+        .unwrap();
+    std::fs::remove_dir_all(directory).unwrap();
+    assert_eq!(
+        result["supportedAPIs"]["claude"],
+        json!(["anthropic-messages"])
+    );
+    assert_eq!(
+        result["supportedAPIs"]["chat"],
+        json!(["openai-completions", "openai-responses"])
+    );
+    assert_eq!(
+        result["supportedAPIs"]["native"],
+        json!(["anthropic-messages"])
+    );
+    assert_eq!(
+        result["supportedAPIs"]["family"],
+        json!(["anthropic-messages"])
+    );
+    for id in ["unknown", "empty", "websocket"] {
+        assert!(result["supportedAPIs"].get(id).is_none());
+    }
+    assert_eq!(
+        result["apiEndpoints"],
+        json!({"openai-completions":"https://relay.invalid/v1"})
+    );
+    for model in result["models"].as_array().unwrap() {
+        assert!(model["providerOptions"].get("supportedAPIs").is_none());
+    }
+    assert_eq!(client.requests.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
 async fn remote_free_and_price_fields_are_model_information_and_never_request_parameters() {
     let definition = definition("openai-completions", "https://example.test/v1");
     let client = client(vec![Reply::json(json!({"data":[
@@ -451,6 +498,7 @@ async fn anthropic_pages_are_complete_and_dual_auth_refusal_is_learned() {
     .unwrap();
     assert_eq!(
         result
+            .models
             .iter()
             .map(|model| model.id.as_str())
             .collect::<Vec<_>>(),

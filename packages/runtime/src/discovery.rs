@@ -28,7 +28,14 @@ pub enum Kind {
 
 struct RemoteModels {
     models: Vec<Model>,
+    supported_apis: BTreeMap<String, Vec<String>>,
     failed_parts: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+struct ModelList {
+    models: Vec<Model>,
+    supported_apis: BTreeMap<String, Vec<String>>,
 }
 
 pub async fn discover(
@@ -87,8 +94,7 @@ pub async fn discover_with_network(
     match remote.await {
         Ok(mut remote) => {
             supplement_models(definition, credentials, &mut remote.models);
-            let mut result =
-                json!({"models":remote.models,"source":"remote","allowUnknownModels":false});
+            let mut result = json!({"models":remote.models,"supportedAPIs":remote.supported_apis,"source":"remote","allowUnknownModels":false});
             if !remote.failed_parts.is_empty() {
                 result["failedModelParts"] = json!(remote.failed_parts);
                 result["modelError"] = json!("Some provider model lists could not be refreshed. The last successful lists were kept.");
@@ -160,6 +166,11 @@ fn add_default_route(result: &mut Value, definition: &Definition, credentials: O
     models::configure_model(definition, credentials, &mut route);
     result["defaultAPI"] = json!(route.api);
     result["defaultBaseURL"] = json!(route.base_url);
+    result["apiEndpoints"] = json!(configured_bases(definition, credentials)
+        .into_iter()
+        .filter(|base| !base.base_url.is_empty())
+        .map(|base| (base.api, base.base_url))
+        .collect::<BTreeMap<_, _>>());
     let templates=definition.config.model_routes.iter().filter_map(|rule| {
         let base=definition.config.model_discovery.as_ref()?.bases.iter().find(|base|base.api==rule.api)?;
         Some(json!({"pattern":rule.pattern,"model":{"api":base.api,"baseUrl":base.base_url,"contextWindow":0,"maxTokens":0}}))
@@ -409,7 +420,8 @@ async fn fetch_routes_with_budget(
         .collect::<BTreeMap<_, _>>();
     let mut all = BTreeMap::<String, Model>::new();
     let mut order = Vec::new();
-    let mut listed = BTreeMap::<String, Vec<Model>>::new();
+    let mut listed = BTreeMap::<String, ModelList>::new();
+    let mut supported_apis = BTreeMap::<String, Vec<String>>::new();
     let mut asked = BTreeSet::new();
     let mut failed_parts = Vec::new();
     let mut last_error = PluginError::transport("This provider has no model list endpoint.");
@@ -489,7 +501,7 @@ async fn fetch_routes_with_budget(
                     .and_then(|result| result);
                 match result {
                     Ok(mut models) => {
-                        for model in &mut models {
+                        for model in &mut models.models {
                             if !definition.adapter.preserve_model_api(credentials) {
                                 model.api = base.api.clone();
                             }
@@ -511,7 +523,9 @@ async fn fetch_routes_with_budget(
                             };
                             crate::profiles::route_model(definition, model);
                         }
-                        models.retain(|model| crate::profiles::retain_model(definition, model));
+                        models
+                            .models
+                            .retain(|model| crate::profiles::retain_model(definition, model));
                         listed.insert(url.to_string(), models.clone());
                         current = Some(models);
                         break;
@@ -526,7 +540,15 @@ async fn fetch_routes_with_budget(
             }
             continue;
         };
-        for model in current {
+        for (id, apis) in current.supported_apis {
+            let known = supported_apis.entry(id).or_default();
+            for api in apis {
+                if !known.contains(&api) {
+                    known.push(api);
+                }
+            }
+        }
+        for model in current.models {
             if let Some(previous) = all.get_mut(&model.id) {
                 if !model.input.contains(&nora_ai::InputModality::Image) {
                     previous
@@ -550,6 +572,7 @@ async fn fetch_routes_with_budget(
     }
     Ok(RemoteModels {
         models: order.into_iter().filter_map(|id| all.remove(&id)).collect(),
+        supported_apis,
         failed_parts,
     })
 }
@@ -562,8 +585,9 @@ async fn fetch_pages(
     kind: Kind,
     known: &BTreeMap<String, Model>,
     client: &dyn HttpClient,
-) -> PluginResult<Vec<Model>> {
+) -> PluginResult<ModelList> {
     let mut models = Vec::new();
+    let mut supported_apis = BTreeMap::new();
     let mut seen_ids = BTreeSet::new();
     let mut seen_pages = BTreeSet::new();
     let mut only_auth = None;
@@ -587,9 +611,13 @@ async fn fetch_pages(
         entries.sort_by_key(|entry| definition.adapter.model_priority(entry, credentials));
         for entry in entries {
             if let Some(model) = parsing::model(entry, kind, definition, credentials, known) {
+                let apis = parsing::supported_apis(entry);
                 let variants = definition.adapter.expand_model(model, entry, credentials);
                 for model in variants {
                     if seen_ids.insert(model.id.clone()) {
+                        if !apis.is_empty() {
+                            supported_apis.insert(model.id.clone(), apis.clone());
+                        }
                         models.push(model);
                     }
                 }
@@ -611,7 +639,10 @@ async fn fetch_pages(
                     "The provider did not return any available chat models.",
                 ));
             }
-            return Ok(models);
+            return Ok(ModelList {
+                models,
+                supported_apis,
+            });
         };
         let pairs = url
             .query_pairs()

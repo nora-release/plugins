@@ -5,6 +5,45 @@ use nora_provider_plugin_sdk::{PluginError, PluginResult};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub fn supported_apis(entry: &Value) -> Vec<String> {
+    fn endpoints(value: &Value) -> Vec<String> {
+        let mut result = Vec::new();
+        for endpoint in value
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            let endpoint = endpoint.trim_end_matches('/');
+            let endpoint = endpoint.strip_prefix("/v1").unwrap_or(endpoint);
+            let api = match endpoint {
+                "/chat/completions" => "openai-completions",
+                "/responses" => "openai-responses",
+                "/messages" => "anthropic-messages",
+                _ => continue,
+            };
+            if !result.iter().any(|existing| existing == api) {
+                result.push(api.into());
+            }
+        }
+        result
+    }
+    let native = endpoints(&entry["native_endpoints"]);
+    if !native.is_empty() {
+        return native;
+    }
+    let declared = endpoints(&entry["supported_endpoints"]);
+    if !declared.is_empty() {
+        return declared;
+    }
+    match entry.get("type_target").and_then(Value::as_str) {
+        Some("openai") => vec!["openai-completions".into(), "openai-responses".into()],
+        Some("anthropic") => vec!["anthropic-messages".into()],
+        Some("gemini") => vec!["openai-completions".into()],
+        _ => Vec::new(),
+    }
+}
+
 pub fn entries(payload: &Value, kind: Kind) -> PluginResult<&[Value]> {
     if payload.get("success").and_then(Value::as_bool) == Some(false) {
         return Err(PluginError::transport(

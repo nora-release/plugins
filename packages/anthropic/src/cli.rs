@@ -20,10 +20,20 @@ pub(crate) enum Home {
     /// Claude Code's own configuration, the one the user signed in to. Claude
     /// Code goes on renewing that sign-in there, so Nora keeps no tokens.
     Own(PathBuf),
+    /// A user-selected CLAUDE_CONFIG_DIR, owned and renewed by Claude Code.
+    /// It has the same profile and Keychain names as an explicit config dir,
+    /// but must never be copied into or cleaned up as a Nora-managed account.
+    External(PathBuf),
 }
 impl Home {
     pub fn own() -> PluginResult<Self> {
         nora_provider_plugin_sdk::require_subscription_accounts()?;
+        if let Some(directory) = std::env::var_os("CLAUDE_CONFIG_DIR")
+            .map(PathBuf::from)
+            .filter(|directory| directory.is_absolute())
+        {
+            return Ok(Self::External(directory));
+        }
         std::env::var_os("HOME")
             .map(PathBuf::from)
             .filter(|home| home.is_absolute())
@@ -32,18 +42,20 @@ impl Home {
     }
     pub fn directory(&self) -> &Path {
         match self {
-            Self::Isolated(directory) | Self::Own(directory) => directory,
+            Self::Isolated(directory) | Self::Own(directory) | Self::External(directory) => {
+                directory
+            }
         }
     }
     pub fn is_own(&self) -> bool {
-        matches!(self, Self::Own(_))
+        matches!(self, Self::Own(_) | Self::External(_))
     }
     /// Claude Code names its Keychain item after the configuration directory
     /// it was told to use, and keeps the plain name for its own.
     fn keychain_service(&self) -> String {
         match self {
             Self::Own(_) => "Claude Code-credentials".into(),
-            Self::Isolated(directory) => {
+            Self::Isolated(directory) | Self::External(directory) => {
                 use unicode_normalization::UnicodeNormalization;
                 let path = directory.to_string_lossy().nfc().collect::<String>();
                 format!("Claude Code-credentials-{}", &hash(&path)[..8])
@@ -55,7 +67,7 @@ impl Home {
     fn profile(&self) -> PathBuf {
         match self {
             Self::Own(directory) => directory.with_file_name(".claude.json"),
-            Self::Isolated(directory) => directory.join(".claude.json"),
+            Self::Isolated(directory) | Self::External(directory) => directory.join(".claude.json"),
         }
     }
 }
@@ -231,7 +243,7 @@ pub(crate) fn env(home: &Home, proxy: &Proxy, usage: bool) -> BTreeMap<String, S
         .filter(|(key, _)| !blocked.contains(&key.as_str()) && !key.starts_with("CLAUDE_PLUGIN_"))
         .collect::<BTreeMap<_, _>>();
     env.extend(proxy.env.clone());
-    if let Home::Isolated(config) = home {
+    if let Home::Isolated(config) | Home::External(config) = home {
         let config = config.to_string_lossy().into_owned();
         env.insert("CLAUDE_CONFIG_DIR".into(), config.clone());
         env.insert("CLAUDE_SECURESTORAGE_CONFIG_DIR".into(), config);
@@ -351,6 +363,9 @@ impl Account {
         }
         if self.home.is_own() {
             saved["extras"]["noraAccountSource"] = json!({"kind":"claudeCode"});
+            if let Home::External(directory) = &self.home {
+                saved["extras"]["noraAccountSource"]["configDirectory"] = json!(directory);
+            }
         }
         if let Some(identity) = saved.get("accountIdentity").cloned() {
             saved["extras"]["accountIdentity"] = identity;
@@ -361,6 +376,9 @@ impl Account {
             }
             Home::Own(_) => {
                 json!({"own":true,"executable":self.executable,"identity":self.identity,"organization":self.organization})
+            }
+            Home::External(directory) => {
+                json!({"own":true,"configDirectory":directory,"executable":self.executable,"identity":self.identity,"organization":self.organization})
             }
         };
         saved
@@ -561,7 +579,21 @@ pub(crate) fn materialize(
         let expected = text(reference.get("identity"), 128)
             .ok_or_else(error)?
             .to_owned();
-        return Ok((executable, Home::own()?, Some(expected)));
+        let home = match reference.get("configDirectory") {
+            Some(value) => {
+                let directory = value
+                    .as_str()
+                    .filter(|path| path.len() <= 16 * 1024 && !path.chars().any(char::is_control))
+                    .map(PathBuf::from)
+                    .ok_or_else(error)?;
+                if !directory.is_absolute() {
+                    return Err(error());
+                }
+                Home::External(directory)
+            }
+            None => Home::own()?,
+        };
+        return Ok((executable, home, Some(expected)));
     }
     if let Some(reference) = value.pointer("/extras/noraClaudeCLI") {
         let directory = text(reference.get("directory"), 16 * 1024).ok_or_else(error)?;

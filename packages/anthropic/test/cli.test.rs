@@ -1,5 +1,7 @@
 use super::*;
 use crate::fixture;
+#[path = "cli_home.test.rs"]
+mod home_tests;
 #[tokio::test]
 async fn cli_output_signed_out_status_with_exit_one_is_not_a_failed_command() {
     let directory = fixture::Directory::new();

@@ -100,7 +100,8 @@ impl Claude {
         nora_provider::account_import::preserve_metadata(value, &mut account.saved);
         let previous = account.saved.clone();
         let next = account.saved();
-        let changed = value.pointer("/extras/noraClaudeCLI").is_none()
+        let changed = value.pointer("/extras/noraClaudeCLI")
+            != next.pointer("/extras/noraClaudeCLI")
             || value["access"] != previous["access"]
             || value["refresh"] != previous["refresh"];
         if changed {

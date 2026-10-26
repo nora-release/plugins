@@ -1,6 +1,7 @@
 //! Lossless tool-call adaptation for Trae's native and text-coded replies.
 //! Adapted from magpie-community/plugins/packages/trae (MIT).
-use crate::{id, transport, PluginResult};
+use crate::{id, transport, PluginError, PluginResult};
+use nora_provider::tool_xml::{self, Parsed};
 use regex::Regex;
 use serde_json::{json, Map, Value};
 use std::{
@@ -23,6 +24,13 @@ const MARKS: &[&str] = &[
     "</|DSML|",
     "{\"reasoning_content\"",
 ];
+fn marks() -> impl Iterator<Item = &'static str> {
+    MARKS
+        .iter()
+        .chain(tool_xml::OPEN_MARKS)
+        .chain(tool_xml::CLOSE_MARKS)
+        .copied()
+}
 fn re(pattern: &'static str) -> Regex {
     static CACHE: OnceLock<Mutex<BTreeMap<&'static str, Regex>>> = OnceLock::new();
     let mut cache = CACHE
@@ -412,6 +420,7 @@ pub(crate) struct TextParts {
     pub text: String,
     pub reasoning: String,
     pub calls: Vec<ToolCall>,
+    pub error: Option<PluginError>,
 }
 fn call(value: &Value) -> ToolCall {
     ToolCall {
@@ -420,22 +429,22 @@ fn call(value: &Value) -> ToolCall {
         arguments: call_args(value),
     }
 }
+fn normalized_tool_name(name: &str) -> String {
+    name.bytes()
+        .filter(u8::is_ascii_alphanumeric)
+        .map(|b| b.to_ascii_lowercase() as char)
+        .collect()
+}
 fn tool_named(name: &str, tools: &[Value]) -> PluginResult<String> {
     if tool(name, tools).is_some() {
         return Ok(name.into());
     }
-    let norm = |s: &str| {
-        s.bytes()
-            .filter(u8::is_ascii_alphanumeric)
-            .map(|b| b.to_ascii_lowercase() as char)
-            .collect::<String>()
-    };
-    let key = norm(name);
+    let key = normalized_tool_name(name);
     let names = tools
         .iter()
         .map(function)
         .filter_map(|t| t["name"].as_str())
-        .filter(|n| norm(n) == key)
+        .filter(|n| normalized_tool_name(n) == key)
         .collect::<Vec<_>>();
     if names.len() > 1 {
         return Err(transport("Trae returned an ambiguous tool alias."));
@@ -1052,7 +1061,10 @@ impl TextTools {
             if length > 0 {
                 self.buffer.drain(..length);
             }
-            if let Some(m) = re(r"^</?tool_?calls?>").find(&self.buffer) {
+            let xml_left = tool_xml::leftover_len(&self.buffer);
+            if xml_left > 0 {
+                self.buffer.drain(..xml_left);
+            } else if let Some(m) = re(r"^</?tool_?calls?>").find(&self.buffer) {
                 self.buffer.drain(..m.end());
             } else if let Some(length) = dsml_tag(&self.buffer) {
                 if dsml_invoke(&self.buffer[..length]).is_none() {
@@ -1081,25 +1093,27 @@ impl TextTools {
             ));
         }
         self.buffer.push_str(input);
-        let result = self.read(end);
-        if result.is_err() || end {
+        let mut output = TextParts::default();
+        output.error = self.read(end, &mut output).err();
+        if output.error.is_some() {
+            self.buffer.clear();
+        }
+        if output.error.is_some() || end {
             self.finished = true;
         }
-        result
+        self.sent.push_str(&output.text);
+        Ok(output)
     }
-    fn read(&mut self, end: bool) -> PluginResult<TextParts> {
-        let mut output = TextParts::default();
+    fn read(&mut self, end: bool, output: &mut TextParts) -> PluginResult<()> {
         loop {
             if self.after {
                 self.drop_leftovers();
-                if self.buffer.is_empty()
-                    || !end && MARKS.iter().any(|m| m.starts_with(&self.buffer))
-                {
+                if self.buffer.is_empty() || !end && marks().any(|m| m.starts_with(&self.buffer)) {
                     break;
                 }
                 if end
                     && self.buffer.len() > 1
-                    && MARKS.iter().any(|m| m.starts_with(self.buffer.trim_end()))
+                    && marks().any(|m| m.starts_with(self.buffer.trim_end()))
                 {
                     self.buffer.clear();
                     break;
@@ -1108,6 +1122,7 @@ impl TextTools {
             }
             let open = opener(&self.buffer);
             let d = dsml_at(&self.buffer);
+            let x = tool_xml::at(&self.buffer);
             let r = re(r#"\{\s*"reasoning_content"\s*:"#)
                 .find(&self.buffer)
                 .map(|m| m.start());
@@ -1115,7 +1130,7 @@ impl TextTools {
                 .find(&self.buffer)
                 .map(|m| (m.start(), m.end()));
             if let Some((at, to)) = stray.filter(|(at, _)| {
-                [open.as_ref().map(|o| o.0), d, r]
+                [open.as_ref().map(|o| o.0), d, r, x]
                     .iter()
                     .all(|next| next.map_or(true, |n| *at < n))
             }) {
@@ -1137,7 +1152,9 @@ impl TextTools {
                 continue;
             }
             if let Some(at) = r.filter(|at| {
-                open.as_ref().map_or(true, |o| *at < o.0) && d.map_or(true, |d| *at < d)
+                open.as_ref().map_or(true, |o| *at < o.0)
+                    && d.map_or(true, |d| *at < d)
+                    && x.map_or(true, |x| *at < x)
             }) {
                 if quoted(&self.context(&output.text, &self.buffer[..at])) {
                     output.text.push_str(&self.buffer[..at + 1]);
@@ -1165,8 +1182,49 @@ impl TextTools {
                 self.buffer.drain(..at + 1);
                 continue;
             }
-            if open.is_none() && d.is_none() {
+            if open.is_none() && d.is_none() && x.is_none() {
                 break;
+            }
+            if let Some(at) =
+                x.filter(|x| open.as_ref().is_none_or(|o| *x < o.0) && d.is_none_or(|d| *x < d))
+            {
+                let body = &self.buffer[at..];
+                let opener = tool_xml::opener_len(body);
+                if quoted(&self.context(&output.text, &self.buffer[..at])) {
+                    output.text.push_str(&self.buffer[..at + opener]);
+                    self.buffer.drain(..at + opener);
+                    continue;
+                }
+                match tool_xml::parse(
+                    body,
+                    end,
+                    |name| self.xml_name(name),
+                    |name, key| string_field(name, key, &self.tools),
+                ) {
+                    Parsed::Wait => break,
+                    Parsed::Text => {
+                        output.text.push_str(&self.buffer[..at + opener]);
+                        self.buffer.drain(..at + opener);
+                    }
+                    Parsed::CutShort => {
+                        output.text.push_str(&self.buffer[..at]);
+                        return Err(transport(CUT_SHORT));
+                    }
+                    Parsed::Call { name, args, rest } => {
+                        let rest = rest.to_owned();
+                        output.text.push_str(&self.buffer[..at]);
+                        self.append_call(
+                            output,
+                            ToolCall {
+                                id: format!("call_{}", id()),
+                                name,
+                                arguments: args.to_string(),
+                            },
+                        )?;
+                        self.buffer = rest;
+                    }
+                }
+                continue;
             }
             if let Some(at) = d.filter(|d| open.as_ref().map_or(true, |o| *d < o.0)) {
                 if quoted(&self.context(&output.text, &self.buffer[..at])) {
@@ -1214,7 +1272,7 @@ impl TextTools {
                 let consumed = closing.filter(|c| c.0 == stop).map(|c| c.1).unwrap_or(stop);
                 let rest = body[consumed..].to_owned();
                 self.append_call(
-                    &mut output,
+                    output,
                     ToolCall {
                         id: format!("call_{}", id()),
                         name,
@@ -1249,7 +1307,7 @@ impl TextTools {
                 }
                 Block::Call(call, rest) => {
                     output.text.push_str(head);
-                    self.append_call(&mut output, call)?;
+                    self.append_call(output, call)?;
                     self.buffer = rest;
                 }
             }
@@ -1273,6 +1331,8 @@ impl TextTools {
                     .find(&self.buffer)
                     .map(|m| m.start()),
                 dsml_at(&self.buffer),
+                tool_xml::at(&self.buffer),
+                tool_xml::hold_at(&self.buffer),
                 re(r#"\{\s*"reasoning_content"\s*:"#)
                     .find(&self.buffer)
                     .map(|m| m.start()),
@@ -1289,7 +1349,7 @@ impl TextTools {
                     if tail.len() > 64 {
                         break;
                     }
-                    if MARKS.iter().any(|mark| mark.starts_with(tail)) {
+                    if marks().any(|mark| mark.starts_with(tail)) {
                         keep = tail.len();
                     }
                 }
@@ -1302,8 +1362,20 @@ impl TextTools {
             output.text.push_str(&self.buffer[..split]);
             self.buffer.drain(..split);
         }
-        self.sent.push_str(&output.text);
-        Ok(output)
+        Ok(())
+    }
+
+    fn xml_name(&self, name: &str) -> Option<String> {
+        if tool(name, &self.tools).is_some() {
+            return Some(name.into());
+        }
+        let wanted = normalized_tool_name(name);
+        self.tools
+            .iter()
+            .map(function)
+            .filter_map(|tool| tool["name"].as_str())
+            .find(|name| normalized_tool_name(name) == wanted)
+            .map(str::to_owned)
     }
 }
 #[cfg(test)]

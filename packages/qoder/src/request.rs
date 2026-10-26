@@ -80,7 +80,7 @@ pub(crate) async fn fetch(provider: &Qoder, request: FetchRequest) -> PluginResu
             let (status, _, bytes) = read(response, 1024 * 1024).await?;
             response::failure(status, &String::from_utf8_lossy(&bytes))
         } else {
-            match response::open(response).await {
+            match response::open(response, &chat).await {
                 Ok(opened) => return response::answer_opened(opened, &chat).await,
                 Err(error) => error,
             }

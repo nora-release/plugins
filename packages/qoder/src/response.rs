@@ -398,12 +398,15 @@ impl Events {
         self.ended = true;
     }
 }
-fn events(body: nora_ai::HttpByteStream) -> impl futures::Stream<Item = Event> + Send {
+fn events(
+    body: nora_ai::HttpByteStream,
+    tools: Vec<Value>,
+) -> impl futures::Stream<Item = Event> + Send {
     let state = Events {
         inner: body,
         pending: Vec::new(),
         output: VecDeque::new(),
-        splitter: Splitter::default(),
+        splitter: Splitter::new(tools),
         native: BTreeMap::new(),
         index: 0,
         usage: None,
@@ -497,9 +500,14 @@ pub(crate) struct Opened {
     events: std::pin::Pin<Box<dyn futures::Stream<Item = Event> + Send>>,
     first: Event,
 }
-pub(crate) async fn open(response: HttpStreamingResponse) -> Result<Opened, Failure> {
+pub(crate) async fn open(response: HttpStreamingResponse, chat: &Value) -> Result<Opened, Failure> {
+    let tools = chat
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let mut events: std::pin::Pin<Box<dyn futures::Stream<Item = Event> + Send>> =
-        Box::pin(events(response.body));
+        Box::pin(events(response.body, tools));
     let Some(first) = events.next().await else {
         return Err(Failure::new(502, "Qoder ended without an answer."));
     };
@@ -513,7 +521,7 @@ pub(crate) async fn answer(
     response: HttpStreamingResponse,
     chat: &Value,
 ) -> PluginResult<FetchResponse> {
-    match open(response).await {
+    match open(response, chat).await {
         Ok(opened) => answer_opened(opened, chat).await,
         Err(error) => Ok(error.response()),
     }
@@ -634,3 +642,6 @@ pub(crate) async fn answer_opened(opened: Opened, chat: &Value) -> PluginResult<
 #[cfg(test)]
 #[path = "../test/response.test.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "../test/xml.test.rs"]
+mod xml_tests;

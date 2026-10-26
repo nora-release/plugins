@@ -28,6 +28,7 @@ mod network_client;
 mod package_manifest;
 mod plugin;
 mod tls_verifier;
+pub mod tool_xml;
 pub mod transport;
 mod transport_file;
 pub mod usage;

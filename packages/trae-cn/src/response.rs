@@ -360,7 +360,10 @@ impl Parts {
             self.saw_answer = true;
             self.output.push_back(Part::Call(call));
         }
-        Ok(())
+        match parts.error {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
     fn raw(&mut self, raw: Raw) -> PluginResult<()> {
         let name = event_name(&raw.event);
@@ -778,3 +781,6 @@ pub(crate) async fn prepare(
 #[cfg(test)]
 #[path = "../test/response.test.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "../test/xml.test.rs"]
+mod xml_tests;

@@ -11,11 +11,17 @@ fn read_with(input: &str, size: usize) -> PluginResult<TextParts> {
         out.text.push_str(&r.text);
         out.reasoning.push_str(&r.reasoning);
         out.calls.extend(r.calls);
+        if let Some(error) = r.error {
+            return Err(error);
+        }
     }
     let r = t.push("", true)?;
     out.text.push_str(&r.text);
     out.reasoning.push_str(&r.reasoning);
     out.calls.extend(r.calls);
+    if let Some(error) = r.error {
+        return Err(error);
+    }
     Ok(out)
 }
 fn args(call: &ToolCall) -> Value {

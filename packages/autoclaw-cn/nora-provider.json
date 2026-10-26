@@ -19,7 +19,8 @@
           "key": "phone",
           "type": "text",
           "label": "China phone number",
-          "placeholder": "13800138000"
+          "placeholder": "13800138000",
+          "required": true
         }
       ]
     }

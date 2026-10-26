@@ -19,7 +19,8 @@
           "key": "domain",
           "type": "text",
           "label": "Enterprise domain",
-          "placeholder": "your-company.vpc.qwenwork.cn"
+          "placeholder": "your-company.vpc.qwenwork.cn",
+          "required": true
         }
       ]
     }

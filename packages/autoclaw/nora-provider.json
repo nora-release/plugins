@@ -28,7 +28,8 @@
               "label": "z.ai",
               "value": "zai"
             }
-          ]
+          ],
+          "required": true
         }
       ]
     }

@@ -24,7 +24,8 @@
           "key": "pat",
           "type": "password",
           "label": "Personal Access Token",
-          "placeholder": "pt-..."
+          "placeholder": "pt-...",
+          "required": true
         }
       ]
     }

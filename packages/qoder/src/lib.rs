@@ -216,7 +216,23 @@ impl ProviderPlugin for Qoder {
         Ok(json!({"apiVersion":API_VERSION,"capabilities":{"sdkFeatures":{"accountAutomation":1}}}))
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.config()?.methods)
+        let mut methods = self.config()?.methods;
+        if self.site != Site::QwenWorkEnterprise {
+            return Ok(methods);
+        }
+        let Some(domain) = auth::enterprise_domain_preset() else {
+            return Ok(methods);
+        };
+        for method in methods.as_array_mut().into_iter().flatten() {
+            if method["id"] != "oauth" {
+                continue;
+            }
+            method["prompts"] = json!([]);
+            if let Some(label) = method["label"].as_str() {
+                method["label"] = json!(format!("{label} ({domain})"));
+            }
+        }
+        Ok(methods)
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         auth::authorize(self, params).await
@@ -397,3 +413,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../test/qwenwork.test.rs"]
 mod qwenwork_tests;
+
+#[cfg(test)]
+#[path = "../test/qwenwork_auth_methods.test.rs"]
+mod qwenwork_auth_methods_tests;

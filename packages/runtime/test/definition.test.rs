@@ -1,6 +1,9 @@
 use super::*;
 use serde_json::json;
 
+#[path = "auth_prompt_contract.test.rs"]
+mod auth_prompt_contract_tests;
+
 fn package() -> Value {
     json!({"apiVersion":1,"id":"native-test","name":"Native Test","version":"1.0.0","api":"openai-completions","runtime":{"type":"native","entry":"provider"},"models":[],"config":{"keyProvider":{"private":"native schema"},"options":[{"id":"flag","type":"boolean"}]}})
 }

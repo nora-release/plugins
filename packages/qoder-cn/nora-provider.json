@@ -24,7 +24,8 @@
           "key": "pat",
           "type": "password",
           "label": "Personal Access Token",
-          "placeholder": "pt-..."
+          "placeholder": "pt-...",
+          "required": true
         }
       ]
     },
@@ -37,7 +38,8 @@
           "key": "vpc",
           "type": "text",
           "label": "Enterprise instance",
-          "placeholder": "acme or acme.vpc.qoder.com.cn"
+          "placeholder": "acme or acme.vpc.qoder.com.cn",
+          "required": true
         }
       ]
     }

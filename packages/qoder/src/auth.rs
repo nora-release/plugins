@@ -16,6 +16,13 @@ enum Kind {
     },
     Pat(String),
 }
+
+pub(crate) fn enterprise_domain_preset() -> Option<String> {
+    std::env::var("QWENWORK_ENT_DOMAIN")
+        .ok()
+        .and_then(|value| site::enterprise_domain(&value))
+}
+
 pub(crate) async fn authorize(provider: &Qoder, params: Value) -> PluginResult<Value> {
     let method = params
         .get("authMethodID")
@@ -30,14 +37,9 @@ pub(crate) async fn authorize(provider: &Qoder, params: Value) -> PluginResult<V
         return Err(PluginError::unsupported(method));
     }
     let enterprise = if provider.site == Site::QwenWorkEnterprise {
-        let input = text(fields, "domain");
-        let supplied = if input.is_empty() {
-            std::env::var("QWENWORK_ENT_DOMAIN").unwrap_or_default()
-        } else {
-            input.into()
-        };
         Some(
-            site::enterprise_domain(&supplied)
+            enterprise_domain_preset()
+                .or_else(|| site::enterprise_domain(text(fields, "domain")))
                 .ok_or_else(|| invalid("Enter your QwenWork enterprise domain."))?,
         )
     } else {

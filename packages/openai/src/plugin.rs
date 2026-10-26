@@ -142,6 +142,7 @@ impl ProviderPlugin for OpenAIPlugin {
         )
         .map_err(|_| PluginError::invalid("The network proxy configuration is invalid."))?;
         let mut result = self.inner.initialize(params).await?;
+        result["capabilities"]["clientProfiles"] = serde_json::json!(["codex"]);
         result["capabilities"]["sdkFeatures"]["accountAutomation"] = serde_json::json!(1);
         *self
             .config
@@ -190,6 +191,17 @@ impl ProviderPlugin for OpenAIPlugin {
         self.inner.fetch(request).await
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        if method == "modelMetadata" && params.get("clientProfile").is_some() {
+            if params["clientProfile"] != "codex" {
+                return Err(PluginError::unsupported(
+                    "This client profile is not provided by OpenAI.",
+                ));
+            }
+            let version = crate::provider::codex_version::current().await;
+            return Ok(
+                serde_json::json!({"clientProfiles":{"codex":crate::provider::codex_version::headers(&version)}}),
+            );
+        }
         if method == "prepareReset" {
             let (auth, client) = self.reset_context_for(&params, false).await?;
             return resets::prepare(&auth, &client).await;
@@ -209,3 +221,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../test/client_observation.test.rs"]
 mod client_observation_tests;
+
+#[cfg(test)]
+#[path = "../test/client_profile.test.rs"]
+mod client_profile_tests;

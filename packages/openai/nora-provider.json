@@ -41,6 +41,7 @@
   ],
   "models": [],
   "config": {
+    "clientProfiles": ["codex"],
     "upstreamStatus": {
       "vendor": "openai",
       "name": "OpenAI",

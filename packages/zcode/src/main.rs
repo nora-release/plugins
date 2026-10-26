@@ -1,5 +1,6 @@
 mod auth;
 mod catalog;
+mod device;
 mod endpoint;
 mod provider;
 mod readings;

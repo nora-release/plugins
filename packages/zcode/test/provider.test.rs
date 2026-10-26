@@ -6,6 +6,8 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex as StdMutex},
 };
+#[path = "coding_device.test.rs"]
+mod coding_device;
 #[path = "gift_cache.test.rs"]
 mod gift_cache;
 #[path = "team_gift.test.rs"]
@@ -146,7 +148,11 @@ async fn paid_fetch_preserves_tools_and_sampling_bytes_and_signs_only_the_select
         status: 200,
         value: native.clone(),
     }]);
-    let request = request(credentials("key.secret", ""), "GLM-5.3");
+    let mut request = request(credentials("key.secret", ""), "GLM-5.3");
+    let mut body: Value = serde_json::from_slice(&request.decode_body().unwrap().unwrap()).unwrap();
+    body["metadata"] = json!({"user_id":"caller-session"});
+    request.body =
+        Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&body).unwrap()));
     let original = request.decode_body().unwrap().unwrap();
     assert_eq!(decode(plugin.fetch(request).await.unwrap()).await, native);
     let requests = client.requests.lock().unwrap();

@@ -233,8 +233,7 @@ pub(crate) fn dress(
     if !body["metadata"].is_object() {
         body["metadata"] = json!({});
     }
-    body["metadata"]["user_id"] =
-        json!(json!({"device_id":device,"account_uuid":"","session_id":""}).to_string());
+    body["metadata"]["user_id"] = json!(crate::device::user_id(device));
     Ok(body)
 }
 pub(crate) fn spent(value: &Value, status: u16) -> bool {

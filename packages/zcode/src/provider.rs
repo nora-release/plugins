@@ -1,5 +1,5 @@
 use crate::{
-    auth, catalog,
+    auth, catalog, device,
     endpoint::{self, Site},
     readings::{self, Gift},
     start,
@@ -77,7 +77,7 @@ impl Zcode {
         }
         let mut state = if current["authMethod"] == "source" {
             let inputs = current["source"].clone();
-            let device = self.device.clone();
+            let device = core::text(&current["device"]).unwrap_or("").to_owned();
             let state = tokio::task::spawn_blocking(move || auth::source(&inputs, &device))
                 .await
                 .map_err(|_| {
@@ -96,7 +96,9 @@ impl Zcode {
         };
         site(&state)?;
         if core::text(&state["device"]).is_none() {
-            state["device"] = json!(self.device);
+            state["device"] = json!(core::text(&state["key"])
+                .map(device::key_id)
+                .unwrap_or_else(|| self.device.clone()));
         }
         if core::text(&state["key"]).is_none()
             && core::text(&state["jwt"]).is_none()
@@ -649,7 +651,7 @@ impl ProviderPlugin for Zcode {
                 .map_err(|_| {
                     PluginError::authentication("The selected ZCode source could not be read.")
                 })??;
-            let mut credentials = json!({"provider":"zcode","type":"oauth","authMethod":"source","source":inputs,"uid":state["uid"],"accountId":state["uid"],"label":"ZCode selected account","site":state["site"],"org":state["org"],"project":state["project"],"expires":0});
+            let mut credentials = json!({"provider":"zcode","type":"oauth","authMethod":"source","source":inputs,"uid":state["uid"],"accountId":state["uid"],"label":"ZCode selected account","site":state["site"],"org":state["org"],"project":state["project"],"device":state["device"],"expires":0});
             let live = self.state(&credentials, client.as_ref()).await?;
             if core::text(&live["key"]).is_some() {
                 self.coding_usage(client.as_ref(), &live, "source").await?;
@@ -668,11 +670,11 @@ impl ProviderPlugin for Zcode {
         if let Some(selected) = method.strip_prefix("apiKey-") {
             let selected = Site::parse(selected)?;
             let key = core::required(core::inputs(&params), "key")?;
-            let state =
-                json!({"site":selected.id(),"base":selected.base(),"key":key,"device":self.device});
+            let mut state = json!({"site":selected.id(),"base":selected.base(),"key":key,"device":device::key_id(key)});
             let usage = self.coding_usage(client.as_ref(), &state, "new").await?;
+            state["plan"] = usage["plan"].clone();
             return Ok(
-                json!({"ok":true,"credentials":{"provider":"zcode","type":"api","authMethod":method,"key":key,"expires":0,"uid":core::fingerprint(&json!(key)),"accountId":core::fingerprint(&json!([selected.id(),key])),"label":format!("{} Coding Plan",selected.id()),"site":selected.id(),"state":{ "site":selected.id(),"base":selected.base(),"key":key,"device":self.device,"plan":usage["plan"]}}}),
+                json!({"ok":true,"credentials":{"provider":"zcode","type":"api","authMethod":method,"key":key,"expires":0,"uid":core::fingerprint(&json!(key)),"accountId":core::fingerprint(&json!([selected.id(),key])),"label":format!("{} Coding Plan",selected.id()),"site":selected.id(),"state":state}}),
             );
         }
         let on_team = method.ends_with("-team");
@@ -882,6 +884,8 @@ impl ProviderPlugin for Zcode {
                 format!("{}/v1/messages", Site::Zai.base()),
                 format!("{}/v1/messages", Site::BigModel.base()),
                 format!("{}/v1/messages", endpoint::START),
+                format!("{}/v1/messages/count_tokens", Site::Zai.base()),
+                format!("{}/v1/messages/count_tokens", Site::BigModel.base()),
             ]
             .contains(&request.url)
         {
@@ -889,6 +893,11 @@ impl ProviderPlugin for Zcode {
                 "This request is outside ZCode's Messages endpoint.",
             ));
         }
+        let path = if url.path().ends_with("/v1/messages/count_tokens") {
+            "/v1/messages/count_tokens"
+        } else {
+            "/v1/messages"
+        };
         let client = self.core.client(request.network_proxy.as_ref())?;
         let state = self
             .state(
@@ -900,12 +909,15 @@ impl ProviderPlugin for Zcode {
             )
             .await?;
         let route = self.route(client.as_ref(), &state).await;
-        let mut bytes = request
-            .decode_body()?
-            .ok_or_else(|| PluginError::invalid("The ZCode request body is missing."))?;
-        let mut body: Value = serde_json::from_slice(&bytes)
-            .map_err(|_| PluginError::invalid("The ZCode request is invalid JSON."))?;
-        let model = core::required(&body, "model")?.to_owned();
+        let mut bytes = request.decode_body()?;
+        let mut body = bytes
+            .as_deref()
+            .and_then(|bytes| serde_json::from_slice::<Value>(bytes).ok());
+        let model = body
+            .as_ref()
+            .and_then(|body| body["model"].as_str())
+            .unwrap_or("")
+            .to_owned();
         let forced = model.to_lowercase().ends_with("-trial");
         let start = route.start || forced;
         let mut raw_model = model.clone();
@@ -945,28 +957,38 @@ impl ProviderPlugin for Zcode {
                 return Ok(FetchResponse::bytes(status,BTreeMap::from([("content-type".into(),"application/json".into())]),serde_json::to_vec(&json!({"type":"error","error":{"type":if status==429{"rate_limit_error"}else{"invalid_request_error"},"message":"This ZCode Trial model has no active usable gift quota. Refresh usage or choose the Coding Plan model."}})).unwrap()));
             }
             raw_model = raw.unwrap().to_owned();
+            let body = body.as_mut().unwrap();
             body["model"] = json!(raw_model);
-            bytes = serde_json::to_vec(&body).unwrap();
+            bytes = Some(serde_json::to_vec(body).unwrap());
         }
         let selected = site(&state)?;
         let (base, headers) = if start {
-            let body = start::dress(
-                body,
-                selected,
-                core::required(&state, "device")?,
-                request.metadata.get("workingDirectory").map(String::as_str),
-                request
-                    .metadata
-                    .get("isGitRepository")
-                    .and_then(|value| value.parse::<bool>().ok()),
-            )?;
-            bytes = serde_json::to_vec(&body).unwrap();
+            if let Some(body) = body.filter(|body| body["messages"].is_array()) {
+                let body = start::dress(
+                    body,
+                    selected,
+                    core::required(&state, "device")?,
+                    request.metadata.get("workingDirectory").map(String::as_str),
+                    request
+                        .metadata
+                        .get("isGitRepository")
+                        .and_then(|value| value.parse::<bool>().ok()),
+                )?;
+                bytes = Some(serde_json::to_vec(&body).unwrap());
+            }
             (
                 endpoint::START,
                 start::headers(core::required(&state, "jwt")?)?,
             )
         } else {
             let key = core::required(&state, "key")?;
+            if path == "/v1/messages" {
+                if let Some(marked) = bytes.as_deref().and_then(|bytes| {
+                    device::mark_coding_body(bytes, state["device"].as_str().unwrap())
+                }) {
+                    bytes = Some(marked);
+                }
+            }
             let mut headers = BTreeMap::from([
                 ("authorization".into(), format!("Bearer {key}")),
                 ("x-api-key".into(), key.into()),
@@ -974,7 +996,9 @@ impl ProviderPlugin for Zcode {
                 ("anthropic-version".into(), "2023-06-01".into()),
             ]);
             for (key, value) in &request.headers {
-                if ["anthropic-version", "anthropic-beta"].contains(&key.to_lowercase().as_str()) {
+                if ["content-type", "anthropic-version", "anthropic-beta"]
+                    .contains(&key.to_lowercase().as_str())
+                {
                     headers.insert(key.to_lowercase(), value.clone());
                 }
             }
@@ -984,9 +1008,9 @@ impl ProviderPlugin for Zcode {
             Duration::from_secs(60),
             client.stream(HttpRequest {
                 method: HttpMethod::Post,
-                url: format!("{base}/v1/messages"),
+                url: format!("{base}{path}"),
                 headers,
-                body: Some(bytes),
+                body: bytes,
             }),
         )
         .await

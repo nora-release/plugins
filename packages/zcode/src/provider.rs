@@ -70,7 +70,7 @@ fn clean(headers: &BTreeMap<String, String>) -> BTreeMap<String, String> {
         .collect()
 }
 impl Zcode {
-    async fn state(&self, stored: &Value, client: &dyn HttpClient) -> PluginResult<Value> {
+    async fn selected_state(&self, stored: &Value) -> PluginResult<Value> {
         let current = self.core.latest(stored).await?;
         if current["provider"] != "zcode" {
             return Err(PluginError::authentication("Reconnect this ZCode account."));
@@ -98,6 +98,18 @@ impl Zcode {
         if core::text(&state["device"]).is_none() {
             state["device"] = json!(self.device);
         }
+        if core::text(&state["key"]).is_none()
+            && core::text(&state["jwt"]).is_none()
+            && !team(&state)
+        {
+            return Err(PluginError::authentication(
+                "ZCode's sign-in has no usable plan key or session.",
+            ));
+        }
+        Ok(state)
+    }
+    async fn state(&self, stored: &Value, client: &dyn HttpClient) -> PluginResult<Value> {
+        let mut state = self.selected_state(stored).await?;
         if team(&state) && core::text(&state["key"]).is_none() {
             let key = auth::project_key(
                 client,
@@ -111,17 +123,13 @@ impl Zcode {
             )
             .await?;
             state["key"] = json!(key);
+            let current = self.core.latest(stored).await?;
             if current["authMethod"] != "source" {
                 let mut next = current.clone();
                 next["state"] = state.clone();
                 next["access"] = state["key"].clone();
                 self.core.persist_rotation(&current, next).await?;
             }
-        }
-        if core::text(&state["key"]).is_none() && core::text(&state["jwt"]).is_none() {
-            return Err(PluginError::authentication(
-                "ZCode's sign-in has no usable plan key or session.",
-            ));
         }
         Ok(state)
     }
@@ -170,7 +178,7 @@ impl Zcode {
         Ok(readings::gift(&value, start))
     }
     async fn route(&self, client: &dyn HttpClient, state: &Value) -> Route {
-        if team(state) || core::text(&state["jwt"]).is_none() {
+        if core::text(&state["jwt"]).is_none() {
             return Route {
                 start: false,
                 gift: None,
@@ -178,7 +186,7 @@ impl Zcode {
                 ttl: 600_000,
             };
         }
-        if core::text(&state["key"]).is_none() {
+        if core::text(&state["key"]).is_none() && !team(state) {
             return Route {
                 start: true,
                 gift: None,
@@ -196,25 +204,34 @@ impl Zcode {
         {
             return route.clone();
         }
-        let selected = site(state).unwrap();
-        let plan = self
-            .call(
-                client,
-                state,
-                HttpMethod::Get,
-                &format!("{}/api/biz/subscription/list", selected.root()),
-                core::text(&state["key"]),
-                BTreeMap::new(),
-            )
-            .await;
-        let sure = plan.is_ok();
-        let start = plan
-            .as_ref()
-            .is_ok_and(|value| readings::plan(value).is_none());
-        let gift = if start {
-            None
+        let (start, sure) = if team(state) {
+            // A team seat is independent of the person's subscription list.
+            (false, true)
         } else {
-            self.balance(client, state, false).await.ok().flatten()
+            let selected = site(state).unwrap();
+            let plan = self
+                .call(
+                    client,
+                    state,
+                    HttpMethod::Get,
+                    &format!("{}/api/biz/subscription/list", selected.root()),
+                    core::text(&state["key"]),
+                    BTreeMap::new(),
+                )
+                .await;
+            (
+                plan.as_ref()
+                    .is_ok_and(|value| readings::plan(value).is_none()),
+                plan.is_ok(),
+            )
+        };
+        let (gift, sure) = if start {
+            (None, sure)
+        } else {
+            let gift = self.balance(client, state, false).await;
+            let known = gift.is_ok()
+                || core::text(&state["jwt"]).is_some_and(|jwt| endpoint::live_jwt(jwt).is_err());
+            (gift.ok().flatten(), sure && known)
         };
         let route = Route {
             start,
@@ -486,6 +503,131 @@ impl Zcode {
         }
         Ok(value)
     }
+
+    async fn include_gifts(&self, client: &dyn HttpClient, state: &Value, value: &mut Value) {
+        if !core::text(&state["jwt"]).is_some_and(|jwt| endpoint::live_jwt(jwt).is_ok()) {
+            return;
+        }
+        match self.balance(client, state, false).await {
+            Ok(gift) => {
+                if let Some(gift) = &gift {
+                    let exclude = gift
+                        .all
+                        .iter()
+                        .map(|model| readings::gift_id(model))
+                        .collect::<Vec<_>>();
+                    for item in value["items"]
+                        .as_array_mut()
+                        .into_iter()
+                        .flatten()
+                        .filter(|item| item["countsForRouting"] == true)
+                    {
+                        item["notModels"] = json!(exclude);
+                    }
+                    value["items"]
+                        .as_array_mut()
+                        .unwrap()
+                        .extend(gift.windows.clone());
+                }
+                if let Some(cached) = self.routes.lock().await.get_mut(&route_key(state)) {
+                    cached.gift = gift;
+                    cached.at = core::now();
+                    cached.ttl = cached
+                        .gift
+                        .as_ref()
+                        .map(|gift| gift.ttl)
+                        .unwrap_or(600_000)
+                        .min(600_000);
+                }
+            }
+            Err(_) => {
+                if let Some(cached) = self.routes.lock().await.get_mut(&route_key(state)) {
+                    cached.gift = None;
+                    cached.at = core::now();
+                    cached.ttl = 60_000;
+                }
+            }
+        }
+    }
+
+    async fn claim_hint(&self, client: &dyn HttpClient, state: &Value) -> Option<Value> {
+        let jwt = core::text(&state["jwt"]).filter(|jwt| endpoint::live_jwt(jwt).is_ok())?;
+        let preview = self
+            .call(
+                client,
+                state,
+                HttpMethod::Get,
+                &format!(
+                    "{}/api/v1/zcode-plan/billing/preview?app_version={}&platform={}",
+                    endpoint::ZCODE,
+                    endpoint::VERSION,
+                    endpoint::platform()
+                ),
+                Some(&format!("Bearer {jwt}")),
+                BTreeMap::new(),
+            )
+            .await
+            .ok()?;
+        let plans = preview["plans"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|plan| core::text(&plan["plan_id"]).is_some())
+            .collect::<Vec<_>>();
+        if plans.is_empty() {
+            return None;
+        }
+        Some(
+            json!({"label":"Gift plans to claim in the ZCode app","display":format!("{} · {}", plans.len(), plans.iter().find_map(|plan| core::text(&plan["name"])).unwrap_or("ZCode gift plan")),"countsForRouting":false}),
+        )
+    }
+
+    async fn usage_card(
+        &self,
+        client: &dyn HttpClient,
+        state: &Value,
+        context: &CallContext,
+        route: &Route,
+    ) -> PluginResult<Value> {
+        let mut value = if route.start {
+            let gift = self.balance(client, state, true).await?.ok_or_else(|| {
+                PluginError::transport("ZCode's Start Plan has ended or was never started.")
+            })?;
+            json!({"available":true,"account":{"id":context.account},"plan":gift.plan,"until":gift.until.map(core::iso),"renew":"off","items":gift.windows})
+        } else {
+            self.coding_usage(client, state, &context.account).await?
+        };
+        if !route.start {
+            self.include_gifts(client, state, &mut value).await;
+        }
+        value["items"]
+            .as_array_mut()
+            .unwrap()
+            .sort_by_key(|item| item["label"] == "MCP · Month");
+        if let Some(hint) = self.claim_hint(client, state).await {
+            value["items"].as_array_mut().unwrap().push(hint);
+        }
+        if !route.start {
+            let display = match core::text(&state["jwt"]) {
+                None if context
+                    .credentials
+                    .as_ref()
+                    .is_some_and(|stored| stored["type"] == "api") =>
+                {
+                    Some("not read with an API key: add the account with a ZCode sign-in")
+                }
+                None => Some("this sign-in has no ZCode session: sign in again"),
+                Some(jwt) if endpoint::live_jwt(jwt).is_err() => {
+                    Some("ZCode's sign-in has expired: sign in again")
+                }
+                _ => None,
+            };
+            if let Some(display) = display {
+                value["items"].as_array_mut().unwrap().push(json!({"label":"ZCode gift plans (-Trial models) need ZCode's sign-in","display":display,"countsForRouting":false}));
+            }
+        }
+        Ok(value)
+    }
 }
 #[async_trait]
 impl ProviderPlugin for Zcode {
@@ -619,7 +761,7 @@ impl ProviderPlugin for Zcode {
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
         let client = self.core.client(context.network_proxy.as_ref())?;
         let state = if let Some(stored) = &context.credentials {
-            Some(self.state(stored, client.as_ref()).await?)
+            Some(self.selected_state(stored).await?)
         } else {
             None
         };
@@ -718,8 +860,9 @@ impl ProviderPlugin for Zcode {
             .ok_or_else(|| PluginError::authentication("Connect ZCode to read usage."))?;
         let state = self.state(stored, client.as_ref()).await?;
         let route = self.route(client.as_ref(), &state).await;
-        let result: PluginResult<Value> = async {let mut value=if route.start{let gift=self.balance(client.as_ref(),&state,true).await?.ok_or_else(||PluginError::transport("ZCode's Start Plan has ended or was never started."))?;json!({"available":true,"account":{"id":context.account},"plan":gift.plan,"until":gift.until.map(core::iso),"renew":"off","items":gift.windows})}else{self.coding_usage(client.as_ref(),&state,&context.account).await?};if !route.start&&!team(&state)&&core::text(&state["jwt"]).is_some(){match self.balance(client.as_ref(),&state,false).await{Ok(gift)=>{if let Some(gift)=&gift{let exclude=gift.all.iter().map(|model|readings::gift_id(model)).collect::<Vec<_>>();for item in value["items"].as_array_mut().into_iter().flatten().filter(|item|item["countsForRouting"]==true){item["notModels"]=json!(exclude);}value["items"].as_array_mut().unwrap().extend(gift.windows.clone());}let mut routes=self.routes.lock().await;if let Some(cached)=routes.get_mut(&route_key(&state)){cached.gift=gift;cached.at=core::now();cached.ttl=cached.gift.as_ref().map(|gift|gift.ttl).unwrap_or(600_000).min(600_000);}},Err(_)=>{if let Some(cached)=self.routes.lock().await.get_mut(&route_key(&state)){cached.gift=None;cached.at=core::now();cached.ttl=60_000;}}}}
- if let Some(items)=value["items"].as_array_mut(){items.sort_by_key(|item|item["label"]=="MCP · Month");} if let Some(jwt)=core::text(&state["jwt"]).filter(|jwt|endpoint::live_jwt(jwt).is_ok()){if let Ok(preview)=self.call(client.as_ref(),&state,HttpMethod::Get,&format!("{}/api/v1/zcode-plan/billing/preview?app_version={}&platform={}",endpoint::ZCODE,endpoint::VERSION,endpoint::platform()),Some(&format!("Bearer {jwt}")),BTreeMap::new()).await{let plans=preview["plans"].as_array().into_iter().flatten().filter(|plan|core::text(&plan["plan_id"]).is_some()).collect::<Vec<_>>();if !plans.is_empty(){value["items"].as_array_mut().unwrap().push(json!({"label":"Gift plans to claim in the ZCode app","display":format!("{} · {}",plans.len(),plans.iter().find_map(|plan|core::text(&plan["name"])).unwrap_or("ZCode gift plan")),"countsForRouting":false}));}}}Ok(value)}.await;
+        let result = self
+            .usage_card(client.as_ref(), &state, &context, &route)
+            .await;
         Ok(match result {
             Ok(value) => value,
             Err(error) => {

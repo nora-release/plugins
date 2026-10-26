@@ -8,6 +8,8 @@ use std::{
 };
 #[path = "gift_cache.test.rs"]
 mod gift_cache;
+#[path = "team_gift.test.rs"]
+mod team_gift;
 struct Reply {
     path: String,
     method: HttpMethod,
@@ -48,6 +50,11 @@ impl HttpClient for Client {
         let reply = replies.remove(index).unwrap();
         drop(replies);
         self.requests.lock().unwrap().push(request);
+        if reply.status == 0 {
+            return Err(HttpClientError::Transport(
+                "offline ZCode fixture failure".into(),
+            ));
+        }
         let bytes = serde_json::to_vec(&reply.value).unwrap();
         Ok(HttpStreamingResponse {
             status: reply.status,

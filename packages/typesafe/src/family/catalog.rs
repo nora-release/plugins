@@ -54,7 +54,12 @@ pub(super) fn models(
         for (target, keys) in [
             (
                 "contextWindow",
-                &["context_length", "context_window", "max_context_window"][..],
+                &[
+                    "contextWindow",
+                    "context_length",
+                    "context_window",
+                    "max_context_window",
+                ][..],
             ),
             ("maxTokens", &["max_output_tokens", "max_tokens"][..]),
         ] {
@@ -66,7 +71,8 @@ pub(super) fn models(
             }
         }
         if let Some(input) = entry
-            .pointer("/modalities/input")
+            .get("input")
+            .or_else(|| entry.pointer("/modalities/input"))
             .or_else(|| entry.pointer("/architecture/input_modalities"))
             .or_else(|| entry.get("input_modalities"))
             .and_then(Value::as_array)

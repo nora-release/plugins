@@ -8,7 +8,7 @@ use nora_provider_plugin_sdk::{
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::RwLock;
+use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 use url::Url;
 
@@ -166,6 +166,7 @@ fn endpoint(
 }
 
 pub(crate) fn marked(mut value: Value, definition: &Definition, base: &str, source: &str) -> Value {
+    fill_jev_facts(&mut value);
     value["provider"] = json!(definition.id);
     value["api"] = json!("systemone");
     value["baseUrl"] = json!(base);
@@ -177,6 +178,33 @@ pub(crate) fn marked(mut value: Value, definition: &Definition, base: &str, sour
     value["info"]["toolCalling"] = json!(false);
     value["info"]["catalogSource"] = json!(source);
     value
+}
+
+fn fill_jev_facts(model: &mut Value) {
+    let Some(id) = model["id"].as_str() else {
+        return;
+    };
+    if !id.split('/').any(|segment| {
+        let segment = segment.to_ascii_lowercase();
+        segment == "jev" || segment.starts_with("jev-")
+    }) {
+        return;
+    }
+    // Share the published preset's facts with live lists that omit them.
+    static PRESET: OnceLock<Value> = OnceLock::new();
+    let preset = &PRESET.get_or_init(|| {
+        serde_json::from_str(include_str!("../nora-provider.json"))
+            .expect("the bundled TypeSafe manifest is valid")
+    })["models"][0];
+    if !model["contextWindow"]
+        .as_u64()
+        .is_some_and(|value| value > 0)
+    {
+        model["contextWindow"] = preset["contextWindow"].clone();
+    }
+    if model["input"].is_null() {
+        model["input"] = preset["input"].clone();
+    }
 }
 
 async fn list_models(
@@ -252,7 +280,12 @@ async fn list_models(
         for (target, keys) in [
             (
                 "contextWindow",
-                &["context_length", "context_window", "max_context_window"][..],
+                &[
+                    "contextWindow",
+                    "context_length",
+                    "context_window",
+                    "max_context_window",
+                ][..],
             ),
             ("maxTokens", &["max_output_tokens", "max_tokens"][..]),
         ] {
@@ -265,7 +298,9 @@ async fn list_models(
             }
         }
         if let Some(input) = entry
-            .pointer("/modalities/input")
+            .get("input")
+            .or_else(|| entry.pointer("/modalities/input"))
+            .or_else(|| entry.pointer("/architecture/input_modalities"))
             .or_else(|| entry.get("input_modalities"))
             .and_then(Value::as_array)
         {

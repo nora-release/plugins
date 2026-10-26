@@ -101,3 +101,25 @@ fn malformed_and_oversized_remote_model_lists_fail_explicitly() {
     )
     .is_err());
 }
+
+#[test]
+fn jev_through_a_gateway_gets_the_same_missing_facts_and_keeps_vendor_values() {
+    let entries = json!([
+        {"id":"typesafe/jev-1.13"},
+        {"id":"typesafe/jev-preview", "contextWindow":64000, "input":["text","image"]},
+        {"id":"unknown-decider"}
+    ]);
+    let values = models(
+        entries.as_array().unwrap(),
+        &definition(DecisionFamily::Vercel),
+        "https://ai-gateway.vercel.sh/typesafe/v1",
+        false,
+    )
+    .unwrap();
+    assert_eq!(values[0]["contextWindow"], 32000);
+    assert_eq!(values[0]["input"], json!(["text"]));
+    assert_eq!(values[1]["contextWindow"], 64000);
+    assert_eq!(values[1]["input"], json!(["text", "image"]));
+    assert!(values[2].get("contextWindow").is_none());
+    assert!(values[2].get("input").is_none());
+}

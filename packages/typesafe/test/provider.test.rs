@@ -126,6 +126,83 @@ fn manifest_declares_only_decisions_and_api_key_authentication() {
     assert_eq!(manifest["authMethods"].as_array().unwrap().len(), 1);
 }
 
+#[test]
+fn jev_manifest_publishes_its_known_context_and_input_without_initialization() {
+    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    assert_eq!(manifest["models"][0]["contextWindow"], 32000);
+    assert_eq!(manifest["models"][0]["input"], json!(["text"]));
+}
+
+#[tokio::test]
+async fn jev_presets_publish_known_limits_without_a_key_or_network() {
+    let client = Client::new(vec![]);
+    let result = list_models(&definition(), CallContext::default(), &client)
+        .await
+        .unwrap();
+    assert_eq!(result["models"][0]["contextWindow"], 32000);
+    assert_eq!(result["models"][0]["input"], json!(["text"]));
+    assert!(client.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn jev_remote_entries_fill_only_missing_known_facts() {
+    let ids = [
+        "jev-latest",
+        "JEV-preview",
+        "typesafe/jev-1.13",
+        "typesafe-ai/jev",
+        "vendor/jev/model",
+    ];
+    let client = Client::new(vec![json!({"data": ids})]);
+    let result = list_models(&definition(), context(), &client)
+        .await
+        .unwrap();
+    for model in result["models"].as_array().unwrap() {
+        assert_eq!(model["contextWindow"], 32000, "{}", model["id"]);
+        assert_eq!(model["input"], json!(["text"]), "{}", model["id"]);
+    }
+    assert_eq!(client.requests.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn jev_vendor_limits_and_input_take_precedence_over_known_defaults() {
+    let client = Client::new(vec![json!({"models":[
+        {"id":"jev-context", "contextWindow":64000, "input":["text","image"]},
+        {"id":"jev-architecture", "context_length":65536, "architecture":{"input_modalities":["text","image"]}},
+        {"id":"jev-zero", "context_window":0, "input_modalities":["text"]},
+        {"id":"jev-empty-input", "context_length":1000, "input_modalities":[]}
+    ]})]);
+    let result = list_models(&definition(), context(), &client)
+        .await
+        .unwrap();
+    for (index, (window, input)) in [
+        (64000, json!(["text", "image"])),
+        (65536, json!(["text", "image"])),
+        (32000, json!(["text"])),
+        (1000, json!([])),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(result["models"][index]["contextWindow"], window);
+        assert_eq!(result["models"][index]["input"], input);
+    }
+}
+
+#[tokio::test]
+async fn jev_name_matching_never_invents_facts_for_other_models() {
+    let client = Client::new(vec![
+        json!({"data":["jevons", "jevx", "not-jev", "vendor/~jev", "other-decider"]}),
+    ]);
+    let result = list_models(&definition(), context(), &client)
+        .await
+        .unwrap();
+    for model in result["models"].as_array().unwrap() {
+        assert!(model.get("contextWindow").is_none(), "{}", model["id"]);
+        assert!(model.get("input").is_none(), "{}", model["id"]);
+    }
+}
+
 #[tokio::test]
 async fn model_discovery_uses_real_authenticated_http_and_explicit_capabilities() {
     let client = Client::new(vec![

@@ -3,6 +3,30 @@ use nora_provider_plugin_sdk::{PluginError, PluginResult};
 use nora_provider_subscription_core as core;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+
+#[derive(Default)]
+pub(crate) struct Catalog {
+    pub models: Vec<Value>,
+    pub images: BTreeMap<String, bool>,
+}
+
+const INPUT_KINDS: [&str; 5] = ["text", "image", "audio", "video", "pdf"];
+
+fn inputs(entry: &Value) -> Option<[bool; 5]> {
+    let modalities = entry
+        .pointer("/architecture/input_modalities")
+        .filter(|value| !value.is_null())
+        .or_else(|| entry.get("input_modalities"))?
+        .as_array()
+        .filter(|values| !values.is_empty())?;
+    Some(INPUT_KINDS.map(|kind| {
+        modalities.iter().any(|value| {
+            value
+                .as_str()
+                .is_some_and(|value| value.eq_ignore_ascii_case(kind))
+        })
+    }))
+}
 fn id(entry: &Value) -> Option<&str> {
     entry.as_str().or_else(|| {
         ["id", "model", "modelId", "model_id", "key", "slug"]
@@ -34,15 +58,16 @@ fn number(value: &Value) -> Option<u64> {
         .or_else(|| value.as_str().and_then(|value| value.parse::<u64>().ok()))
         .filter(|n| *n > 0)
 }
-fn bare(id: &str) -> &str {
+fn bare(id: &str) -> String {
     id.rsplit('/')
         .next()
         .unwrap_or(id)
         .split(':')
         .next()
         .unwrap_or(id)
+        .to_ascii_lowercase()
 }
-pub(crate) fn parse(recommended: &Value, cloud: &Value, source: &str) -> PluginResult<Vec<Value>> {
+pub(crate) fn parse(recommended: &Value, cloud: &Value, source: &str) -> PluginResult<Catalog> {
     let recommended = recommended.get("data").unwrap_or(recommended);
     let mut order: Vec<String> = Vec::new();
     let mut facts: BTreeMap<String, Value> = BTreeMap::new();
@@ -88,7 +113,7 @@ pub(crate) fn parse(recommended: &Value, cloud: &Value, source: &str) -> PluginR
             );
         }
     }
-    let mut output = Vec::new();
+    let mut output = Catalog::default();
     for id in order {
         let own = &facts[&id];
         let item = cloud.iter().find(|item| item["id"] == id);
@@ -99,14 +124,9 @@ pub(crate) fn parse(recommended: &Value, cloud: &Value, source: &str) -> PluginR
                     .or_else(|| number(&item["context"]))
             })
             .unwrap_or(0);
-        let modalities = |value: &Value| {
-            value
-                .pointer("/architecture/input_modalities")
-                .or_else(|| value.get("input_modalities"))
-                .and_then(Value::as_array)
-                .cloned()
-        };
-        let input = item.and_then(modalities).or_else(|| {
+        let input = if let Some(item) = item {
+            inputs(item)
+        } else {
             let mut matches = cloud
                 .iter()
                 .filter(|entry| {
@@ -114,13 +134,13 @@ pub(crate) fn parse(recommended: &Value, cloud: &Value, source: &str) -> PluginR
                         .as_str()
                         .is_some_and(|other| bare(other) == bare(&id))
                 })
-                .filter_map(modalities);
-            let first = matches.next()?;
-            matches.all(|m| m == first).then_some(first)
-        });
-        let images = input
-            .as_ref()
-            .is_some_and(|m| m.iter().any(|v| v == "image"));
+                .filter_map(inputs);
+            matches.next().filter(|first| matches.all(|m| m == *first))
+        };
+        let images = input.is_some_and(|input| input[1]);
+        if input.is_some() {
+            output.images.insert(id.clone(), images);
+        }
         let title = format!(
             "{}{}",
             own["name"].as_str().unwrap_or(&id),
@@ -146,14 +166,14 @@ pub(crate) fn parse(recommended: &Value, cloud: &Value, source: &str) -> PluginR
             source,
         );
         model["info"]["free"] = own["free"].clone();
-        output.push(model);
+        output.models.push(model);
     }
-    if output.is_empty() {
+    if output.models.is_empty() {
         return Err(PluginError::transport("Cline returned no valid models."));
     }
     Ok(output)
 }
-pub(crate) async fn discover(client: &dyn nora_ai::HttpClient) -> PluginResult<Vec<Value>> {
+pub(crate) async fn discover(client: &dyn nora_ai::HttpClient) -> PluginResult<Catalog> {
     let request = |path: &str| {
         let mut request = core::json_request(
             nora_ai::HttpMethod::Get,
@@ -170,10 +190,17 @@ pub(crate) async fn discover(client: &dyn nora_ai::HttpClient) -> PluginResult<V
         .unwrap_or(Value::Null);
     parse(&recommended, &cloud, "remote")
 }
-pub(crate) fn presets() -> Vec<Value> {
+pub(crate) fn presets() -> Catalog {
     let rows: Vec<Value> = serde_json::from_str(include_str!("models.json")).unwrap_or_default();
     let mut groups = json!({"recommended":[],"free":[]});
+    let mut cloud = Vec::new();
     for row in rows {
+        if row["input"].is_object() {
+            cloud.push(json!({
+                "id": row["id"],
+                "input_modalities": INPUT_KINDS.iter().filter(|kind| row["input"][**kind] == true).collect::<Vec<_>>()
+            }));
+        }
         let target = if row["free"] == true {
             "free"
         } else {
@@ -181,7 +208,7 @@ pub(crate) fn presets() -> Vec<Value> {
         };
         groups[target].as_array_mut().unwrap().push(row);
     }
-    parse(&groups, &Value::Null, "preset").unwrap_or_default()
+    parse(&groups, &json!(cloud), "preset").unwrap_or_default()
 }
 #[cfg(test)]
 #[path = "../test/models.test.rs"]

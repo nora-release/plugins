@@ -45,7 +45,13 @@ impl HttpClient for Client {
         }
         Ok(HttpStreamingResponse {
             status,
-            headers: BTreeMap::from([("content-type".into(), "application/json".into())]),
+            headers: BTreeMap::from([(
+                "content-type".into(),
+                value["_content_type"]
+                    .as_str()
+                    .unwrap_or("application/json")
+                    .into(),
+            )]),
             body: Box::pin(futures::stream::once(async move { Ok(bytes.into()) })),
         })
     }
@@ -91,11 +97,17 @@ fn setup(replies: Vec<(u16, Value)>) -> (Cline, Arc<Client>, Arc<Store>) {
         manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
     })
     .unwrap();
-    (Cline { core }, client, store)
+    (Cline::with_core(core), client, store)
 }
 fn credentials() -> Value {
     json!({"provider":"cline","type":"oauth","access":"old-access","refresh":"old-refresh","expires":core::now()+3600_000,"uid":"uid-one","email":"me@example.com","accountId":"me@example.com"})
 }
+
+#[path = "pinning.test.rs"]
+mod pinning_tests;
+
+#[path = "pinning-protocol.test.rs"]
+mod pinning_protocol_tests;
 
 #[tokio::test]
 async fn clinepass_rejects_oauth_before_any_network_request() {
@@ -112,7 +124,7 @@ async fn clinepass_rejects_oauth_before_any_network_request() {
         manifest: json!({"id":"clinepass","authMethods":[{"id":"apiKey","type":"api"}]}),
     })
     .unwrap();
-    let error = Cline { core }
+    let error = Cline::with_core(core)
         .authorize(json!({"authMethodID":"oauth"}))
         .await
         .unwrap_err();
@@ -143,15 +155,17 @@ fn official_task_ids_are_stable_for_one_session_but_distinct_between_sessions() 
 fn pinning_preserves_the_original_cache_prefix_and_caller_routing_options() {
     let body = b"{ \"model\" : \"cline-pass/deepseek-v4.1-flash\", \"messages\": [] }".to_vec();
     let chat: Value = serde_json::from_slice(&body).unwrap();
-    let pinned = pin_body(body.clone(), &chat, true).unwrap();
+    let pinned = pinning::Pin::for_chat(&chat, Some(true), false)
+        .unwrap()
+        .apply(&body)
+        .unwrap();
     assert!(pinned.starts_with(&body[..body.len() - 1]));
     assert_eq!(
         serde_json::from_slice::<Value>(&pinned).unwrap()["providerOptions"]["gateway"]["only"],
         json!(["deepseek"])
     );
     let owned = json!({"model":"cline-pass/glm-5.3-flash","provider":{"only":["mine"]}});
-    let bytes = serde_json::to_vec(&owned).unwrap();
-    assert_eq!(pin_body(bytes.clone(), &owned, true).unwrap(), bytes);
+    assert!(pinning::Pin::for_chat(&owned, Some(true), false).is_none());
 }
 #[test]
 fn entitlement_and_credit_errors_do_not_get_mislabeled_as_expired_tokens() {

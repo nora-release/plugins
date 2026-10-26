@@ -42,7 +42,6 @@
   ],
   "config": {
     "persistent": true,
-    "pinUpstream": false,
     "authTimeoutMs": 600000,
     "only": [
       "cline-pass/"

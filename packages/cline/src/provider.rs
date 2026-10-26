@@ -1,7 +1,7 @@
-use crate::{models, usage};
+use crate::{models, pinning, usage};
 use async_trait::async_trait;
 use futures::StreamExt;
-use nora_ai::{HttpClient, HttpMethod, HttpRequest};
+use nora_ai::{HttpClient, HttpMethod, HttpRequest, HttpStreamingResponse};
 use nora_provider_plugin_sdk::{
     CallContext, FetchRequest, FetchResponse, InitializeParams, PluginError, PluginResult,
     ProviderPlugin,
@@ -9,7 +9,7 @@ use nora_provider_plugin_sdk::{
 use nora_provider_subscription_core::{self as core, Core};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, sync::RwLock, time::Duration};
 pub(crate) const BASE: &str = "https://api.cline.bot/api/v1";
 const WORKOS_CLIENT: &str = "client_01K3A541FN8TA3EPPHTD2325AR";
 const DEVICE: &str = "https://api.workos.com/user_management/authorize/device";
@@ -87,12 +87,11 @@ pub(crate) fn headers(session: Option<&str>) -> BTreeMap<String, String> {
 }
 pub struct Cline {
     core: Core,
+    images: RwLock<BTreeMap<String, bool>>,
 }
 impl Default for Cline {
     fn default() -> Self {
-        Self {
-            core: Core::new("cline"),
-        }
+        Self::for_id("cline")
     }
 }
 fn bearer(value: &Value) -> PluginResult<String> {
@@ -146,8 +145,12 @@ fn api(
 }
 impl Cline {
     pub fn for_id(id: &'static str) -> Self {
+        Self::with_core(Core::new(id))
+    }
+    fn with_core(core: Core) -> Self {
         Self {
-            core: Core::new(id),
+            core,
+            images: RwLock::new(models::presets().images),
         }
     }
     fn scoped_models(&self, mut models: Vec<Value>) -> Vec<Value> {
@@ -233,53 +236,39 @@ impl Cline {
         envelope(core::checked(client, api(path, HttpMethod::Get, None, Some(key))?).await?)
     }
 }
-fn pin_body(mut bytes: Vec<u8>, chat: &Value, enabled: bool) -> PluginResult<Vec<u8>> {
-    if !enabled || chat.get("providerOptions").is_some() || chat.get("provider").is_some() {
-        return Ok(bytes);
-    }
-    let model = chat["model"].as_str().unwrap_or("");
-    if model.starts_with("cline-free/") {
-        return Ok(bytes);
-    }
-    let name = model
-        .rsplit('/')
-        .next()
-        .unwrap_or(model)
-        .to_ascii_lowercase();
-    let pinned = if name == "glm-5.3-flash" {
-        Some(("provider", json!({"only":["z-ai"]})))
-    } else if name.starts_with("deepseek") {
-        Some(("providerOptions", json!({"gateway":{"only":["deepseek"]}})))
-    } else if name.starts_with("glm") {
-        Some(("providerOptions", json!({"gateway":{"only":["zai"]}})))
-    } else {
-        None
-    };
-    let Some((key, value)) = pinned else {
-        return Ok(bytes);
-    };
-    let end = bytes
-        .iter()
-        .rposition(|byte| *byte == b'}')
-        .ok_or_else(|| PluginError::invalid("The Cline chat request is invalid."))?;
-    let head = &bytes[..end];
-    let previous = head
-        .iter()
-        .rfind(|byte| !byte.is_ascii_whitespace())
-        .copied()
-        .unwrap_or(b'{');
-    let field = format!(
-        "{}{}:{}",
-        if previous == b'{' || previous == b',' {
-            ""
-        } else {
-            ","
-        },
-        serde_json::to_string(key).unwrap(),
-        value
-    );
-    bytes.splice(end..end, field.bytes());
-    Ok(bytes)
+async fn send_chat(
+    client: &dyn HttpClient,
+    request: HttpRequest,
+) -> PluginResult<HttpStreamingResponse> {
+    tokio::time::timeout(Duration::from_secs(60), client.stream(request))
+        .await
+        .map_err(|_| PluginError::transport("Cline did not answer in time."))?
+        .map_err(|_| PluginError::transport("Cline could not be reached."))
+}
+
+async fn error_bytes(response: HttpStreamingResponse) -> PluginResult<Vec<u8>> {
+    tokio::time::timeout(
+        Duration::from_secs(180),
+        nora_ai::collect_http_body_text_limited(response.body, 1024 * 1024),
+    )
+    .await
+    .map_err(|_| PluginError::transport("Cline's error response stopped."))?
+    .map(String::into_bytes)
+    .map_err(|_| PluginError::transport("Cline's error response ended unexpectedly."))
+}
+
+fn error_response(status: u16, bytes: &[u8]) -> FetchResponse {
+    let value = serde_json::from_slice::<Value>(bytes)
+        .unwrap_or_else(|_| json!({"message":String::from_utf8_lossy(bytes)}));
+    let (status, message) = failure(status, &value);
+    FetchResponse::bytes(
+        status,
+        BTreeMap::from([("content-type".into(), "application/json".into())]),
+        serde_json::to_vec(
+            &json!({"error":{"type":"cline_error","message":message,"code":status}}),
+        )
+        .unwrap(),
+    )
 }
 fn failure(status: u16, value: &Value) -> (u16, String) {
     let message = core::text(&value["error"]["message"])
@@ -467,14 +456,22 @@ impl ProviderPlugin for Cline {
     async fn models(&self, context: CallContext) -> PluginResult<Value> {
         let client = self.core.client(context.network_proxy.as_ref())?;
         match models::discover(client.as_ref()).await {
-            Ok(models) => Ok(core::listing(
-                self.scoped_models(models),
-                "openai-completions",
-                BASE,
-                "remote",
-            )),
+            Ok(catalog) => {
+                self.images
+                    .write()
+                    .map_err(|_| {
+                        PluginError::transport("Cline's model capabilities could not be updated.")
+                    })?
+                    .extend(catalog.images);
+                Ok(core::listing(
+                    self.scoped_models(catalog.models),
+                    "openai-completions",
+                    BASE,
+                    "remote",
+                ))
+            }
             Err(_) if context.credentials.is_none() => Ok(core::listing(
-                self.scoped_models(models::presets()),
+                self.scoped_models(models::presets().models),
                 "openai-completions",
                 BASE,
                 "preset",
@@ -585,11 +582,19 @@ impl ProviderPlugin for Cline {
             ));
         }
         let config = self.core.config()?;
-        let pin = config
-            .manifest
-            .pointer("/config/pinUpstream")
-            .is_some_and(|v| v == true || v == "true");
-        let body = pin_body(bytes, &chat, pin)?;
+        let preference = pinning::preference(config.manifest.pointer("/config/pinUpstream"));
+        let images = self
+            .images
+            .read()
+            .map_err(|_| PluginError::transport("Cline's model capabilities could not be read."))?
+            .get(chat["model"].as_str().unwrap_or(""))
+            .copied()
+            .unwrap_or(false)
+            || pinning::has_images(&bytes);
+        let (body, original) = match pinning::Pin::for_chat(&chat, preference, images) {
+            Some(pin) => (pin.apply(&bytes)?, pin.fallback.then_some(bytes)),
+            None => (bytes, None),
+        };
         let mut outgoing = core::json_request(
             HttpMethod::Post,
             &request.url,
@@ -609,10 +614,23 @@ impl ProviderPlugin for Cline {
         {
             outgoing.headers.insert("accept".into(), accept.clone());
         }
-        let response = tokio::time::timeout(Duration::from_secs(60), client.stream(outgoing))
-            .await
-            .map_err(|_| PluginError::transport("Cline did not answer in time."))?
-            .map_err(|_| PluginError::transport("Cline could not be reached."))?;
+        let retry = original.map(|body| HttpRequest {
+            method: outgoing.method.clone(),
+            url: outgoing.url.clone(),
+            headers: outgoing.headers.clone(),
+            body: Some(body),
+        });
+        let mut response = send_chat(client.as_ref(), outgoing).await?;
+        if response.status >= 400 {
+            if let Some(retry) = retry {
+                let status = response.status;
+                let bytes = error_bytes(response).await?;
+                if !pinning::unpin_worthy(status, &bytes) {
+                    return Ok(error_response(status, &bytes));
+                }
+                response = send_chat(client.as_ref(), retry).await?;
+            }
+        }
         let status = response.status;
         let mut headers = response.headers.clone();
         headers.retain(|key, _| {
@@ -629,18 +647,8 @@ impl ProviderPlugin for Cline {
             key.eq_ignore_ascii_case("content-type") && value.contains("application/json")
         });
         if status >= 400 {
-            let bytes = core::collect(response, 1024 * 1024).await?;
-            let value = serde_json::from_slice::<Value>(&bytes)
-                .unwrap_or_else(|_| json!({"message":String::from_utf8_lossy(&bytes)}));
-            let (status, message) = failure(status, &value);
-            return Ok(FetchResponse::bytes(
-                status,
-                BTreeMap::from([("content-type".into(), "application/json".into())]),
-                serde_json::to_vec(
-                    &json!({"error":{"type":"cline_error","message":message,"code":status}}),
-                )
-                .unwrap(),
-            ));
+            let bytes = error_bytes(response).await?;
+            return Ok(error_response(status, &bytes));
         }
         if json_reply {
             let bytes = core::collect(response, core::MAX_JSON).await?;

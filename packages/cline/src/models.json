@@ -37,7 +37,12 @@
     "free": true
   },
   {
-    "id": "cline-pass/deepseek-v4.1-flash"
+    "id": "cline-pass/deepseek-v4.1-flash-1017",
+    "input": { "text": true, "image": true }
+  },
+  {
+    "id": "cline-pass/deepseek-v4.1-flash",
+    "input": { "text": true, "image": true }
   },
   {
     "id": "cline-pass/mimo-v2.6-flash"

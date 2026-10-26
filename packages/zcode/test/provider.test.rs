@@ -12,6 +12,8 @@ mod coding_device;
 mod gift_cache;
 #[path = "team_gift.test.rs"]
 mod team_gift;
+#[path = "tool_search.test.rs"]
+mod tool_search;
 struct Reply {
     path: String,
     method: HttpMethod,

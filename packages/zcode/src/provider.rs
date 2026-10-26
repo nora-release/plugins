@@ -2,7 +2,7 @@ use crate::{
     auth, catalog, device,
     endpoint::{self, Site},
     readings::{self, Gift},
-    start,
+    start, tool_search,
 };
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -913,6 +913,10 @@ impl ProviderPlugin for Zcode {
         let mut body = bytes
             .as_deref()
             .and_then(|bytes| serde_json::from_slice::<Value>(bytes).ok());
+        let renamed = body.as_mut().is_some_and(|body| {
+            tool_search::rename_request(body, bytes.as_deref().unwrap_or_default())
+        });
+        let mut changed = renamed;
         let model = body
             .as_ref()
             .and_then(|body| body["model"].as_str())
@@ -959,13 +963,13 @@ impl ProviderPlugin for Zcode {
             raw_model = raw.unwrap().to_owned();
             let body = body.as_mut().unwrap();
             body["model"] = json!(raw_model);
-            bytes = Some(serde_json::to_vec(body).unwrap());
+            changed = true;
         }
         let selected = site(&state)?;
         let (base, headers) = if start {
-            if let Some(body) = body.filter(|body| body["messages"].is_array()) {
-                let body = start::dress(
-                    body,
+            if let Some(body) = body.as_mut().filter(|body| body["messages"].is_array()) {
+                *body = start::dress(
+                    body.take(),
                     selected,
                     core::required(&state, "device")?,
                     request.metadata.get("workingDirectory").map(String::as_str),
@@ -974,7 +978,7 @@ impl ProviderPlugin for Zcode {
                         .get("isGitRepository")
                         .and_then(|value| value.parse::<bool>().ok()),
                 )?;
-                bytes = Some(serde_json::to_vec(&body).unwrap());
+                changed = true;
             }
             (
                 endpoint::START,
@@ -982,11 +986,14 @@ impl ProviderPlugin for Zcode {
             )
         } else {
             let key = core::required(&state, "key")?;
-            if path == "/v1/messages" {
-                if let Some(marked) = bytes.as_deref().and_then(|bytes| {
-                    device::mark_coding_body(bytes, state["device"].as_str().unwrap())
-                }) {
-                    bytes = Some(marked);
+            if path == "/v1/messages"
+                && (renamed
+                    || bytes
+                        .as_deref()
+                        .is_some_and(|bytes| bytes.windows(8).any(|part| part == b"messages")))
+            {
+                if let Some(body) = body.as_mut() {
+                    changed |= device::mark_coding_body(body, state["device"].as_str().unwrap());
                 }
             }
             let mut headers = BTreeMap::from([
@@ -1004,6 +1011,9 @@ impl ProviderPlugin for Zcode {
             }
             (selected.base(), headers)
         };
+        if changed {
+            bytes = body.map(|body| serde_json::to_vec(&body).unwrap());
+        }
         let response = tokio::time::timeout(
             Duration::from_secs(60),
             client.stream(HttpRequest {
@@ -1021,7 +1031,8 @@ impl ProviderPlugin for Zcode {
         let json_response = headers.iter().any(|(key, value)| {
             key.eq_ignore_ascii_case("content-type") && value.contains("application/json")
         });
-        if start && (status >= 400 || forced && json_response) {
+        let mut restore_search = renamed;
+        let response = if start && (status >= 400 || forced && json_response) {
             let bytes = core::collect(response, 16 * 1024 * 1024).await?;
             if start::refused(status, &bytes) {
                 headers.insert("content-type".into(), "application/json".into());
@@ -1043,30 +1054,34 @@ impl ProviderPlugin for Zcode {
                 }
                 blocked.insert(blocked_key(&state, &raw_model), core::now() + 60_000);
             }
-            return Ok(FetchResponse::bytes(
-                if forced && spent && status < 400 {
-                    429
-                } else {
-                    status
-                },
+            let status = if forced && spent && status < 400 {
+                restore_search = false;
+                429
+            } else {
+                status
+            };
+            FetchResponse::bytes(status, headers, bytes)
+        } else {
+            let body = futures::stream::unfold(response.body, |mut body| async move {
+                match tokio::time::timeout(Duration::from_secs(180), body.next()).await {
+                    Ok(Some(Ok(bytes))) => Some((Ok(bytes.to_vec()), body)),
+                    Ok(None) => None,
+                    _ => Some((
+                        Err(PluginError::transport("ZCode's response stopped.")),
+                        Box::pin(futures::stream::empty()) as nora_ai::HttpByteStream,
+                    )),
+                }
+            });
+            FetchResponse {
+                status,
                 headers,
-                bytes,
-            ));
-        }
-        let body = futures::stream::unfold(response.body, |mut body| async move {
-            match tokio::time::timeout(Duration::from_secs(180), body.next()).await {
-                Ok(Some(Ok(bytes))) => Some((Ok(bytes.to_vec()), body)),
-                Ok(None) => None,
-                _ => Some((
-                    Err(PluginError::transport("ZCode's response stopped.")),
-                    Box::pin(futures::stream::empty()) as nora_ai::HttpByteStream,
-                )),
+                body: Box::pin(body),
             }
-        });
-        Ok(FetchResponse {
-            status,
-            headers,
-            body: Box::pin(body),
+        };
+        Ok(if restore_search {
+            tool_search::restore_response(response)
+        } else {
+            response
         })
     }
 }

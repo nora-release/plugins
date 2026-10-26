@@ -38,23 +38,19 @@ fn is_js_whitespace(character: char) -> bool {
 
 // ZCode chooses its prompt cache by this device. A caller's nonempty user_id
 // already makes that choice; keep its original body, including its formatting.
-pub(crate) fn mark_coding_body(bytes: &[u8], device: &str) -> Option<Vec<u8>> {
-    if device.is_empty() || !bytes.windows(8).any(|part| part == b"messages") {
-        return None;
-    }
-    let mut body: Value = serde_json::from_slice(bytes).ok()?;
-    if !body.is_object() || !body["messages"].is_array() {
-        return None;
+pub(crate) fn mark_coding_body(body: &mut Value, device: &str) -> bool {
+    if device.is_empty() || !body.is_object() || !body["messages"].is_array() {
+        return false;
     }
     if body["metadata"]["user_id"]
         .as_str()
         .is_some_and(|id| !id.chars().all(is_js_whitespace))
     {
-        return None;
+        return false;
     }
     if !body["metadata"].is_object() {
         body["metadata"] = Value::Object(Map::new());
     }
     body["metadata"]["user_id"] = Value::String(user_id(device));
-    Some(serde_json::to_vec(&body).unwrap())
+    true
 }

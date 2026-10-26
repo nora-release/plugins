@@ -5,6 +5,7 @@ mod endpoint;
 mod provider;
 mod readings;
 mod start;
+mod tool_search;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> std::io::Result<()> {
     nora_provider_plugin_sdk::serve(provider::Zcode::default()).await

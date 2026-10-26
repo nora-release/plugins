@@ -14,6 +14,7 @@ fn entry() -> models::Entry {
         context: 1000000,
         sees: true,
         max: Some(("model".into(), 1000000)),
+        levels: Some(Vec::new()),
     }
 }
 #[test]

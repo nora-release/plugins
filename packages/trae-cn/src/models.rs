@@ -1,5 +1,8 @@
 use crate::*;
 use nora_ai::{InputModality, Model};
+
+const LEVELS: &[(&str, &str)] = &[("light", "low"), ("high", "high"), ("extra_high", "xhigh")];
+
 #[derive(Clone, Debug)]
 pub(crate) struct Entry {
     pub id: String,
@@ -10,6 +13,7 @@ pub(crate) struct Entry {
     pub context: u64,
     pub sees: bool,
     pub max: Option<(String, u64)>,
+    pub levels: Option<Vec<&'static str>>,
 }
 #[derive(Default)]
 pub(crate) struct State {
@@ -33,8 +37,46 @@ impl Entry {
         model.info.chat = Some(true);
         model.info.tool_calling = Some(true);
         model.info.pricing_known = Some(false);
+        model.info.reasoning_efforts = self
+            .levels
+            .iter()
+            .flatten()
+            .map(|level| (*level).to_owned())
+            .collect();
         serde_json::to_value(model).map_err(|_| invalid("The Trae model cannot be represented."))
     }
+
+    pub fn effort(&self, requested: Option<&Value>) -> Option<&'static str> {
+        let requested = requested?.as_str()?;
+        let (native, public) = LEVELS
+            .iter()
+            .find(|(native, public)| requested == *native || requested == *public)?;
+        self.levels.as_ref()?.contains(public).then_some(*native)
+    }
+}
+
+// Empty means the entry names no levels; None means it names only unknown
+// levels. Neither overrides Trae's default or creates selectable choices.
+fn levels_of(model: &Value) -> Option<Vec<&'static str>> {
+    let Some(options) = model
+        .pointer("/reasoning_effort_config/options")
+        .and_then(Value::as_array)
+    else {
+        return Some(Vec::new());
+    };
+    let mut levels = Vec::new();
+    for option in options {
+        let Some((_, public)) = LEVELS
+            .iter()
+            .find(|(native, _)| option.as_str() == Some(*native))
+        else {
+            continue;
+        };
+        if !levels.contains(public) {
+            levels.push(*public);
+        }
+    }
+    (!levels.is_empty() || options.is_empty()).then_some(levels)
 }
 pub(crate) async fn fetch(
     provider: &Trae,
@@ -215,6 +257,8 @@ pub(crate) fn merge(site: Site, lists: &BTreeMap<String, Vec<Value>>) -> PluginR
                 } else {
                     0
                 });
+            let worth =
+                worth * 2 + u8::from(levels_of(model).is_some_and(|levels| !levels.is_empty()));
             if let Some((by, was, score)) = chosen
                 .iter_mut()
                 .find(|(_, model, _)| text(model, "config_name") == id)
@@ -271,6 +315,7 @@ pub(crate) fn merge(site: Site, lists: &BTreeMap<String, Vec<Value>>) -> PluginR
             context,
             sees,
             max: None,
+            levels: levels_of(&model),
         };
         entries.push(entry.clone());
         if all_ids.contains(&format!("{id}-max")) {

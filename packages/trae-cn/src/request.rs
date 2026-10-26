@@ -417,6 +417,13 @@ pub(crate) fn body(
     if use_named && !entry.model_name.is_empty() {
         body["model_name"] = json!(entry.model_name);
     }
+    let requested_effort = chat
+        .get("reasoning_effort")
+        .filter(|value| !value.is_null())
+        .or_else(|| chat.get("reasoningEffort"));
+    if let Some(effort) = entry.effort(requested_effort) {
+        body["reasoning_effort"] = json!(effort);
+    }
     let most = if use_named { entry.most } else { 0 };
     let asked = chat
         .get("max_completion_tokens")
@@ -472,3 +479,7 @@ pub(crate) fn body(
 #[cfg(test)]
 #[path = "../test/request.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/reasoning.test.rs"]
+mod reasoning_tests;

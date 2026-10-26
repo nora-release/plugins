@@ -143,6 +143,18 @@ impl Kiro {
                 .ok_or_else(session::expired);
         }
         let mut credential = Credential::from_saved(value)?;
+        if credential.account_identity().is_some_and(|identity| {
+            identity.get("discriminator").is_some()
+                && value
+                    .get("accountIdentity")
+                    .or_else(|| value.pointer("/extras/accountIdentity"))
+                    != Some(&identity)
+        }) {
+            if !credential.matches_saved_identity(value) {
+                return Err(session::expired());
+            }
+            self.persistence.save(credential.saved()).await?;
+        }
         let mut state = self.rotations.lock().await;
         // A rotated refresh token is never used until the host confirms durable storage.
         for _ in 0..32 {
@@ -225,7 +237,7 @@ impl Kiro {
         Ok(pending.next.clone())
     }
     fn source_saved(credential: &Credential, kind: &SourceKind, path: &str) -> Value {
-        let mut saved = json!({"type":"oauth","authMethod":kind.auth_method(),"source":kind.reference(path),"accountId":credential.identity,"email":credential.email,"plan":credential.plan,"label":if credential.email.is_empty(){"Kiro account"}else{&credential.email},"profileArn":credential.profile,"region":credential.region,"userId":credential.user_id,"realm":credential.realm,"extras":{"noraAccountSource":kind.marker(path)}});
+        let mut saved = json!({"type":"oauth","authMethod":kind.auth_method(),"source":kind.reference(path),"accountId":credential.identity,"email":credential.email,"plan":credential.plan,"label":credential.label(),"loginProvider":credential.login_provider,"profileArn":credential.profile,"region":credential.region,"userId":credential.user_id,"realm":credential.realm,"extras":{"noraAccountSource":kind.marker(path)}});
         // A new Kiro login has a new refresh token. Access tokens rotate during
         // ordinary use and must never make a deliberately removed account return.
         if !credential.refresh.is_empty() {

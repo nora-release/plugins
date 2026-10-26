@@ -484,3 +484,27 @@ async fn rotating_a_token_keeps_verified_user_and_enterprise_scope_until_recheck
     assert_eq!(next.realm, credential.realm);
     assert_eq!(next.user_id, credential.user_id);
 }
+
+#[tokio::test]
+async fn login_provider_and_identity_survive_renewal_and_usage_without_user_id() {
+    for provider in ["Google", "Github", "BuilderId", "Enterprise", "Internal"] {
+        let mut original = identified_credential();
+        original.refresh = "old-refresh".into();
+        original.login_provider = provider.into();
+        let client = fixture::Client::new(vec![
+            fixture::Reply::json(fixture::usage()),
+            fixture::Reply::json(
+                json!({"accessToken":"renewed", "refreshToken":"rotated", "expiresIn":3600}),
+            ),
+            fixture::Reply::json(fixture::usage()),
+        ]);
+        identify(&client, &mut original).await.unwrap();
+        let old = original.saved();
+        let mut renewed = refresh(&client, &original).await.unwrap();
+        identify(&client, &mut renewed).await.unwrap();
+        assert_eq!(renewed.saved()["loginProvider"], provider);
+        assert_eq!(renewed.saved()["accountIdentity"], old["accountIdentity"]);
+        assert!(renewed.matches_saved_identity(&old));
+        assert_eq!(renewed.access, "renewed");
+    }
+}

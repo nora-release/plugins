@@ -549,3 +549,90 @@ fn source_realm_is_read_from_each_live_source_and_builder_urls_are_normalized() 
         .is_empty());
     std::fs::remove_file(path).unwrap();
 }
+
+#[test]
+fn login_provider_survives_saved_round_trips_and_has_a_canonical_identity() {
+    let mut saved = verified().saved();
+    saved["loginProvider"] = json!("Google");
+    let google = Credential::from_saved(&saved).unwrap();
+    let google_identity = google.account_identity().unwrap();
+    assert_ne!(google_identity, saved["accountIdentity"]);
+    assert_eq!(google.saved()["loginProvider"], "Google");
+    assert_eq!(
+        Credential::from_saved(&google.saved())
+            .unwrap()
+            .account_identity(),
+        Some(google_identity.clone())
+    );
+    assert!(google.matches_saved_identity(&saved));
+    saved["loginProvider"] = json!("  GOOGLE  ");
+    assert_eq!(
+        Credential::from_saved(&saved).unwrap().account_identity(),
+        Some(google_identity)
+    );
+    saved["loginProvider"] = json!("Github");
+    let github = Credential::from_saved(&saved).unwrap();
+    assert_ne!(google.account_identity(), github.account_identity());
+    assert!(!google.matches_saved_identity(&github.saved()));
+    assert!(!github.matches_saved_identity(&google.saved()));
+}
+
+#[test]
+fn known_login_provider_cannot_downgrade_or_change_after_identity_migration() {
+    let mut old = verified().saved();
+    old["loginProvider"] = json!("Google");
+    let next = Credential::from_saved(&old).unwrap().saved();
+    for value in [Value::Null, json!(""), json!("Github")] {
+        let mut changed = next.clone();
+        changed["loginProvider"] = value;
+        assert!(Credential::from_saved(&changed).is_err());
+    }
+    let unknown = verified();
+    assert!(!unknown.matches_saved_identity(&next));
+    assert_eq!(unknown.saved()["label"], "person@example.test");
+}
+
+#[test]
+fn login_provider_legacy_migration_keeps_unknown_sources_unqualified() {
+    let mut old = verified().saved();
+    old.as_object_mut().unwrap().remove("accountIdentity");
+    old.as_object_mut().unwrap().remove("extras");
+    old["loginProvider"] = json!("Google");
+    let owned = Credential::from_saved(&old).unwrap();
+    assert!(owned.matches_saved_identity(&old));
+    let mut wrong_way = old.clone();
+    wrong_way["loginProvider"] = json!("Github");
+    assert!(!owned.matches_saved_identity(&wrong_way));
+    old.as_object_mut().unwrap().remove("loginProvider");
+    let unknown = Credential::from_saved(&old).unwrap();
+    assert_eq!(unknown.account_identity(), verified().account_identity());
+    assert!(unknown.matches_saved_identity(&old));
+    assert_ne!(owned.account_identity(), unknown.account_identity());
+}
+
+#[test]
+fn live_source_login_provider_is_preserved_without_overriding_verified_service_users() {
+    let path = temp();
+    let mut identities = Vec::new();
+    for provider in ["Google", "Github", "BuilderId", "Enterprise", "Internal"] {
+        let value =
+            json!({"accessToken":"private", "profileArn":verified().profile, "provider":provider});
+        let mut ide = ide_credential(&value, &path).unwrap().unwrap();
+        ide.email = verified().email;
+        let mut owned = verified().saved();
+        owned["loginProvider"] = json!(provider);
+        let owned = Credential::from_saved(&owned).unwrap();
+        assert_eq!(ide.account_identity(), owned.account_identity());
+        identities.push(ide.account_identity());
+        ide.user_id = "verified-service-user".into();
+        let strong = ide.account_identity();
+        let mut unknown = verified();
+        unknown.user_id = ide.user_id.clone();
+        assert_eq!(strong, unknown.account_identity());
+        assert!(unknown.matches_saved_identity(&ide.saved()));
+        assert!(ide.matches_saved_identity(&unknown.saved()));
+    }
+    identities.sort_by_key(|value| value.as_ref().unwrap().to_string());
+    identities.dedup();
+    assert_eq!(identities.len(), 5);
+}

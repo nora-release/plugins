@@ -45,12 +45,13 @@ fn fresh(credential: &Credential) -> bool {
 
 fn key(credential: &Credential, expected: Option<&Value>) -> String {
     session::fingerprint(&format!(
-        "{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}",
+        "{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}\0{}",
         credential.access,
         credential.refresh,
         credential.profile,
         credential.realm,
         credential.method,
+        credential.login_provider,
         credential.region,
         credential.client_id,
         credential.client_secret,

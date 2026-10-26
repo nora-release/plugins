@@ -342,7 +342,11 @@ impl SourceSession {
                 scope.email = "scope-check@example.invalid".into();
                 scope.user_id = strong_user.unwrap_or_default().into();
                 let current = scope.account_identity().ok_or_else(conflict)?;
-                if current["issuer"] != identity["issuer"] || current["scope"] != identity["scope"]
+                if current["issuer"] != identity["issuer"]
+                    || current["scope"] != identity["scope"]
+                    || identity
+                        .get("discriminator")
+                        .is_some_and(|previous| current.get("discriminator") != Some(previous))
                 {
                     return Err(conflict());
                 }
@@ -594,6 +598,7 @@ fn same_binding(left: &Credential, right: &Credential) -> bool {
     left.access == right.access
         && left.refresh == right.refresh
         && left.method == right.method
+        && left.login_provider == right.login_provider
         && left.region == right.region
         && left.profile == right.profile
         && left.realm == right.realm

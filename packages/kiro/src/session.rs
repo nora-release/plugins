@@ -14,6 +14,7 @@ pub(crate) struct Credential {
     pub refresh: String,
     pub expires: i64,
     pub method: String,
+    pub login_provider: String,
     pub region: String,
     pub profile: String,
     pub client_id: String,
@@ -43,6 +44,20 @@ pub(crate) fn text(value: Option<&Value>, max: usize) -> Option<&str> {
         .filter(|value| {
             !value.is_empty() && value.len() <= max && !value.chars().any(char::is_control)
         })
+}
+pub(crate) fn login_provider(value: Option<&Value>) -> String {
+    match text(value, 128)
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "google" => "Google".into(),
+        "github" => "Github".into(),
+        "builderid" => "BuilderId".into(),
+        "enterprise" | "awsidc" => "Enterprise".into(),
+        "internal" => "Internal".into(),
+        other => other.into(),
+    }
 }
 pub(crate) fn expired() -> PluginError {
     PluginError::authentication("The Kiro account is unavailable or changed. Sign in again or refresh the selected source in Kiro.")
@@ -194,6 +209,7 @@ impl Credential {
                 .into(),
             expires: timestamp(value.get("expires")),
             method: method.into(),
+            login_provider: login_provider(value.get("loginProvider")),
             region: region(text(value.get("region"), 64).unwrap_or("us-east-1"))?,
             profile: text(value.get("profileArn"), 2048)
                 .unwrap_or_default()
@@ -240,14 +256,20 @@ impl Credential {
         .into_iter()
         .flatten()
         {
-            if Some(previous) != identity.as_ref() {
+            if Some(previous) != identity.as_ref()
+                && !credential.is_legacy_provider_identity(previous)
+            {
                 return Err(expired());
             }
+        }
+        if matches!((value.get("accountIdentity"), value.pointer("/extras/accountIdentity")), (Some(a), Some(b)) if a != b)
+        {
+            return Err(expired());
         }
         Ok(credential)
     }
     pub fn saved(&self) -> Value {
-        let mut value = json!({"type":if self.method=="apikey"{"api"}else{"oauth"},"authMethod":if self.method=="apikey"{"apiKey"}else{"oauth"},"method":self.method,"access":self.access,"refresh":self.refresh,"expires":if self.method=="apikey"{Value::Null}else{json!(self.expires)},"region":self.region,"profileArn":self.profile,"clientId":self.client_id,"clientSecret":self.client_secret,"tokenEndpoint":self.token_endpoint,"builderID":self.builder,"accountId":self.identity,"email":self.email,"userId":self.user_id,"realm":self.realm,"plan":self.plan,"label":if self.email.is_empty(){"Kiro account"}else{&self.email}});
+        let mut value = json!({"type":if self.method=="apikey"{"api"}else{"oauth"},"authMethod":if self.method=="apikey"{"apiKey"}else{"oauth"},"method":self.method,"loginProvider":self.login_provider,"access":self.access,"refresh":self.refresh,"expires":if self.method=="apikey"{Value::Null}else{json!(self.expires)},"region":self.region,"profileArn":self.profile,"clientId":self.client_id,"clientSecret":self.client_secret,"tokenEndpoint":self.token_endpoint,"builderID":self.builder,"accountId":self.identity,"email":self.email,"userId":self.user_id,"realm":self.realm,"plan":self.plan,"label":self.label()});
         if let Some(identity) = self.account_identity() {
             value["accountIdentity"] = identity.clone();
             value["extras"]["accountIdentity"] = identity;
@@ -298,7 +320,36 @@ impl Credential {
                 profile.into()
             })
         );
-        Some(json!({"issuer":"https://kiro.dev","subject":subject,"scope":scope}))
+        let mut identity = json!({"issuer":"https://kiro.dev","subject":subject,"scope":scope});
+        if self.user_id.is_empty() && !self.login_provider.is_empty() {
+            identity["discriminator"] = json!(format!(
+                "login-provider:{}",
+                self.login_provider.to_ascii_lowercase()
+            ));
+        }
+        Some(identity)
+    }
+    fn is_legacy_provider_identity(&self, previous: &Value) -> bool {
+        if self.login_provider.is_empty() || previous.get("discriminator").is_some() {
+            return false;
+        }
+        let mut original = self.clone();
+        original.login_provider.clear();
+        original.account_identity().as_ref() == Some(previous)
+    }
+    pub fn label(&self) -> String {
+        if self.email.is_empty() {
+            return "Kiro account".into();
+        }
+        let provider = match self.login_provider.as_str() {
+            "Google" => "Google",
+            "Github" => "GitHub",
+            "BuilderId" => "Builder ID",
+            "Enterprise" => "IAM Identity Center",
+            "Internal" => "Internal",
+            _ => return self.email.clone(),
+        };
+        format!("{} ({provider})", self.email)
     }
     pub fn legacy_identity(&self) -> String {
         fingerprint(&format!(
@@ -315,6 +366,9 @@ impl Credential {
         let Some(current) = self.account_identity() else {
             return false;
         };
+        let previous_provider = login_provider(saved.get("loginProvider"));
+        let provider_matches =
+            previous_provider.is_empty() || previous_provider == self.login_provider;
         if matches!((saved.get("accountIdentity"),saved.pointer("/extras/accountIdentity")),(Some(a),Some(b)) if a!=b)
         {
             return false;
@@ -326,6 +380,14 @@ impl Credential {
             if previous == &current {
                 return true;
             }
+            if !provider_matches {
+                return false;
+            }
+            if previous_provider == self.login_provider
+                && self.is_legacy_provider_identity(previous)
+            {
+                return true;
+            }
             // A previously verified email can be upgraded when Kiro begins
             // returning a user id, but an established user id is never weakened.
             let mut email_identity = self.clone();
@@ -335,7 +397,8 @@ impl Credential {
                 && text(saved.get("email"), 512)
                     .is_some_and(|email| email.eq_ignore_ascii_case(&self.email));
         }
-        if self.email.is_empty()
+        if !provider_matches
+            || self.email.is_empty()
             || !text(saved.get("accountId"), 128)
                 .is_some_and(|identity| identity == self.legacy_identity())
             || !text(saved.get("email"), 512)
@@ -432,6 +495,9 @@ pub(crate) fn ide_credential(value: &Value, path: &Path) -> PluginResult<Option<
             .into(),
         expires: timestamp(value.get("expiresAt")),
         method: "idc".into(),
+        login_provider: login_provider(
+            value.get("provider").or_else(|| value.get("loginProvider")),
+        ),
         region: region(text(value.get("region"), 64).unwrap_or("us-east-1"))?,
         profile: text(value.get("profileArn"), 2048)
             .unwrap_or_default()
@@ -535,6 +601,12 @@ pub(crate) fn cli_snapshot(
                 .into(),
             expires: timestamp(value.get("expires_at")),
             method: method.into(),
+            login_provider: login_provider(
+                value
+                    .get("login_provider")
+                    .or_else(|| value.get("loginProvider"))
+                    .or_else(|| value.get("provider")),
+            ),
             region: region(text(value.get("region"), 64).unwrap_or("us-east-1"))?,
             profile: text(value.get("profile_arn"), 2048)
                 .unwrap_or_default()

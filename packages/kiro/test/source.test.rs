@@ -717,3 +717,20 @@ fn changing_a_source_symlink_does_not_overwrite_its_old_target() {
     assert_eq!(std::fs::read(&fixture.path).unwrap(), before);
     assert_eq!(std::fs::read_to_string(&another).unwrap(), "{}");
 }
+
+#[test]
+fn a_source_login_provider_change_is_a_different_binding_even_when_tokens_are_unchanged() {
+    let mut value = json!({"accessToken":"access", "refreshToken":"refresh", "expiresAt":"2027-01-15T08:00:00Z", "profileArn":PROFILE, "region":"us-east-1", "authMethod":"social", "provider":"Google"});
+    let fixture = Fixture::new("ide", value.clone());
+    let session = fixture.open(&SourceKind::Ide);
+    assert_eq!(
+        session.state(session.credential()).unwrap(),
+        SourceState::Written
+    );
+    value["provider"] = json!("Github");
+    std::fs::write(&fixture.path, value.to_string()).unwrap();
+    assert_eq!(
+        session.state(session.credential()).unwrap(),
+        SourceState::Changed
+    );
+}

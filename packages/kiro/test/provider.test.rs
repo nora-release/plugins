@@ -683,3 +683,33 @@ async fn owned_rotation_caches_do_not_cross_profiles_that_happen_to_share_an_acc
     assert_eq!(client.requests.lock().unwrap().len(), 1);
     assert_eq!(saver.values.lock().unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn legacy_login_provider_identity_is_saved_on_first_use_without_waiting_for_expiry() {
+    let (provider, client, saver) = provider(vec![]).await;
+    let mut old = fixture::saved();
+    old["accountIdentity"] = Credential::from_saved(&old)
+        .unwrap()
+        .account_identity()
+        .unwrap();
+    old["loginProvider"] = json!("Google");
+    let first = provider
+        .live(Some(&old), client.as_ref(), false)
+        .await
+        .unwrap();
+    assert!(client.requests.lock().unwrap().is_empty());
+    let saved = saver.values.lock().unwrap()[0].clone();
+    assert_eq!(
+        saved["accountIdentity"]["discriminator"],
+        "login-provider:google"
+    );
+    assert_eq!(saved["access"], old["access"]);
+    assert_eq!(saved["refresh"], old["refresh"]);
+    assert!(first.matches_saved_identity(&old));
+    let again = provider
+        .live(Some(&saved), client.as_ref(), false)
+        .await
+        .unwrap();
+    assert_eq!(again.account_identity(), first.account_identity());
+    assert_eq!(saver.values.lock().unwrap().len(), 1);
+}

@@ -472,3 +472,85 @@ async fn legacy_owned_account_inspection_does_not_replace_a_saved_person_with_an
     assert_eq!(original["email"], "person@example.test");
     assert_eq!(client.requests.lock().unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn discovered_cli_ide_and_magpie_logins_keep_their_known_provider_and_identity_across_refresh(
+) {
+    let directory = Directory::new();
+    directory.cli("cli-access", fixture::PROFILE, session::now() + 3_600_000);
+    let db = rusqlite::Connection::open(directory.0.join("data.sqlite3")).unwrap();
+    let raw: String = db
+        .query_row(
+            "SELECT value FROM auth_kv WHERE key='kirocli:social:token'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let mut cli: Value = serde_json::from_str(&raw).unwrap();
+    cli["login_provider"] = json!("google");
+    db.execute("UPDATE auth_kv SET value=?1", [cli.to_string()])
+        .unwrap();
+    drop(db);
+    directory.ide("ide-access", fixture::PROFILE, session::now() + 3_600_000);
+    let ide_path = directory.0.join("kiro-auth-token.json");
+    let mut ide: Value = serde_json::from_slice(&std::fs::read(&ide_path).unwrap()).unwrap();
+    ide["provider"] = json!("Google");
+    std::fs::write(&ide_path, ide.to_string()).unwrap();
+    let magpie_path = directory.0.join("plugin-auth.json");
+    std::fs::write(&magpie_path, json!({"kiro#google":{"type":"oauth", "access":"magpie-access", "refresh":"magpie-refresh", "expires":session::now()+3_600_000, "method":"social", "region":"eu-central-1", "profileArn":fixture::PROFILE, "loginProvider":"Google", "accountId":"person@example.test (Google)"}}).to_string()).unwrap();
+    let mut sources = directory.sources();
+    sources.push(Source {
+        kind: SourceKind::Magpie(crate::source_kind::MagpieAccount::new("kiro#google").unwrap()),
+        path: magpie_path,
+    });
+    let client = Arc::new(fixture::Client::new(
+        (0..7)
+            .map(|_| fixture::Reply::json(fixture::usage()))
+            .collect(),
+    ));
+    let provider = provider(client.clone());
+    let first = discover_sources(&provider, &sources, client.as_ref(), None)
+        .await
+        .unwrap();
+    let accounts = first["accounts"].as_array().unwrap();
+    assert_eq!(accounts.len(), 3);
+    for account in accounts {
+        assert_eq!(account["credentials"]["loginProvider"], "Google");
+        assert_eq!(
+            account["credentials"]["accountIdentity"],
+            accounts[0]["credentials"]["accountIdentity"]
+        );
+        assert!(account["credentials"].get("access").is_none());
+        assert!(account["credentials"].get("refresh").is_none());
+    }
+    let again = discover_sources(&provider, &sources, client.as_ref(), None)
+        .await
+        .unwrap();
+    assert_eq!(again, first);
+    let saved = accounts[1]["credentials"].clone();
+    let enriched = provider
+        .accounts(CallContext {
+            subscription_accounts_enabled: true,
+            account: "ide".into(),
+            credentials: Some(saved.clone()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(enriched
+        .get("credentials")
+        .is_none_or(|value| value["accountIdentity"] == saved["accountIdentity"]));
+    ide["provider"] = json!("Github");
+    std::fs::write(&ide_path, ide.to_string()).unwrap();
+    let changed = discover_sources(&provider, &sources, client.as_ref(), None)
+        .await
+        .unwrap();
+    assert_ne!(
+        changed["accounts"][1]["credentials"]["accountIdentity"],
+        saved["accountIdentity"]
+    );
+    assert_eq!(
+        changed["accounts"][1]["credentials"]["loginProvider"],
+        "Github"
+    );
+}

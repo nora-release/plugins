@@ -212,3 +212,35 @@ async fn enterprise_browser_callback_preserves_the_same_realm_as_cli_and_ide() {
         "https://tenant.awsapps.com/start/"
     );
 }
+
+async fn social_sign_in(option: &str) -> Credential {
+    let (pending, url, _) = begin(vec![
+        fixture::Reply::json(json!({"accessToken":"access", "refreshToken":"refresh", "expiresIn":3600, "profileArn":fixture::PROFILE})),
+        fixture::Reply::json(fixture::usage()),
+    ]).await;
+    let state = url.query_pairs().find(|(key, _)| key == "state").unwrap().1;
+    let response = browse(
+        port(&url),
+        &format!("/signin/callback?state={state}&code=code&login_option={option}"),
+    )
+    .await;
+    assert!(response.starts_with("HTTP/1.1 200"));
+    pending.complete().await.unwrap()
+}
+
+#[tokio::test]
+async fn login_provider_separates_same_email_without_user_id_but_relogin_keeps_identity() {
+    let google = social_sign_in("google").await;
+    let github = social_sign_in("github").await;
+    let again = social_sign_in("google").await;
+    assert!(google.user_id.is_empty());
+    assert_eq!(google.email, github.email);
+    assert_ne!(google.account_identity(), github.account_identity());
+    assert_eq!(google.account_identity(), again.account_identity());
+    assert_eq!(google.saved()["loginProvider"], "Google");
+    assert_eq!(github.saved()["loginProvider"], "Github");
+    assert_eq!(google.saved()["label"], "person@example.test (Google)");
+    assert_eq!(github.saved()["label"], "person@example.test (GitHub)");
+    assert!(!github.matches_saved_identity(&google.saved()));
+    assert!(again.matches_saved_identity(&google.saved()));
+}

@@ -85,11 +85,19 @@ fn model(id: &str, entry: &Value, preset: &Value, source: &str) -> Value {
         .as_u64()
         .or(preset["output"].as_u64())
         .unwrap_or(32_000);
-    let modalities = entry
-        .pointer("/architecture/input_modalities")
-        .and_then(Value::as_array)
-        .or(preset["input"].as_array());
-    let images = modalities.is_some_and(|list| list.iter().any(|item| item == "image"));
+    let modalities = if entry.is_null() {
+        preset["input"].as_array()
+    } else {
+        entry
+            .pointer("/architecture/input_modalities")
+            .and_then(Value::as_array)
+    };
+    let input: Vec<_> = ["text", "image", "audio", "video", "pdf"]
+        .into_iter()
+        .filter(|kind| {
+            *kind == "text" || modalities.is_some_and(|list| list.iter().any(|item| item == kind))
+        })
+        .collect();
     let efforts: Vec<String> = preset["efforts"]
         .as_array()
         .into_iter()
@@ -99,7 +107,7 @@ fn model(id: &str, entry: &Value, preset: &Value, source: &str) -> Value {
     let thinking = !efforts.is_empty()
         || core::text(&metadata["capability"]).or_else(|| core::text(&preset["capability"]))
             == Some("advanced");
-    core::model(
+    let mut model = core::model(
         id,
         core::text(&preset["name"]).unwrap_or(id),
         api_of(id),
@@ -107,11 +115,13 @@ fn model(id: &str, entry: &Value, preset: &Value, source: &str) -> Value {
         BASE,
         context,
         output,
-        images,
+        input.contains(&"image"),
         thinking,
         efforts,
         source,
-    )
+    );
+    model["input"] = json!(input);
+    model
 }
 fn models_of(value: &Value) -> PluginResult<Vec<Value>> {
     let rows = value["data"]

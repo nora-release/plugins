@@ -19,6 +19,8 @@ pub const VERSION_KEY: &str = "grokClientVersion";
 const ISSUER: &str = "https://auth.x.ai";
 const SCOPE: &str = "https://auth.x.ai::b1a00492-073a-47ea-816f-4c329264a828";
 const MAX_AUTH_BYTES: u64 = 1_048_576;
+const TORN_READ_ATTEMPTS: usize = 6;
+const TORN_READ_WAIT: Duration = Duration::from_millis(100);
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,9 +31,16 @@ struct Source {
     executable_path: Option<PathBuf>,
 }
 
+#[derive(Clone)]
 struct Session {
     token: String,
     expires_at: Option<i64>,
+}
+
+#[derive(Clone)]
+struct SourceCredential {
+    user: String,
+    session: Session,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -41,7 +50,9 @@ pub enum SourceError {
     InvalidCredentials,
     AccountChanged,
     CliUnavailable,
+    ReadFailed,
     RefreshFailed,
+    RenewalUnchanged,
     Expired,
     TimedOut,
     InvalidNetworkProxy,
@@ -132,7 +143,7 @@ async fn discover_source(
     _proxy: Option<&NetworkProxy>,
 ) -> Result<Option<OAuthCredentials>, String> {
     let mut credentials =
-        match source.bound_credentials() {
+        match source.bound_credentials().await {
             Ok(credentials) => credentials,
             Err(SourceError::NotSignedIn) => return Ok(None),
             Err(_) => return Err(
@@ -145,7 +156,7 @@ async fn discover_source(
         .get(ACCOUNT_ID_KEY)
         .and_then(|value| value.as_str())
         .ok_or("The Grok Build sign-in did not identify its account.")?;
-    let session = source.read(subject).map_err(|_| {
+    let session = source.read(subject).await.map_err(|_| {
         "The Grok Build sign-in could not be read. Try again after checking Grok Build."
     })?;
     // Discovery does not run a CLI command or renew a third-party session.
@@ -171,19 +182,25 @@ async fn bind_source(
     client: &dyn HttpClient,
     proxy: Option<&NetworkProxy>,
 ) -> Result<OAuthCredentials, String> {
-    let mut credentials = source.bound_credentials().map_err(|_| {
-        "No valid Grok Build account was found. Sign in with Grok Build and try again.".to_string()
+    let mut credentials = source.bound_credentials().await.map_err(|error| {
+        if matches!(
+            error,
+            SourceError::NotSignedIn | SourceError::InvalidCredentials
+        ) {
+            "No valid Grok Build account was found. Sign in with Grok Build and try again."
+        } else {
+            "The Grok Build sign-in could not be read. Try again after checking Grok Build."
+        }
+        .to_string()
     })?;
     let transient = resolve_credentials_with_network(&credentials, false, proxy)
         .await
         .map_err(|_| {
-            "The Grok Build account could not be renewed. Sign in with Grok Build again."
+            "The Grok Build account could not be renewed. Open Grok Build and try again."
         })?;
     let user = crate::validate_xai_oauth_session(client, &transient.access_token)
         .await
-        .map_err(|_| {
-            "xAI could not verify the Grok Build account. Sign in with Grok Build again."
-        })?;
+        .map_err(|_| "xAI could not verify the Grok Build account. Try again.")?;
     if credentials
         .extras
         .get(ACCOUNT_ID_KEY)
@@ -244,20 +261,31 @@ pub async fn resolve_credentials_with_network(
         .and_then(|value| value.as_str())
         .filter(|value| !value.is_empty())
         .ok_or(SourceError::InvalidSource)?;
-    let observed = source.read(user_id)?;
+    let observed = source.read(user_id).await?;
     let lock = source_lock(&source);
     let _guard = lock.lock().await;
-    let mut session = source.read(user_id)?;
+    let mut session = source.read(user_id).await?;
     let force_refresh = force && session.token == observed.token;
     if force_refresh
         || session
             .expires_at
             .is_some_and(|expires| expires <= now_millis().saturating_add(300_000))
     {
-        source
+        let renewal = source
             .command(&["models"], Duration::from_secs(30), false, proxy)
-            .await?;
-        session = source.read(user_id)?;
+            .await;
+        // The CLI can save renewed credentials before a later command failure.
+        // Its exit status alone cannot tell whether the session is usable.
+        session = source.read(user_id).await?;
+        if force_refresh && session.token == observed.token {
+            return Err(renewal.err().unwrap_or(SourceError::RenewalUnchanged));
+        }
+        if session
+            .expires_at
+            .is_some_and(|expires| expires <= now_millis())
+        {
+            return Err(renewal.err().unwrap_or(SourceError::Expired));
+        }
     }
     if session
         .expires_at
@@ -334,49 +362,13 @@ impl Source {
         }
     }
 
-    fn bound_credentials(&self) -> Result<OAuthCredentials, SourceError> {
-        let file = std::fs::File::open(&self.auth_file_path).map_err(|error| {
-            if error.kind() == std::io::ErrorKind::NotFound {
-                SourceError::NotSignedIn
-            } else {
-                SourceError::InvalidCredentials
-            }
-        })?;
-        let mut data = Vec::new();
-        file.take(MAX_AUTH_BYTES + 1)
-            .read_to_end(&mut data)
-            .map_err(|_| SourceError::NotSignedIn)?;
-        if data.len() as u64 > MAX_AUTH_BYTES {
-            return Err(SourceError::InvalidCredentials);
-        }
-        let all: Value =
-            serde_json::from_slice(&data).map_err(|_| SourceError::InvalidCredentials)?;
-        let record = all
-            .get(SCOPE)
-            .or_else(|| all.get(ISSUER))
-            .ok_or(SourceError::NotSignedIn)?;
-        let claims = record
-            .get("key")
-            .and_then(Value::as_str)
-            .and_then(jwt_claims);
-        let user = record
-            .get("user_id")
-            .and_then(Value::as_str)
-            .or_else(|| {
-                claims
-                    .as_ref()
-                    .and_then(|claims| claims.get("sub"))
-                    .and_then(Value::as_str)
-            })
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or(SourceError::InvalidCredentials)?;
-        let session = self.read(user)?;
+    async fn bound_credentials(&self) -> Result<OAuthCredentials, SourceError> {
+        let credential = self.read_current().await?;
         Ok(OAuthCredentials::new(
             OAuthProviderId::XAI,
             "",
             None,
-            session.expires_at,
+            credential.session.expires_at,
             BTreeMap::from([
                 (
                     METADATA_KEY.into(),
@@ -384,29 +376,70 @@ impl Source {
                         .map_err(|_| SourceError::InvalidSource)?
                         .into(),
                 ),
-                (ACCOUNT_ID_KEY.into(), JsonValue::string(user)),
-                ("userId".into(), JsonValue::string(user)),
+                (ACCOUNT_ID_KEY.into(), JsonValue::string(&credential.user)),
+                ("userId".into(), JsonValue::string(&credential.user)),
             ]),
         ))
     }
 
-    fn read(&self, expected_user: &str) -> Result<Session, SourceError> {
+    async fn read(&self, expected_user: &str) -> Result<Session, SourceError> {
+        let credential = self.read_current().await?;
+        if credential.user != expected_user {
+            return Err(SourceError::AccountChanged);
+        }
+        Ok(credential.session)
+    }
+
+    async fn read_current(&self) -> Result<SourceCredential, SourceError> {
+        for attempt in 0..TORN_READ_ATTEMPTS {
+            match self.look() {
+                Ok(Some(credential)) => {
+                    remember_credential(&self.auth_file_path, Some(&credential));
+                    return Ok(credential);
+                }
+                Ok(None) if attempt + 1 < TORN_READ_ATTEMPTS => {
+                    tokio::time::sleep(TORN_READ_WAIT).await;
+                }
+                Ok(None) => break,
+                Err(error) => {
+                    if matches!(
+                        error,
+                        SourceError::NotSignedIn | SourceError::InvalidCredentials
+                    ) {
+                        remember_credential(&self.auth_file_path, None);
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        // Grok Build rewrites this file during renewal. Only an incomplete
+        // JSON read may use the last whole record from this exact file.
+        credential_cache()
+            .lock()
+            .unwrap()
+            .get(&self.auth_file_path)
+            .map(|(_, credential)| credential.clone())
+            .ok_or(SourceError::ReadFailed)
+    }
+
+    fn look(&self) -> Result<Option<SourceCredential>, SourceError> {
         let file = std::fs::File::open(&self.auth_file_path).map_err(|error| {
             if error.kind() == std::io::ErrorKind::NotFound {
                 SourceError::NotSignedIn
             } else {
-                SourceError::InvalidCredentials
+                SourceError::ReadFailed
             }
         })?;
         let mut data = Vec::new();
         file.take(MAX_AUTH_BYTES + 1)
             .read_to_end(&mut data)
-            .map_err(|_| SourceError::NotSignedIn)?;
+            .map_err(|_| SourceError::ReadFailed)?;
         if data.len() as u64 > MAX_AUTH_BYTES {
-            return Err(SourceError::InvalidCredentials);
+            return Err(SourceError::ReadFailed);
         }
-        let all: Value =
-            serde_json::from_slice(&data).map_err(|_| SourceError::InvalidCredentials)?;
+        let Ok(all) = serde_json::from_slice::<Value>(&data) else {
+            return Ok(None);
+        };
         let credential = all
             .get(SCOPE)
             .or_else(|| all.get(ISSUER))
@@ -444,9 +477,6 @@ impl Source {
         if subject.is_some_and(|subject| subject != user) {
             return Err(SourceError::InvalidCredentials);
         }
-        if user != expected_user {
-            return Err(SourceError::AccountChanged);
-        }
         let mut expires_at = claims
             .as_ref()
             .and_then(|claims| claims.get("exp"))
@@ -459,10 +489,13 @@ impl Source {
                 .timestamp_millis();
             expires_at = Some(expires_at.map_or(date, |expires| expires.min(date)));
         }
-        Ok(Session {
-            token: token.to_string(),
-            expires_at,
-        })
+        Ok(Some(SourceCredential {
+            user: user.to_string(),
+            session: Session {
+                token: token.to_string(),
+                expires_at,
+            },
+        }))
     }
 
     async fn command(
@@ -545,6 +578,32 @@ impl Source {
             .unwrap()
             .insert(executable.clone(), (Instant::now(), version.clone()));
         version
+    }
+}
+
+type CredentialCache = Mutex<BTreeMap<PathBuf, (Instant, SourceCredential)>>;
+
+fn credential_cache() -> &'static CredentialCache {
+    static CACHE: OnceLock<CredentialCache> = OnceLock::new();
+    CACHE.get_or_init(Mutex::default)
+}
+
+fn remember_credential(path: &std::path::Path, credential: Option<&SourceCredential>) {
+    let mut cache = credential_cache().lock().unwrap();
+    let Some(credential) = credential else {
+        cache.remove(path);
+        return;
+    };
+    cache.insert(path.to_path_buf(), (Instant::now(), credential.clone()));
+    // A long-lived plugin should not retain an unbounded number of old tokens.
+    if cache.len() > 128 {
+        if let Some(oldest) = cache
+            .iter()
+            .min_by_key(|(_, (time, _))| time)
+            .map(|(path, _)| path.clone())
+        {
+            cache.remove(&oldest);
+        }
     }
 }
 

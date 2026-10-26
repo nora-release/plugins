@@ -1,15 +1,17 @@
 use super::*;
 use serde_json::json;
+#[path = "grok_renewal.test.rs"]
+mod renewal_tests;
 
-#[test]
-fn binding_keeps_a_source_reference_instead_of_copying_its_token() {
+#[tokio::test]
+async fn binding_keeps_a_source_reference_instead_of_copying_its_token() {
     let fixture = Fixture::new();
     fixture.write(
         "private-local-session",
         "account-a",
         now_millis() + 3_600_000,
     );
-    let credentials = fixture.source.bound_credentials().unwrap();
+    let credentials = fixture.source.bound_credentials().await.unwrap();
     assert!(credentials.access_token.is_empty());
     assert!(credentials.refresh_token.is_none());
     assert!(is_bound(&credentials));
@@ -250,7 +252,7 @@ async fn binding_preserves_the_detected_cli_version_without_saving_its_session()
     let mut fixture = Fixture::new();
     capture_environment(&mut fixture);
     fixture.write("local-session", "account-a", now_millis() + 3_600_000);
-    let session = fixture.source.read("account-a").unwrap();
+    let session = fixture.source.read("account-a").await.unwrap();
     assert_eq!(session.token, "local-session");
     assert!(session.expires_at.unwrap() > now_millis() + 300_000);
     let proxy = NetworkProxy::Proxy {
@@ -261,7 +263,7 @@ async fn binding_preserves_the_detected_cli_version_without_saving_its_session()
         .unwrap();
     assert!(!fixture.directory.join("refresh-count").exists());
     assert_eq!(
-        fixture.source.read("account-a").unwrap().token,
+        fixture.source.read("account-a").await.unwrap().token,
         "local-session"
     );
     assert_eq!(bound.extras[VERSION_KEY].as_str(), Some("99.0.0"));

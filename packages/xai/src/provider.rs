@@ -112,7 +112,7 @@ impl ProviderAdapter for Xai {
         nora_provider_auth::grok_source::discover_current_account_with_network(client, proxy)
             .await
             .map(|account| account.into_iter().collect())
-            .map_err(PluginError::authentication)
+            .map_err(PluginError::transport)
     }
     async fn enrich_account(
         &self,
@@ -212,9 +212,7 @@ impl ProviderAdapter for Xai {
         } else {
             grok_source::AgentAuthResolveReason::Initial
         };
-        grok_source::resolve(credentials, reason, proxy)
-            .await
-            .ok_or_else(|| PluginError::authentication("Reconnect the Grok Build account."))?;
+        grok_source::resolve(credentials, reason, proxy).await?;
         Ok(())
     }
     async fn resolve_source(
@@ -227,12 +225,7 @@ impl ProviderAdapter for Xai {
             grok_source::AgentAuthResolveReason::Initial,
             proxy,
         )
-        .await
-        .ok_or_else(|| {
-            PluginError::authentication(
-                "Reconnect the Grok Build account. Its local identity or session changed.",
-            )
-        })?;
+        .await?;
         rate_limits::bind_auth(credentials, &mut auth);
         Ok(auth)
     }

@@ -7,6 +7,7 @@ mod models;
 mod queue;
 mod request;
 mod response;
+mod schema;
 mod site;
 mod usage;
 mod work_usage;

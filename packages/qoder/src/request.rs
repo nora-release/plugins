@@ -355,7 +355,33 @@ fn body_for_site(chat: &Value, entry: &models::Entry, site: Site) -> PluginResul
         .filter(|text| !text.is_empty())
         .collect::<Vec<_>>()
         .join("\n\n");
-    let tools=chat.get("tools").and_then(Value::as_array).into_iter().flatten().filter(|tool|text(chat,"tool_choice")!="none" && text(tool,"type")=="function" && !text(&tool["function"],"name").is_empty()).map(|tool|json!({"type":"function","function":{"name":tool["function"]["name"],"description":tool["function"].get("description").cloned().unwrap_or(json!("")),"parameters":tool["function"].get("parameters").cloned().unwrap_or(json!({"type":"object","properties":{}}))}})).collect::<Vec<_>>();
+    let tools = chat
+        .get("tools")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|tool| {
+            text(chat, "tool_choice") != "none"
+                && text(tool, "type") == "function"
+                && !text(&tool["function"], "name").is_empty()
+        })
+        .map(|tool| {
+            let function = &tool["function"];
+            let parameters = function
+                .get("parameters")
+                .filter(|value| !value.is_null())
+                .map(schema::typed_unions)
+                .unwrap_or_else(|| json!({"type":"object","properties":{}}));
+            json!({
+                "type":"function",
+                "function":{
+                    "name":function["name"],
+                    "description":function.get("description").cloned().unwrap_or(json!("")),
+                    "parameters":parameters
+                }
+            })
+        })
+        .collect::<Vec<_>>();
     let mut system = if system.is_empty() {
         site.system_prompt().into()
     } else {
@@ -394,3 +420,7 @@ fn body_for_site(chat: &Value, entry: &models::Entry, site: Site) -> PluginResul
 #[cfg(test)]
 #[path = "../test/request.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/schema.test.rs"]
+mod schema_tests;

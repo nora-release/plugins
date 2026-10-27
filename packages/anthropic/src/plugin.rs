@@ -26,7 +26,7 @@ struct Config {
 pub(crate) struct Claude {
     inner: BundledProvider,
     config: RwLock<Option<Config>>,
-    logins: Mutex<BTreeMap<String, login::Pending>>,
+    logins: Mutex<BTreeMap<String, Arc<login::Pending>>>,
     pool: Pool,
     proxies: Mutex<BTreeMap<String, Arc<Proxy>>>,
     pub persistence: Arc<dyn Persistence>,
@@ -172,6 +172,14 @@ impl ProviderPlugin for Claude {
         Ok(Some(usage))
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        if method == "cancelAuthorization" {
+            let id = cli::text(params.get("session"), 256).ok_or_else(cli::error)?;
+            let pending = self.logins.lock().await.remove(id);
+            if let Some(pending) = pending {
+                pending.cancel().await;
+            }
+            return Ok(json!({"ok":true}));
+        }
         self.inner.call(method, params).await
     }
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
@@ -263,21 +271,43 @@ impl ProviderPlugin for Claude {
             return self.inner.authorize(params).await;
         }
         let proxy = self.params_proxy(&params).await?;
-        let (pending, url) = login::start(&self.config()?.root, selected, proxy).await?;
+        let pending = login::start(&self.config()?.root, selected, proxy).await?;
         let session = cli::random();
         let mut logins = self.logins.lock().await;
         if logins.len() >= 8 {
             logins.clear();
         }
-        logins.insert(session.clone(), pending);
-        Ok(
-            json!({"session":session,"url":url,"method":"auto","instructions":"Sign in with the installed Claude Code. Paste the returned code if the browser cannot finish automatically."}),
-        )
+        let reply = pending.authorization(&session);
+        logins.insert(session, pending);
+        Ok(reply)
     }
     async fn callback(&self, params: Value) -> PluginResult<Value> {
         let id = cli::text(params.get("session"), 256).ok_or_else(cli::error)?;
-        let pending = self.logins.lock().await.remove(id).ok_or_else(cli::error)?;
-        let account = pending.finish(&params).await?;
+        let pending = self
+            .logins
+            .lock()
+            .await
+            .get(id)
+            .cloned()
+            .ok_or_else(cli::error)?;
+        let result = pending.callback(id, &params).await;
+        match &result {
+            Ok(login::Reply::Waiting(reply)) => return Ok(reply.clone()),
+            Ok(login::Reply::Claimed) => return Err(cli::error()),
+            _ => {}
+        }
+        let mut logins = self.logins.lock().await;
+        if !logins
+            .get(id)
+            .is_some_and(|current| Arc::ptr_eq(current, &pending))
+        {
+            return Err(cli::error());
+        }
+        logins.remove(id);
+        let login::Reply::Complete(account) = result? else {
+            unreachable!()
+        };
+        pending.keep();
         Ok(json!({"ok":true,"credentials":account.saved()}))
     }
     async fn refresh(&self, params: Value) -> PluginResult<Value> {

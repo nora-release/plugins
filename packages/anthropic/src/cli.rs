@@ -52,7 +52,7 @@ impl Home {
     }
     /// Claude Code names its Keychain item after the configuration directory
     /// it was told to use, and keeps the plain name for its own.
-    fn keychain_service(&self) -> String {
+    pub(crate) fn keychain_service(&self) -> String {
         match self {
             Self::Own(_) => "Claude Code-credentials".into(),
             Self::Isolated(directory) | Self::External(directory) => {
@@ -666,7 +666,13 @@ pub(crate) fn opened_url(args: &[String]) -> bool {
 pub(crate) fn login_url(url: &url::Url) -> bool {
     url.scheme() == "https"
         && url.host_str().is_some_and(|host| {
-            ["claude.ai", "console.anthropic.com", "platform.claude.com"].contains(&host)
+            [
+                "claude.ai",
+                "claude.com",
+                "console.anthropic.com",
+                "platform.claude.com",
+            ]
+            .contains(&host)
         })
         && url.path().contains("oauth")
         && url.username().is_empty()

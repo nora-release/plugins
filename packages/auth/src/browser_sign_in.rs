@@ -38,7 +38,15 @@ impl<T> BrowserSignIn<T> {
                 return Ok(Some(waiting));
             }
         }
-        Ok((params["poll"] == true && !self.task.is_finished()).then_some(waiting))
+        Ok(self.waiting_reply(session, params["poll"] == true))
+    }
+
+    pub fn waiting_reply(&self, session: &str, polling: bool) -> Option<Value> {
+        (polling && !self.task.is_finished()).then(|| json!({"session":session,"pending":true}))
+    }
+
+    pub fn completion_started(&self) -> bool {
+        self.finished
     }
 
     pub async fn finish(&mut self) -> PluginResult<T> {

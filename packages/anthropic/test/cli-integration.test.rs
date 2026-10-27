@@ -12,6 +12,8 @@ use tokio::{
 mod fixture;
 #[path = "learned-usage-integration.test.rs"]
 mod learned_usage_integration;
+#[path = "login-integration.test.rs"]
+mod login_integration;
 #[path = "refusal-integration.test.rs"]
 mod refusal_integration;
 #[path = "session-activity-integration.test.rs"]
@@ -38,7 +40,14 @@ impl Drop for Host {
 }
 impl Host {
     async fn new(root: &std::path::Path) -> Self {
+        Self::with_environment(root, &[]).await
+    }
+    async fn with_environment(
+        root: &std::path::Path,
+        environment: &[(&str, std::ffi::OsString)],
+    ) -> Self {
         let mut command = Command::new(env!("CARGO_BIN_EXE_nora-provider-anthropic"));
+        command.envs(environment.iter().map(|(key, value)| (*key, value)));
         #[cfg(unix)]
         command.process_group(0);
         let mut child = command

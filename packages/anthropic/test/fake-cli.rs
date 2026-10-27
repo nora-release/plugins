@@ -7,6 +7,9 @@ use std::{
     thread,
     time::Duration,
 };
+#[path = "fake-login.rs"]
+mod login_fixture;
+
 fn emit(value: Value) {
     let mut out = io::stdout().lock();
     writeln!(out, "{value}").unwrap();
@@ -42,6 +45,9 @@ fn scripted_reply(directory: &std::path::Path, name: &str) {
 }
 fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
+    if login_fixture::keychain(&args) {
+        return;
+    }
     let directory = PathBuf::from(std::env::var_os("CLAUDE_CONFIG_DIR").expect("isolated config"));
     let proxies = [
         "HTTP_PROXY",
@@ -63,6 +69,9 @@ fn main() {
         &serde_json::to_vec(&record).unwrap(),
     );
     if args.starts_with(&["auth".into(), "login".into()]) {
+        if login_fixture::run(&directory) {
+            return;
+        }
         let address="https://claude.ai/oauth/authorize?state=fixture-state&code_challenge=fixture-challenge";
         if let Ok(browser) = std::env::var("BROWSER") {
             let _ = Command::new(browser).arg(address).status();

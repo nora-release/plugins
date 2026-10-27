@@ -1400,6 +1400,8 @@ dependencies = [
  "libc",
  "nora-ai",
  "nora-provider",
+ "nora-provider-auth",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "regex",
  "serde_json",

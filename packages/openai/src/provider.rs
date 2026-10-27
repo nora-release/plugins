@@ -289,6 +289,8 @@ impl ProviderAdapter for OpenAI {
         model.info.image_output = Some(true);
         model.info.tool_calling = Some(false);
         models::configure_model(definition, credentials, &mut model);
+        model.info.free = Some(true);
+        model.info.pricing_known = Some(true);
         vec![model]
     }
     async fn prepare_fetch(
@@ -406,3 +408,7 @@ mod compression_tests;
 #[cfg(test)]
 #[path = "../test/responses_body.test.rs"]
 mod responses_body_tests;
+
+#[cfg(test)]
+#[path = "../test/mcp_selection.test.rs"]
+mod mcp_selection_tests;

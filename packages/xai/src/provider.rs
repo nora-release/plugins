@@ -317,6 +317,10 @@ impl ProviderAdapter for Xai {
                 model.info.video_output = Some(true);
             }
             models::configure_model(definition, credentials, &mut model);
+            if image {
+                model.info.free = Some(true);
+                model.info.pricing_known = Some(true);
+            }
             model
         })
         .collect()
@@ -515,3 +519,7 @@ mod request_tests;
 #[cfg(test)]
 #[path = "../test/cpa_import.test.rs"]
 mod cpa_import_tests;
+
+#[cfg(test)]
+#[path = "../test/mcp_selection.test.rs"]
+mod mcp_selection_tests;

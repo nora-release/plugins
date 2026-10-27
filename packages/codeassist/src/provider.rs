@@ -1,6 +1,7 @@
 use super::*;
 use async_trait::async_trait;
 use nora_ai::{HttpClient, HttpMethod, HttpRequest, ReqwestHttpClient};
+use nora_provider_auth::browser_sign_in::BrowserSignIn;
 use nora_provider_plugin_sdk::{
     CallContext, FetchRequest, FetchResponse, InitializeParams, NetworkProxy, ProviderPlugin,
     API_VERSION,
@@ -17,7 +18,7 @@ struct Config {
 pub struct CodeAssist {
     pub(crate) app: App,
     config: RwLock<Option<Config>>,
-    pending: Mutex<BTreeMap<String, auth::Pending>>,
+    pending: Mutex<BTreeMap<String, (BrowserSignIn<session::Tokens>, Arc<dyn HttpClient>)>>,
     tokens: Mutex<BTreeMap<String, session::Tokens>>,
     projects: Mutex<BTreeMap<String, project::Project>>,
     client: Option<Arc<dyn HttpClient>>,
@@ -500,13 +501,19 @@ impl ProviderPlugin for CodeAssist {
             }
             "oauth" => {
                 let (pending, url) = auth::start(self.app, project, client).await?;
+                let callback = pending.server.callback_input();
+                let client = pending.client.clone();
+                let app = self.app;
+                let flow = BrowserSignIn::new(tokio::spawn(auth::complete(pending, app)), callback);
                 let session = nora_ai::oauth_pkce::random_hex(24);
                 let mut sessions = self.pending.lock().await;
                 if sessions.len() >= 8 {
                     sessions.clear();
                 }
-                sessions.insert(session.clone(), pending);
-                Ok(json!({"session":session,"url":url,"method":"auto"}))
+                sessions.insert(session.clone(), (flow, client));
+                Ok(
+                    json!({"session":session,"url":url,"method":"auto","pasteCallback":true,"callbackMode":"poll"}),
+                )
             }
             "source" => {
                 let path = text(inputs.get("sourcePath"), 16 * 1024)
@@ -535,9 +542,14 @@ impl ProviderPlugin for CodeAssist {
     }
     async fn callback(&self, params: Value) -> PluginResult<Value> {
         let key = text(params.get("session"), 256).ok_or_else(expired)?;
-        let pending = self.pending.lock().await.remove(key).ok_or_else(expired)?;
-        let client = pending.client.clone();
-        let tokens = auth::complete(pending, self.app).await?;
+        let mut sessions = self.pending.lock().await;
+        let (flow, _) = sessions.get(key).ok_or_else(expired)?;
+        if let Some(reply) = flow.pending_reply(key, &params)? {
+            return Ok(reply);
+        }
+        let (mut flow, client) = sessions.remove(key).ok_or_else(expired)?;
+        drop(sessions);
+        let tokens = flow.finish().await?;
         self.finish_login(tokens, None, client.as_ref()).await
     }
     async fn refresh(&self, params: Value) -> PluginResult<Value> {

@@ -1,5 +1,6 @@
 //! Provider-owned sign-in, renewal, and account endpoint contracts.
 
+pub mod browser_sign_in;
 pub mod codex_source;
 pub mod copilot_client;
 pub mod copilot_editors;
@@ -14,7 +15,9 @@ pub mod xai_auth;
 pub mod xai_oidc;
 
 pub use manager::OAuthManager;
-pub use oauth_callback_server::{OAuthCallbackServer, OAuthCallbackServerConfig};
+pub use oauth_callback_server::{
+    OAuthCallbackInput, OAuthCallbackServer, OAuthCallbackServerConfig,
+};
 pub use oauth_login::{
     Browser, GitHubCopilotLoginConfig, OAuthLogin, OAuthLoginCallbacks, OAuthLoginRequest,
 };

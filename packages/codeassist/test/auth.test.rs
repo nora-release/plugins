@@ -119,14 +119,18 @@ async fn actual_loopback_callback_exchanges_the_code_once_and_checks_state_befor
             .await
             .unwrap();
         browser.write_all(format!("GET {}?code=fixture-code&state={} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",redirect.path(),state).as_bytes()).await.unwrap();
-        let result = complete(pending, App::GeminiCLI).await;
         if valid {
-            let tokens = result.ok().unwrap();
+            let tokens = complete(pending, App::GeminiCLI).await.unwrap();
             assert_eq!(tokens.email, "person@example.test");
             assert_eq!(tokens.project, "project-a");
             assert_eq!(client.requests.lock().unwrap().len(), 2);
         } else {
-            assert!(result.is_err());
+            assert!(tokio::time::timeout(
+                Duration::from_millis(50),
+                complete(pending, App::GeminiCLI)
+            )
+            .await
+            .is_err());
             assert!(client.requests.lock().unwrap().is_empty());
         }
     }

@@ -2,15 +2,15 @@ use crate::http;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use futures::{future::BoxFuture, FutureExt};
 use nora_ai::{HttpClient, HttpMethod, HttpRequest};
+use nora_provider_auth::{
+    browser_sign_in::BrowserSignIn, OAuthCallbackServer, OAuthCallbackServerConfig,
+};
 use nora_provider_plugin_sdk::{PluginError, PluginResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::Path, sync::Arc, time::Duration};
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    sync::{oneshot, Mutex},
-};
+use tokio::sync::Mutex;
 
 pub(crate) const ISSUER: &str = "https://auth.openai.com";
 pub(crate) const BASE: &str = "https://api.openai.com/v1";
@@ -289,7 +289,7 @@ pub(crate) fn check_id(
 }
 pub(crate) struct Flow {
     pub deadline: tokio::time::Instant,
-    result: Mutex<Option<oneshot::Receiver<PluginResult<Value>>>>,
+    result: Mutex<BrowserSignIn<Value>>,
     task: tokio::task::AbortHandle,
 }
 impl Flow {
@@ -312,127 +312,128 @@ pub(crate) async fn authorize(
     let challenge = URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
     let state = random()?;
     let nonce = random()?;
-    let listener = match tokio::net::TcpListener::bind(&endpoints.callback).await {
-        Ok(listener) => listener,
-        Err(_) => tokio::net::TcpListener::bind("127.0.0.1:0")
+    let address: std::net::SocketAddr = endpoints
+        .callback
+        .parse()
+        .map_err(|_| failed("The callback address is invalid."))?;
+    let mut config = OAuthCallbackServerConfig::with_path(address.port(), "/auth/callback");
+    config.host = address.ip().to_string();
+    let mut server = OAuthCallbackServer::with_config(config);
+    server.expect_state(&state);
+    server.success_html = "<p>Sign-in received. Return to Nora to finish.</p>".into();
+    if server.start().await.is_err() {
+        server.config.port = 0;
+        server
+            .start()
             .await
-            .map_err(|_| failed("The local callback port could not be opened."))?,
-    };
-    let address = listener
-        .local_addr()
-        .map_err(|_| failed("The callback address is unavailable."))?;
-    let redirect = format!("http://127.0.0.1:{}/auth/callback", address.port());
+            .map_err(|_| failed("The local callback port could not be opened."))?;
+    }
+    let redirect = server.redirect_uri();
+    let input = server
+        .callback_input()
+        .expect("A ChatGPT sign-in has a state");
     let url = authorize_url(endpoints, &redirect, &state, &nonce, &challenge, &host);
-    let (sender, receiver) = oneshot::channel();
     let deadline = tokio::time::Instant::now() + Duration::from_secs(900);
     let endpoints = endpoints.clone();
     let task = tokio::spawn(async move {
-        let result = tokio::time::timeout_at(
-            deadline,
-            listen(
-                listener, client, endpoints, &redirect, &state, &nonce, &verifier, &host,
-            ),
-        )
+        tokio::time::timeout_at(deadline, async {
+            let pairs = server
+                .wait_for_callback()
+                .await
+                .map_err(|_| failed("The browser did not authorize this sign-in."))?;
+            exchange_callback(
+                client.as_ref(),
+                &endpoints,
+                &pairs,
+                &redirect,
+                &nonce,
+                &verifier,
+                &host,
+            )
+            .await
+        })
         .await
-        .unwrap_or_else(|_| Err(failed("The sign-in timed out.")));
-        let _ = sender.send(result);
+        .unwrap_or_else(|_| Err(failed("The sign-in timed out.")))
     });
+    let abort = task.abort_handle();
     Ok((
-        json!({"url":url,"method":"auto","instructions":"Complete the ChatGPT sign-in in your browser."}),
+        json!({"url":url,"method":"auto","pasteCallback":true,"callbackMode":"poll","instructions":"Complete the ChatGPT sign-in in your browser."}),
         Flow {
             deadline,
-            result: Mutex::new(Some(receiver)),
-            task: task.abort_handle(),
+            result: Mutex::new(BrowserSignIn::new(task, Some(input))),
+            task: abort,
         },
     ))
 }
-async fn listen(
-    listener: tokio::net::TcpListener,
-    client: Arc<dyn HttpClient>,
-    endpoints: Endpoints,
+async fn exchange_callback(
+    client: &dyn HttpClient,
+    endpoints: &Endpoints,
+    pairs: &BTreeMap<String, String>,
     redirect: &str,
-    state: &str,
     nonce: &str,
     verifier: &str,
     host: &str,
 ) -> PluginResult<Value> {
-    loop {
-        let (mut socket, _) = listener
-            .accept()
-            .await
-            .map_err(|_| failed("The callback listener stopped."))?;
-        let mut bytes = Vec::new();
-        let read = tokio::time::timeout(Duration::from_secs(5), async {
-            let mut chunk = [0u8; 1024];
-            loop {
-                let n = socket.read(&mut chunk).await?;
-                if n == 0 {
-                    break;
-                }
-                bytes.extend_from_slice(&chunk[..n]);
-                if bytes.len() > 16384 {
-                    return Err(std::io::Error::other("too large"));
-                }
-                if bytes.windows(4).any(|w| w == b"\r\n\r\n") {
-                    break;
-                }
-            }
-            Ok::<_, std::io::Error>(())
+    let code = pairs
+        .get("code")
+        .ok_or_else(|| failed("OpenAI returned no authorization code."))?;
+    let client_id = pairs
+        .get("client_id")
+        .filter(|value| {
+            !value.trim().is_empty() && value.len() <= 512 && !value.chars().any(char::is_control)
         })
-        .await;
-        let request = String::from_utf8_lossy(&bytes);
-        let mut first = request.lines().next().unwrap_or("").split_whitespace();
-        let method = first.next();
-        let target = first.next().unwrap_or("");
-        let url = url::Url::parse(&format!("http://127.0.0.1{target}"));
-        let pairs = url
-            .as_ref()
-            .ok()
-            .map(|u| u.query_pairs().into_owned().collect::<BTreeMap<_, _>>())
-            .unwrap_or_default();
-        if !matches!(read, Ok(Ok(())))
-            || method != Some("GET")
-            || !url.as_ref().is_ok_and(|u| u.path() == "/auth/callback")
-            || pairs.get("state").map(String::as_str) != Some(state)
-        {
-            let _ = socket
-                .write_all(
-                    b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                )
-                .await;
-            continue;
-        }
-        let result=async{
-            if pairs.contains_key("error"){return Err(failed("The browser did not authorize this sign-in."));}
-            let code=pairs.get("code").filter(|s|!s.is_empty()&&s.len()<=8192).ok_or_else(||failed("OpenAI returned no authorization code."))?;
-            let client_id=pairs.get("client_id").filter(|s|!s.trim().is_empty()&&s.len()<=512&&!s.chars().any(char::is_control)).ok_or_else(||failed("OpenAI did not finish registering Nora (no client id came back). Start again."))?;
-            let (status,_,body)=http::json(http::send(client.as_ref(),token_request(&endpoints,&[("grant_type","authorization_code"),("client_id",client_id),("code",code),("code_verifier",verifier),("redirect_uri",redirect),("resource",BASE)]),Duration::from_secs(30)).await?,1024*1024).await?;
-            if status!=200{return Err(refusal(status,&body));}let id=claims(text(&body,"id_token"));check_id(&id,&endpoints.issuer,client_id,nonce,now())?;
-            let meta=Metadata{client_id:client_id.clone(),host_id:host.into(),subject:text(&id,"sub").into(),email:text(&id,"email").into(),id_token:text(&body,"id_token").into(),scopes:Vec::new()};
-            if meta.subject.is_empty()&&meta.email.is_empty(){return Err(failed("OpenAI did not identify the account that signed in."));}
-            from_token(&body,None,meta,now())
-        }.await;
-        let text = if result.is_ok() {
-            "You're signed in. You can close this tab."
-        } else {
-            "Sign-in did not finish. Return to Nora to retry."
-        };
-        let response=format!("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n{text}",text.len());
-        let _ = socket.write_all(response.as_bytes()).await;
-        return result;
+        .ok_or_else(|| {
+            failed("OpenAI did not finish registering Nora (no client id came back). Start again.")
+        })?;
+    let (status, _, body) = http::json(
+        http::send(
+            client,
+            token_request(
+                endpoints,
+                &[
+                    ("grant_type", "authorization_code"),
+                    ("client_id", client_id),
+                    ("code", code),
+                    ("code_verifier", verifier),
+                    ("redirect_uri", redirect),
+                    ("resource", BASE),
+                ],
+            ),
+            Duration::from_secs(30),
+        )
+        .await?,
+        1024 * 1024,
+    )
+    .await?;
+    if status != 200 {
+        return Err(refusal(status, &body));
     }
+    let id = claims(text(&body, "id_token"));
+    check_id(&id, &endpoints.issuer, client_id, nonce, now())?;
+    let meta = Metadata {
+        client_id: client_id.clone(),
+        host_id: host.into(),
+        subject: text(&id, "sub").into(),
+        email: text(&id, "email").into(),
+        id_token: text(&body, "id_token").into(),
+        scopes: Vec::new(),
+    };
+    if meta.subject.is_empty() && meta.email.is_empty() {
+        return Err(failed(
+            "OpenAI did not identify the account that signed in.",
+        ));
+    }
+    from_token(&body, None, meta, now())
 }
 pub(crate) async fn callback(flow: &Flow) -> PluginResult<Value> {
-    let receiver = flow
-        .result
-        .lock()
-        .await
-        .take()
-        .ok_or_else(|| failed("This sign-in has already finished."))?;
-    tokio::time::timeout_at(flow.deadline, receiver)
-        .await
-        .map_err(|_| failed("The sign-in timed out."))?
-        .map_err(|_| failed("The sign-in stopped."))?
+    flow.result.lock().await.finish().await
+}
+pub(crate) async fn poll(
+    flow: &Flow,
+    session: &str,
+    params: &Value,
+) -> PluginResult<Option<Value>> {
+    flow.result.lock().await.pending_reply(session, params)
 }
 
 type Shared = futures::future::Shared<BoxFuture<'static, PluginResult<Value>>>;

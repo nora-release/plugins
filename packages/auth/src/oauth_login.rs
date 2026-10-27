@@ -1,4 +1,4 @@
-use crate::oauth_callback_server::OAuthCallbackServer;
+use crate::oauth_callback_server::{OAuthCallbackInput, OAuthCallbackServer};
 use crate::oauth_providers::{GitHubCopilotOAuthProvider, OpenAICodexOAuthProvider};
 use crate::xai_auth::{xai_grok_client_version, xai_oauth_client_id, XAI_CLIENT_VERSION_HEADER};
 use crate::xai_oidc::{discover_xai_oidc, resolve_xai_login_identity};
@@ -47,6 +47,7 @@ pub struct OAuthLoginCallbacks {
     on_auth_url: Arc<dyn Fn(&str) + Send + Sync>,
     on_progress: Arc<dyn Fn(&str) + Send + Sync>,
     on_prompt: Arc<dyn Fn(String) -> OAuthPromptFuture + Send + Sync>,
+    on_callback: Option<Arc<dyn Fn(OAuthCallbackInput, Option<String>) + Send + Sync>>,
 }
 
 impl OAuthLoginCallbacks {
@@ -58,7 +59,16 @@ impl OAuthLoginCallbacks {
             on_auth_url: Arc::new(on_auth_url),
             on_progress: Arc::new(on_progress),
             on_prompt: default_prompt_callback(),
+            on_callback: None,
         }
+    }
+
+    pub fn with_callback(
+        mut self,
+        callback: impl Fn(OAuthCallbackInput, Option<String>) + Send + Sync + 'static,
+    ) -> Self {
+        self.on_callback = Some(Arc::new(callback));
+        self
     }
 
     pub fn with_prompt(
@@ -184,7 +194,18 @@ impl OAuthLogin {
         let state = random_hex(16);
         let mut server =
             OAuthCallbackServer::with_redirect_host(1455, "/auth/callback", "localhost");
-        server.start().await?;
+        server.expect_state(&state);
+        if let Some(callback) = &callbacks.on_callback {
+            let blocked = server.start_with_paste().await?.map(str::to_owned);
+            callback(
+                server
+                    .callback_input()
+                    .expect("A Codex sign-in has a state"),
+                blocked,
+            );
+        } else {
+            server.start().await?;
+        }
         let redirect_uri = server.redirect_uri();
         let auth_url = Self::openai_codex_authorize_url(&pkce, &state, &redirect_uri, originator)?;
         callbacks.auth_url(&auth_url);

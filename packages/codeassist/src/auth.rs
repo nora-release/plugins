@@ -33,13 +33,14 @@ pub(crate) async fn start(
     server.error_html =
         "<!doctype html><title>Nora</title><p>Google sign-in did not finish. Return to Nora.</p>"
             .into();
+    let state = nora_ai::oauth_pkce::random_hex(24);
+    server.expect_state(&state);
     server
         .start()
         .await
         .map_err(|_| invalid("The Google sign-in callback could not be opened."))?;
     let redirect = server.redirect_uri();
     let pkce = OAuthPkce::random();
-    let state = nora_ai::oauth_pkce::random_hex(24);
     let mut url =
         url::Url::parse("https://accounts.google.com/o/oauth2/v2/auth").expect("constant URL");
     url.query_pairs_mut().extend_pairs([

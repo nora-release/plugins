@@ -65,8 +65,11 @@ pub struct OAuthCallbackServer {
     result_tx: Arc<Mutex<Option<CallbackSender>>>,
     result_rx: Option<CallbackReceiver>,
     resolved: Arc<AtomicBool>,
+    closed: Arc<AtomicBool>,
     shutdown_tx: Option<oneshot::Sender<()>>,
     task: Option<JoinHandle<()>>,
+    expected_state: Option<String>,
+    paste_only: bool,
 }
 
 type CallbackResult = Result<BTreeMap<String, String>, OAuthError>;
@@ -116,13 +119,54 @@ h1{color:#c33}</style></head>
             result_tx: Arc::new(Mutex::new(Some(result_tx))),
             result_rx: Some(result_rx),
             resolved: Arc::new(AtomicBool::new(false)),
+            closed: Arc::new(AtomicBool::new(false)),
             shutdown_tx: None,
             task: None,
+            expected_state: None,
+            paste_only: false,
         }
     }
 
     pub fn redirect_uri(&self) -> String {
         self.config.redirect_uri()
+    }
+
+    pub fn expect_state(&mut self, state: impl Into<String>) {
+        self.expected_state = Some(state.into());
+    }
+
+    /// A fixed redirect must remain unchanged when another program owns its port.
+    pub async fn start_with_paste(&mut self) -> Result<Option<&'static str>, OAuthError> {
+        match self.start().await {
+            Ok(()) => Ok(None),
+            Err(error) if self.config.port != 0 && self.expected_state.is_some() => {
+                self.paste_only = true;
+                let reserved =
+                    matches!(&error, OAuthError::Transport(message) if message.contains("10013"));
+                Ok(Some(if reserved { "reserved" } else { "busy" }))
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn callback_input(&self) -> Option<OAuthCallbackInput> {
+        self.expected_state.as_ref()?;
+        Some(OAuthCallbackInput {
+            redirect: self.redirect_uri(),
+            shared: Arc::new(self.shared()),
+        })
+    }
+
+    fn shared(&self) -> CallbackShared {
+        CallbackShared {
+            path: self.config.path.clone(),
+            expected_state: self.expected_state.clone(),
+            success_html: self.success_html.clone(),
+            error_html: self.error_html.clone(),
+            result_tx: Arc::clone(&self.result_tx),
+            resolved: Arc::clone(&self.resolved),
+            closed: Arc::clone(&self.closed),
+        }
     }
 
     /// Start listening on 127.0.0.1. Idempotent.
@@ -139,13 +183,7 @@ h1{color:#c33}</style></head>
             .map_err(|error| OAuthError::Transport(error.to_string()))?
             .port();
 
-        let shared = Arc::new(CallbackShared {
-            path: self.config.path.clone(),
-            success_html: self.success_html.clone(),
-            error_html: self.error_html.clone(),
-            result_tx: Arc::clone(&self.result_tx),
-            resolved: Arc::clone(&self.resolved),
-        });
+        let shared = Arc::new(self.shared());
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         self.shutdown_tx = Some(shutdown_tx);
         self.task = Some(tokio::spawn(async move {
@@ -157,7 +195,7 @@ h1{color:#c33}</style></head>
 
     /// Resolve with whichever completes first: a callback request or cancel().
     pub async fn wait_for_callback(&mut self) -> Result<BTreeMap<String, String>, OAuthError> {
-        if !self.resolved.load(Ordering::SeqCst) {
+        if !self.paste_only && !self.resolved.load(Ordering::SeqCst) {
             self.start().await?;
         }
         let receiver = self
@@ -168,12 +206,15 @@ h1{color:#c33}</style></head>
         let result = receiver
             .await
             .unwrap_or_else(|_| Err(OAuthError::Transport("callback server stopped".to_string())));
-        self.stop().await;
+        if self.expected_state.is_none() {
+            self.stop().await;
+        }
         result
     }
 
     /// Stop listening; subsequent connections are rejected.
     pub async fn stop(&mut self) {
+        self.closed.store(true, Ordering::SeqCst);
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(());
         }
@@ -184,6 +225,7 @@ h1{color:#c33}</style></head>
 
     /// Unblock wait_for_callback() with OAuthError::Cancelled.
     pub fn cancel(&mut self) {
+        self.closed.store(true, Ordering::SeqCst);
         complete(&self.result_tx, &self.resolved, Err(OAuthError::Cancelled));
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(());
@@ -196,12 +238,56 @@ h1{color:#c33}</style></head>
 
 impl Drop for OAuthCallbackServer {
     fn drop(&mut self) {
-        if let Some(shutdown_tx) = self.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
+        self.cancel();
+    }
+}
+
+/// A local injection point for the exact same callback handler as the listener.
+/// Pasted addresses are validated, never fetched.
+#[derive(Clone)]
+pub struct OAuthCallbackInput {
+    redirect: String,
+    shared: Arc<CallbackShared>,
+}
+
+impl OAuthCallbackInput {
+    pub fn submit(&self, raw: &str) -> Result<(), OAuthError> {
+        if self.shared.closed.load(Ordering::SeqCst) {
+            return Err(OAuthError::Cancelled);
         }
-        if let Some(task) = self.task.take() {
-            task.abort();
+        let invalid = || {
+            OAuthError::InvalidResponse(
+                "Paste the complete callback address from this sign-in.".into(),
+            )
+        };
+        let raw = raw.trim();
+        if raw.len() > 16 * 1024 || raw.chars().any(char::is_control) {
+            return Err(invalid());
         }
+        let url = url::Url::parse(raw).map_err(|_| invalid())?;
+        let expected = url::Url::parse(&self.redirect).map_err(|_| invalid())?;
+        if url.scheme() != "http"
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.fragment().is_some()
+            || url.port_or_known_default() != expected.port_or_known_default()
+            || !matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"))
+            || url.path() != expected.path()
+            || url.query().is_none()
+        {
+            return Err(invalid());
+        }
+        let response = callback_response(&self.shared, url.as_str());
+        if let Some(result) = response.result {
+            complete(&self.shared.result_tx, &self.shared.resolved, result);
+        } else if response.status != 200 {
+            return Err(invalid());
+        }
+        if self.shared.closed.load(Ordering::SeqCst) {
+            return Err(OAuthError::Cancelled);
+        }
+        // A valid duplicate joins the exchange already claimed by the browser.
+        Ok(())
     }
 }
 
@@ -209,10 +295,12 @@ impl Drop for OAuthCallbackServer {
 
 struct CallbackShared {
     path: String,
+    expected_state: Option<String>,
     success_html: String,
     error_html: String,
     result_tx: Arc<Mutex<Option<CallbackSender>>>,
     resolved: Arc<AtomicBool>,
+    closed: Arc<AtomicBool>,
 }
 
 async fn accept_loop(
@@ -220,14 +308,17 @@ async fn accept_loop(
     shared: Arc<CallbackShared>,
     mut shutdown_rx: oneshot::Receiver<()>,
 ) {
+    let mut connections = tokio::task::JoinSet::new();
     loop {
         tokio::select! {
             _ = &mut shutdown_rx => break,
             accepted = listener.accept() => {
                 let Ok((stream, _)) = accepted else { continue };
+                while connections.try_join_next().is_some() {}
+                if connections.len() >= 32 { continue; }
                 let shared = Arc::clone(&shared);
-                tokio::spawn(async move {
-                    let _ = handle_connection(stream, shared).await;
+                connections.spawn(async move {
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), handle_connection(stream, shared)).await;
                 });
             }
         }
@@ -318,7 +409,38 @@ fn callback_response(shared: &CallbackShared, uri: &str) -> CallbackResponse {
 
     let mut params = BTreeMap::new();
     for (key, value) in url.query_pairs() {
-        params.insert(key.into_owned(), value.into_owned());
+        if params
+            .insert(key.into_owned(), value.into_owned())
+            .is_some()
+            && shared.expected_state.is_some()
+        {
+            return CallbackResponse {
+                status: 400,
+                html: error_html(shared, "Invalid callback parameters."),
+                result: None,
+            };
+        }
+    }
+    if let Some(state) = &shared.expected_state {
+        if params.get("state") != Some(state)
+            || (!params.contains_key("error")
+                && !params.get("code").is_some_and(|code| {
+                    !code.is_empty() && code.len() <= 8192 && !code.chars().any(char::is_control)
+                }))
+        {
+            return CallbackResponse {
+                status: 400,
+                html: error_html(shared, "This callback does not match the waiting sign-in."),
+                result: None,
+            };
+        }
+        if shared.resolved.load(Ordering::SeqCst) {
+            return CallbackResponse {
+                status: 200,
+                html: "<p>This sign-in is already finishing. Return to Nora.</p>".into(),
+                result: None,
+            };
+        }
     }
 
     if let Some(error) = params.get("error").cloned() {
@@ -337,20 +459,25 @@ fn callback_response(shared: &CallbackShared, uri: &str) -> CallbackResponse {
 }
 
 fn error_html(shared: &CallbackShared, message: &str) -> String {
-    shared.error_html.replace("{{message}}", message)
+    let message = message
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;");
+    shared.error_html.replace("{{message}}", &message)
 }
 
 fn complete(
     result_tx: &Arc<Mutex<Option<CallbackSender>>>,
     resolved: &AtomicBool,
     result: CallbackResult,
-) {
+) -> bool {
     if resolved.swap(true, Ordering::SeqCst) {
-        return;
+        return false;
     }
     if let Some(sender) = result_tx.lock().expect("callback result lock").take() {
         let _ = sender.send(result);
     }
+    true
 }
 
 async fn write_response(

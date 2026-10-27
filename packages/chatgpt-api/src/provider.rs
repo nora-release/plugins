@@ -163,6 +163,9 @@ impl ProviderPlugin for ChatGPTAPI {
             .get(session)
             .cloned()
             .ok_or_else(|| PluginError::invalid("The ChatGPT sign-in expired. Start again."))?;
+        if let Some(reply) = auth::poll(&flow, session, &params).await? {
+            return Ok(reply);
+        }
         let result = auth::callback(&flow).await;
         self.flows.lock().await.remove(session);
         Ok(json!({"credentials":result?,"configured":true}))

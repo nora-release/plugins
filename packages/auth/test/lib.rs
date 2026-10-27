@@ -40,3 +40,7 @@ mod xai_auth_test {
 mod subscription_policy_test {
     include!("subscription_policy.test.rs");
 }
+
+mod callback_input_test {
+    include!("callback_input.test.rs");
+}

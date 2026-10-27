@@ -108,7 +108,7 @@ async fn dynamic_client_signin_binds_state_nonce_pkce_resource_and_account_ident
     ];
     let (browser, credentials) =
         tokio::join!(visit(&query["redirect_uri"], &pairs), callback(&flow));
-    assert!(browser.contains("You're signed in"));
+    assert!(browser.contains("Sign-in received"));
     assert!(!browser.contains("access-one"));
     let saved = credentials.unwrap();
     assert_eq!(saved["plan"], "plus");
@@ -348,3 +348,5 @@ async fn revocation_discovers_own_endpoint_uses_only_registered_client_and_never
         assert_eq!(client.requests.lock().unwrap().len(), 1);
     }
 }
+
+include!("callback_paste.test.rs");

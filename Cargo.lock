@@ -1495,6 +1495,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "nora-ai",
+ "nora-provider-auth",
  "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",

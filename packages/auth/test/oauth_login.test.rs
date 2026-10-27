@@ -8,6 +8,8 @@ use std::io::{Read, Write};
 use std::net::TcpStream as StdTcpStream;
 use std::sync::Mutex;
 
+static CODEX_CALLBACK_PORT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[derive(Default)]
 struct StubHttpClient {
     responses: Mutex<VecDeque<HttpResponse>>,
@@ -456,6 +458,7 @@ fn xai_team_access_token(team_id: &str) -> String {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn codex_login_keeps_email_name_and_plan_without_saving_raw_identity_tokens() {
+    let _port = CODEX_CALLBACK_PORT.lock().await;
     let access_claims = URL_SAFE_NO_PAD.encode(br#"{"https://api.openai.com/auth":{"chatgpt_account_id":"workspace-id","chatgpt_plan_type":"plus"}}"#);
     let identity_claims =
         URL_SAFE_NO_PAD.encode(br#"{"email":"signed-in@example.com","name":"Signed In Name"}"#);
@@ -483,3 +486,5 @@ async fn codex_login_keeps_email_name_and_plan_without_saving_raw_identity_token
         .unwrap()
         .contains("signature"));
 }
+
+include!("callback_paste.test.rs");

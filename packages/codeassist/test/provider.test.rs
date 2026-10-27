@@ -420,3 +420,5 @@ async fn private_effort_metadata_selects_the_real_antigravity_variant_without_be
         .keys()
         .all(|key| !key.eq_ignore_ascii_case("reasoningEffort")));
 }
+
+include!("callback_paste.test.rs");

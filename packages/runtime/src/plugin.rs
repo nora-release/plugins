@@ -1,7 +1,7 @@
 use crate::{auth, definition::Definition, discovery, transport, ProviderAdapter};
 use async_trait::async_trait;
 use nora_ai::{HttpClient, JsonValue, OAuthCredentials, OAuthError, OAuthProviderId};
-use nora_provider_auth::OAuthLoginCallbacks;
+use nora_provider_auth::{browser_sign_in::BrowserSignIn, OAuthCallbackInput, OAuthLoginCallbacks};
 use nora_provider_plugin_sdk::model_resolution::{ModelResolution, ResolveModelRequest};
 use nora_provider_plugin_sdk::{
     CallContext, FetchRequest, FetchResponse, InitializeParams, NetworkProxy, PluginError,
@@ -12,22 +12,17 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
+#[cfg(test)]
 use tokio::task::JoinHandle;
 
 #[path = "plugin_configuration.rs"]
 mod configuration;
 use configuration::Configuration;
 
-struct PendingLogin(JoinHandle<Result<OAuthCredentials, OAuthError>>);
-impl Drop for PendingLogin {
-    fn drop(&mut self) {
-        self.0.abort();
-    }
-}
-
 enum LoginNotice {
     Url(String),
     Progress(String),
+    Callback(OAuthCallbackInput, Option<String>),
 }
 
 fn valid_account_identity(identity: &Value) -> bool {
@@ -50,7 +45,7 @@ fn valid_account_identity(identity: &Value) -> bool {
 pub struct BundledProvider {
     adapter: Option<Arc<dyn ProviderAdapter>>,
     configuration: RwLock<Option<Arc<Configuration>>>,
-    logins: Mutex<BTreeMap<String, PendingLogin>>,
+    logins: Mutex<BTreeMap<String, BrowserSignIn<OAuthCredentials>>>,
 }
 
 impl BundledProvider {
@@ -96,6 +91,7 @@ impl BundledProvider {
         let adapter = definition.adapter.clone();
         let (notice, mut notices) = mpsc::unbounded_channel();
         let progress = notice.clone();
+        let callback_notice = notice.clone();
         let callbacks = OAuthLoginCallbacks::new(
             move |url| {
                 let _ = notice.send(LoginNotice::Url(url.into()));
@@ -104,6 +100,9 @@ impl BundledProvider {
                 let _ = progress.send(LoginNotice::Progress(message.into()));
             },
         )
+        .with_callback(move |callback, blocked| {
+            let _ = callback_notice.send(LoginNotice::Callback(callback, blocked));
+        })
         .with_prompt(|_| {
             Box::pin(async {
                 Err(OAuthError::InvalidResponse(
@@ -111,14 +110,26 @@ impl BundledProvider {
                 ))
             })
         });
-        let mut pending = PendingLogin(tokio::spawn(async move {
-            adapter.login_with_inputs(callbacks, inputs, &client).await
-        }));
+        let mut pending = BrowserSignIn::new(
+            tokio::spawn(async move {
+                tokio::time::timeout(
+                    Duration::from_secs(900),
+                    adapter.login_with_inputs(callbacks, inputs, &client),
+                )
+                .await
+                .map_err(|_| PluginError::authentication("The provider sign-in timed out."))?
+                .map_err(|_| {
+                    PluginError::authentication("The provider sign-in failed. Start again.")
+                })
+            }),
+            None,
+        );
+        let mut callback_blocked = None;
         let mut instructions = Vec::new();
         let url=tokio::time::timeout(Duration::from_secs(40),async {
             loop {
                 tokio::select! {
-                    result=&mut pending.0=>{
+                    result=&mut pending.task=>{
                         let credentials=result.map_err(|_|PluginError::authentication("The provider sign-in stopped."))?
                             .map_err(|_|PluginError::authentication("The provider could not start this sign-in. Try again."))?;
                         return Ok::<_,PluginError>(Err(credentials));
@@ -126,6 +137,7 @@ impl BundledProvider {
                     notice=notices.recv()=>match notice {
                         Some(LoginNotice::Url(url))=>return Ok(Ok(url)),
                         Some(LoginNotice::Progress(message))=>instructions.push(message),
+                        Some(LoginNotice::Callback(callback, blocked))=>{pending.callback=Some(callback); callback_blocked=blocked;},
                         None=>return Err(PluginError::authentication("The provider did not return a sign-in address.")),
                     }
                 }
@@ -144,15 +156,27 @@ impl BundledProvider {
             }
         };
         while let Ok(notice) = notices.try_recv() {
-            if let LoginNotice::Progress(message) = notice {
-                instructions.push(message);
+            match notice {
+                LoginNotice::Progress(message) => instructions.push(message),
+                LoginNotice::Callback(callback, blocked) => {
+                    pending.callback = Some(callback);
+                    callback_blocked = blocked;
+                }
+                LoginNotice::Url(_) => {}
             }
         }
-        let session = "oauth".to_string();
-        self.logins.lock().await.insert(session.clone(), pending);
-        Ok(
-            json!({"session":session,"url":url,"method":"auto","instructions":instructions.join("\n")}),
-        )
+        let session = nora_ai::oauth_pkce::random_hex(24);
+        let mut reply = json!({"session":session,"url":url,"method":"auto","instructions":instructions.join("\n")});
+        if pending.callback.is_some() {
+            reply["pasteCallback"] = json!(true);
+            reply["callbackMode"] = json!("poll");
+            if let Some(blocked) = callback_blocked {
+                reply["callbackBlocked"] = json!(blocked);
+                reply["callbackPort"] = json!(1455);
+            }
+        }
+        self.logins.lock().await.insert(session, pending);
+        Ok(reply)
     }
 }
 
@@ -450,15 +474,18 @@ impl ProviderPlugin for BundledProvider {
             .get("session")
             .and_then(Value::as_str)
             .ok_or_else(|| PluginError::invalid("The sign-in session is required."))?;
-        let mut pending = self.logins.lock().await.remove(session).ok_or_else(|| {
+        let mut sessions = self.logins.lock().await;
+        let waiting = sessions.get(session).ok_or_else(|| {
             PluginError::authentication("This sign-in session has expired. Start again.")
         })?;
-        let credentials = (&mut pending.0)
-            .await
-            .map_err(|_| PluginError::authentication("The sign-in was interrupted."))?
-            .map_err(|_| {
-                PluginError::authentication("The provider sign-in failed. Start again.")
-            })?;
+        if let Some(reply) = waiting.pending_reply(session, &params)? {
+            return Ok(reply);
+        }
+        let mut pending = sessions
+            .remove(session)
+            .expect("The waiting sign-in was checked");
+        drop(sessions);
+        let credentials = pending.finish().await?;
         let configuration = self.configuration()?;
         let definition = configuration.installed_definition.clone();
         let proxy = configuration.params_proxy(&params)?;
@@ -657,3 +684,7 @@ mod mixed_accounts_tests;
 #[cfg(test)]
 #[path = "../test/profile_connections.test.rs"]
 mod profile_connection_tests;
+
+#[cfg(test)]
+#[path = "../test/callback_paste.test.rs"]
+mod callback_paste_tests;

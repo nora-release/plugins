@@ -1,3 +1,6 @@
+#[path = "compression.rs"]
+mod compression;
+
 #[path = "responses_body.rs"]
 mod responses_body;
 
@@ -322,9 +325,8 @@ impl ProviderAdapter for OpenAI {
         headers: &mut BTreeMap<String, String>,
         body: &mut Option<Vec<u8>>,
     ) -> PluginResult<()> {
-        let _ = headers;
         responses_body::finalize(is_oauth(Some(credentials)), target, body);
-        Ok(())
+        compression::finish(target, headers, body)
     }
     async fn usage(
         &self,
@@ -396,6 +398,10 @@ fn source_client(proxy: Option<&NetworkProxy>) -> PluginResult<nora_ai::ReqwestH
 #[cfg(test)]
 #[path = "../test/refresh.test.rs"]
 mod refresh_tests;
+
+#[cfg(test)]
+#[path = "../test/compression.test.rs"]
+mod compression_tests;
 
 #[cfg(test)]
 #[path = "../test/responses_body.test.rs"]

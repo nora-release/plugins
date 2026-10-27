@@ -419,7 +419,16 @@ impl ProviderPlugin for Claude {
         }
         let credentials = value.clone();
         let network_proxy = request.network_proxy.clone();
-        let metadata = request.metadata.clone();
+        let mut metadata = request.metadata.clone();
+        // Direct SDK callers can opt into the same client-owned cache marks as
+        // Messages callers of the gateway; their prompt stays in the user turn.
+        if request.headers.iter().any(|(name, value)| {
+            (name.eq_ignore_ascii_case("x-magpie-cache-marks")
+                || name.eq_ignore_ascii_case("x-nora-cache-marks"))
+                && value == "client"
+        }) {
+            metadata.insert("clientCacheMarks".into(), "true".into());
+        }
         let account_id = request.account.clone();
         let mut body = tokio::task::spawn_blocking(move || {
             let bytes = request

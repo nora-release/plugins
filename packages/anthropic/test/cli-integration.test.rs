@@ -10,6 +10,8 @@ use tokio::{
 };
 #[path = "fixture.rs"]
 mod fixture;
+#[path = "lean-prompt-integration.test.rs"]
+mod lean_prompt_integration;
 #[path = "learned-usage-integration.test.rs"]
 mod learned_usage_integration;
 #[path = "login-integration.test.rs"]

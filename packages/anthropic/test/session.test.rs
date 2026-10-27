@@ -5,37 +5,43 @@ async fn session_reuse_changes_when_proxy_or_prompt_ownership_changes() {
     let request = json!({"model":"claude-test","system":"one","messages":[],"tools":[]});
     let mut changed = request.clone();
     changed["system"] = json!("two");
-    assert_ne!(signature(&request, &proxy), signature(&changed, &proxy));
+    assert_ne!(
+        signature(&request, &proxy, false),
+        signature(&changed, &proxy, false)
+    );
     let other = Proxy::new(Some(&nora_provider_plugin_sdk::NetworkProxy::Proxy {
         url: "http://127.0.0.1:8080".into(),
     }))
     .await
     .unwrap();
-    assert_ne!(signature(&request, &proxy), signature(&request, &other));
+    assert_ne!(
+        signature(&request, &proxy, false),
+        signature(&request, &other, false)
+    );
 }
 
 #[tokio::test]
 async fn cli_session_identity_tracks_search_capability_instead_of_wire_version_markers() {
     let proxy = Proxy::new(None).await.unwrap();
     let mut request = json!({"model":"claude-test","tools":[{"type":"web_search_20250305","name":"web_search"},{"name":"read","input_schema":{"type":"object"}}]});
-    let first = signature(&request, &proxy);
+    let first = signature(&request, &proxy, false);
     request["tools"][0] = json!({"type":"web_search_20260318","name":"web_search","max_uses":null});
-    assert_eq!(first, signature(&request, &proxy));
+    assert_eq!(first, signature(&request, &proxy, false));
     request["tools"][1]["input_schema"] = json!({"type":"object","required":["path"]});
-    assert_ne!(first, signature(&request, &proxy));
+    assert_ne!(first, signature(&request, &proxy, false));
     request["tools"] = json!([{"name":"read","input_schema":{"type":"object"}}]);
-    assert_ne!(first, signature(&request, &proxy));
+    assert_ne!(first, signature(&request, &proxy, false));
 }
 
 #[tokio::test]
 async fn different_tool_choices_cannot_share_a_cli_run() {
     let proxy = Proxy::new(None).await.unwrap();
     let mut request = json!({"model":"claude-test","tools":[{"name":"read","input_schema":{"type":"object"}}],"tool_choice":{"type":"auto"}});
-    let first = signature(&request, &proxy);
+    let first = signature(&request, &proxy, false);
     request["tool_choice"] = json!({"type":"none"});
-    assert_ne!(first, signature(&request, &proxy));
+    assert_ne!(first, signature(&request, &proxy, false));
     request["tool_choice"] = json!({"type":"tool","name":"read"});
-    assert_ne!(first, signature(&request, &proxy));
+    assert_ne!(first, signature(&request, &proxy, false));
 }
 
 fn saved_fixture(root: &Path) -> (Saved, PathBuf, Vec<Value>) {
@@ -106,11 +112,34 @@ fn shelf_expiry_deletes_the_owned_session_file() {
 async fn effort_changes_reuse_the_run_but_output_schema_changes_do_not() {
     let proxy = Proxy::new(None).await.unwrap();
     let mut request = json!({"model":"claude-test","tools":[]});
-    let first = signature(&request, &proxy);
+    let first = signature(&request, &proxy, false);
     request["output_config"] = json!({"effort":"low"});
-    assert_eq!(first, signature(&request, &proxy));
+    assert_eq!(first, signature(&request, &proxy, false));
     request["output_config"]["effort"] = json!("high");
-    assert_eq!(first, signature(&request, &proxy));
+    assert_eq!(first, signature(&request, &proxy, false));
     request["output_config"]["format"] = json!({"type":"json_schema","schema":{"type":"object"}});
-    assert_ne!(first, signature(&request, &proxy));
+    assert_ne!(first, signature(&request, &proxy, false));
+}
+
+#[tokio::test]
+async fn lean_prompt_identity_cannot_reuse_a_normal_or_shelved_cli_run() {
+    let proxy = Proxy::new(None).await.unwrap();
+    let request = json!({"model":"claude-test","system":"Rules.","tools":[],"messages":[]});
+    assert_ne!(
+        signature(&request, &proxy, false),
+        signature(&request, &proxy, true)
+    );
+}
+
+#[test]
+fn private_run_directory_erases_prompt_files_on_early_failure() {
+    let fixture = crate::fixture::Directory::new();
+    let path = fixture.0.join("run");
+    cli::directory(&path).unwrap();
+    {
+        let directory = RunDirectory(path.clone());
+        cli::write(&directory.0.join("system.md"), b"Private instructions").unwrap();
+        assert!(path.join("system.md").is_file());
+    }
+    assert!(!path.exists());
 }

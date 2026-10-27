@@ -62,7 +62,21 @@ fn main() {
     .map(|key| (key, std::env::var(key).unwrap_or_default()))
     .into_iter()
     .collect::<std::collections::BTreeMap<_, _>>();
-    let record = json!({"pid":std::process::id(),"args":args,"proxies":proxies,"config":directory,"cwd":std::env::current_dir().unwrap(),"builtinMCP":std::env::var("ENABLE_CLAUDEAI_MCP_SERVERS").ok(),"memory":std::env::var("CLAUDE_CODE_DISABLE_AUTO_MEMORY").ok(),"apiKey":std::env::var("ANTHROPIC_API_KEY").ok(),"apiBase":std::env::var("ANTHROPIC_BASE_URL").ok()});
+    let system_path = args
+        .windows(2)
+        .find(|args| args[0] == "--system-prompt-file")
+        .map(|args| PathBuf::from(&args[1]));
+    let system = system_path
+        .as_ref()
+        .map(|path| std::fs::read_to_string(path).expect("read private system prompt"));
+    #[cfg(unix)]
+    let system_mode = system_path.as_ref().map(|path| {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    });
+    #[cfg(not(unix))]
+    let system_mode = Option::<u32>::None;
+    let record = json!({"systemPrompt":system,"systemMode":system_mode,"pid":std::process::id(),"args":args,"proxies":proxies,"config":directory,"cwd":std::env::current_dir().unwrap(),"builtinMCP":std::env::var("ENABLE_CLAUDEAI_MCP_SERVERS").ok(),"memory":std::env::var("CLAUDE_CODE_DISABLE_AUTO_MEMORY").ok(),"apiKey":std::env::var("ANTHROPIC_API_KEY").ok(),"apiBase":std::env::var("ANTHROPIC_BASE_URL").ok()});
     publish(
         &directory,
         &format!("fixture-process-{}.json", std::process::id()),
@@ -268,8 +282,10 @@ fn main() {
         );
         sequence += 1;
         let prompt = request["message"]["content"].to_string();
-        if let Ok(bytes)=std::fs::read(directory.join("fixture-rate-limit-event.json")) {
-            if let Ok(value)=serde_json::from_slice::<Value>(&bytes) { emit(value); }
+        if let Ok(bytes) = std::fs::read(directory.join("fixture-rate-limit-event.json")) {
+            if let Ok(value) = serde_json::from_slice::<Value>(&bytes) {
+                emit(value);
+            }
         }
         if prompt.contains("EARLY_LIMIT") {
             emit(
@@ -660,9 +676,11 @@ fn main() {
         );
         event(json!({"type":"message_stop"}));
         emit(json!({"type":"result","is_error":false,"result":""}));
-        if let Ok(bytes)=std::fs::read(directory.join("fixture-late-rate-limit-event.json")) {
+        if let Ok(bytes) = std::fs::read(directory.join("fixture-late-rate-limit-event.json")) {
             thread::sleep(Duration::from_millis(30));
-            if let Ok(value)=serde_json::from_slice::<Value>(&bytes) {emit(value);}
+            if let Ok(value) = serde_json::from_slice::<Value>(&bytes) {
+                emit(value);
+            }
         }
     }
     let _ = helper.kill();

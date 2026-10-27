@@ -119,7 +119,24 @@ fn parts_of_result(content: &Value) -> Vec<Value> {
         parts(content)
     }
 }
-pub(crate) fn initial(request: &Value) -> PluginResult<Vec<Value>> {
+pub(crate) fn system(request: &Value) -> PluginResult<String> {
+    static BILLING: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let billing = BILLING.get_or_init(|| {
+        regex::Regex::new(r"^x-anthropic-billing-header:(\s*[A-Za-z_]+=[^;\s]*;)*\s*").unwrap()
+    });
+    let text = parts(&request["system"])
+        .into_iter()
+        .filter_map(|part| part["text"].as_str().map(str::to_owned))
+        .collect::<Vec<_>>()
+        .join("\n");
+    Ok(format!(
+        "{}{}",
+        billing.replace(&text, ""),
+        mcp::tool_choice_ask(request)?
+    ))
+}
+
+pub(crate) fn initial(request: &Value, lean: bool) -> PluginResult<Vec<Value>> {
     let messages = request["messages"]
         .as_array()
         .ok_or_else(|| PluginError::invalid("Claude requires Anthropic messages."))?;
@@ -130,14 +147,11 @@ pub(crate) fn initial(request: &Value) -> PluginResult<Vec<Value>> {
     }
     let mut blocks = Vec::new();
     let mut buffer = String::new();
-    let mut system = parts(&request["system"])
-        .into_iter()
-        .filter_map(|part| part["text"].as_str().map(str::to_owned))
-        .collect::<Vec<_>>()
-        .join("\n");
-    system.push_str(&mcp::tool_choice_ask(request)?);
-    if !system.is_empty() {
-        blocks.push(json!({"type":"text","text":format!("<external_system_instructions>\n{system}\n</external_system_instructions>\n"),"cache_control":{"type":"ephemeral","ttl":"1h"}}));
+    if !lean {
+        let system = system(request)?;
+        if !system.is_empty() {
+            blocks.push(json!({"type":"text","text":format!("<external_system_instructions>\n{system}\n</external_system_instructions>\n"),"cache_control":{"type":"ephemeral","ttl":"1h"}}));
+        }
     }
     let split = messages
         .iter()

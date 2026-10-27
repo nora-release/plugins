@@ -35,7 +35,7 @@ pub(crate) struct Run {
     pub cli_history: super::cli_messages::History,
     pub dead: bool,
     pub idle: std::time::Instant,
-    pub directory: PathBuf,
+    _directory: RunDirectory,
     work: PathBuf,
     session: Option<cli_sessions::Session>,
     pub(super) checkpoint: Option<super::session_control::Checkpoint>,
@@ -46,13 +46,19 @@ pub(crate) struct Run {
     tasks: Vec<tokio::task::JoinHandle<()>>,
     pub(crate) learned: Option<super::learned_usage::Cache>,
 }
+struct RunDirectory(PathBuf);
+impl Drop for RunDirectory {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 impl Drop for Run {
     fn drop(&mut self) {
         self.cancel();
         for task in &self.tasks {
             task.abort();
         }
-        let _ = std::fs::remove_dir_all(&self.directory);
     }
 }
 impl Run {
@@ -250,7 +256,7 @@ impl Drop for Pool {
         }
     }
 }
-fn signature(request: &Value, proxy: &Proxy) -> String {
+fn signature(request: &Value, proxy: &Proxy, lean: bool) -> String {
     let tools = request["tools"]
         .as_array()
         .into_iter()
@@ -269,7 +275,7 @@ fn signature(request: &Value, proxy: &Proxy) -> String {
     if format.as_object().is_some_and(|format| format.is_empty()) {
         format = Value::Null;
     }
-    cli::hash(&json!({"model":request["model"],"system":request["system"],"tools":tools,"webSearch":web_search,"toolChoice":request["tool_choice"],"format":format,"thinking":request["thinking"],"proxy":proxy.env}).to_string())
+    cli::hash(&json!({"model":request["model"],"system":request["system"],"lean":lean,"tools":tools,"webSearch":web_search,"toolChoice":request["tool_choice"],"format":format,"thinking":request["thinking"],"proxy":proxy.env}).to_string())
 }
 impl Pool {
     pub(crate) async fn parked(&self, credentials: &Value) -> u32 {
@@ -316,7 +322,16 @@ impl Pool {
             !value.is_empty() && value.len() <= 1024 && !value.chars().any(char::is_control)
         });
         let mut turn = provided_turn.cloned().unwrap_or_else(cli::random);
-        let wanted = signature(request, &proxy);
+        let lean = metadata
+            .get("claudeLeanPrompt")
+            .is_some_and(|value| value == "true")
+            && !metadata
+                .get("clientCacheMarks")
+                .is_some_and(|value| value == "true");
+        let system_prompt = lean
+            .then(|| prompt::system(request).map(|system| system.trim().to_owned()))
+            .transpose()?;
+        let wanted = signature(request, &proxy, lean);
         let incoming = request["messages"]
             .as_array()
             .ok_or_else(|| PluginError::invalid("Claude requires Anthropic messages."))?;
@@ -500,12 +515,24 @@ impl Pool {
             work.clone(),
             from,
             learned.clone(),
+            system_prompt.as_deref(),
         )
         .await;
         let (mut run, prefix) = match result {
             Ok(run) => (run, prefix),
             Err(_) if resumed => (
-                start(account, request, turn, wanted, proxy, work, None, learned).await?,
+                start(
+                    account,
+                    request,
+                    turn,
+                    wanted,
+                    proxy,
+                    work,
+                    None,
+                    learned,
+                    system_prompt.as_deref(),
+                )
+                .await?,
                 0,
             ),
             Err(error) => return Err(error),
@@ -513,7 +540,7 @@ impl Pool {
         let words = if prefix > 0 {
             prompt::turn(&incoming[prefix..])?
         } else {
-            prompt::initial(request)?
+            prompt::initial(request, lean)?
         };
         if prefix > 0 {
             run.told = incoming[..prefix].to_vec();
@@ -575,6 +602,7 @@ async fn start(
     work: PathBuf,
     from: Option<Saved>,
     learned: Option<super::learned_usage::Cache>,
+    system_prompt: Option<&str>,
 ) -> PluginResult<Run> {
     let (tools, names) = mcp::tools(request)?;
     let web_search = super::web_search::requested(request)?;
@@ -584,7 +612,8 @@ async fn start(
         .ok_or_else(|| PluginError::invalid("The Claude model ID is invalid."))?;
     let directory = std::env::temp_dir().join(format!("nora-claude-run-{}", cli::random()));
     cli::directory(&directory)?;
-    let bridge = Bridge::new(&directory, tools, names).await?;
+    let directory = RunDirectory(directory);
+    let bridge = Bridge::new(&directory.0, tools, names).await?;
     let helper = std::env::current_exe().map_err(|_| cli::error())?;
     let mcp =
         json!({"mcpServers":{"nora":{"command":helper,"args":["claude-mcp-helper",bridge.path]}}});
@@ -610,6 +639,14 @@ async fn start(
     .into_iter()
     .map(str::to_owned)
     .collect::<Vec<_>>();
+    if let Some(system) = system_prompt {
+        let path = directory.0.join("system.md");
+        cli::write(&path, system.as_bytes())?;
+        args.extend([
+            "--system-prompt-file".into(),
+            path.to_string_lossy().into_owned(),
+        ]);
+    }
     if let Some(effort) = cli::text(request.pointer("/output_config/effort"), 16)
         .filter(|effort| ["low", "medium", "high", "xhigh", "max"].contains(effort))
     {
@@ -700,7 +737,7 @@ async fn start(
         cli_history: history,
         dead: false,
         idle: std::time::Instant::now(),
-        directory,
+        _directory: directory,
         work,
         session,
         checkpoint: None,

@@ -172,6 +172,12 @@
     },
     "accountAutomation": {
       "version": 1,
+      "warmup": {
+        "method": "warmup",
+        "label": "Codex",
+        "accountDailyTime": true,
+        "authMethods": ["oauth", "codexCLI"]
+      },
       "reset": {
         "prepareMethod": "prepareReset",
         "executeMethod": "consumeReset",

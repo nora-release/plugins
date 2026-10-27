@@ -90,6 +90,27 @@
       "refreshesTokens": false,
       "maxEntries": 200,
       "maxBytes": 4194304
+    },
+    "accountAutomation": {
+      "version": 1,
+      "warmup": {
+        "method": "warmup",
+        "label": "Claude Code",
+        "authMethods": [
+          "oauth",
+          "claudeCode"
+        ],
+        "expectedWindows": [
+          {
+            "id": "five_hour",
+            "spanSeconds": 18000
+          },
+          {
+            "id": "seven_day",
+            "spanSeconds": 604800
+          }
+        ]
+      }
     }
   },
   "localSignIns": [

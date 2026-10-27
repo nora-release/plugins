@@ -842,3 +842,6 @@ async fn private_supervisor_rejects_an_unowned_process_group() {
         .unwrap();
     assert!(!status.success());
 }
+
+#[path = "warmup-protocol.test.rs"]
+mod warmup_protocol;

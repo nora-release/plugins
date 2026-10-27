@@ -174,3 +174,6 @@ async fn compiled_source_refresh_keeps_the_file_and_recovers_without_rebinding()
         saved
     );
 }
+
+#[path = "warmup-protocol.test.rs"]
+mod warmup_protocol;

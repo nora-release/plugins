@@ -18,6 +18,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 use tokio::sync::Mutex;
+#[path = "warmup.rs"]
+mod warmup;
 #[derive(Clone)]
 struct Config {
     root: PathBuf,
@@ -172,6 +174,9 @@ impl ProviderPlugin for Claude {
         Ok(Some(usage))
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        if method == "warmup" {
+            return self.warmup(&params).await;
+        }
         if method == "cancelAuthorization" {
             let id = cli::text(params.get("session"), 256).ok_or_else(cli::error)?;
             let pending = self.logins.lock().await.remove(id);
@@ -197,6 +202,7 @@ impl ProviderPlugin for Claude {
         }
         let mut result = self.inner.initialize(params).await?;
         result["capabilities"]["accountDiscovery"] = json!(true);
+        result["capabilities"]["sdkFeatures"]["accountAutomation"] = json!(1);
         cli::directory(&root)?;
         *self.config.write().map_err(|_| cli::error())? = Some(Config { root, proxy });
         Ok(result)
@@ -475,3 +481,7 @@ impl ProviderPlugin for Claude {
 #[cfg(test)]
 #[path = "../test/plugin.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/warmup.test.rs"]
+mod warmup_tests;

@@ -121,6 +121,14 @@ fn main() {
         );
         return;
     }
+    if args.windows(2).any(|a| a[0] == "--output-format" && a[1] == "json") {
+        use std::io::Read;
+        let mut input=String::new();io::stdin().read_to_string(&mut input).unwrap();
+        publish(&directory, "fixture-warmup.json", &serde_json::to_vec(&json!({"input":input,"args":args,"cwd":std::env::current_dir().unwrap(),"pid":std::process::id()})).unwrap());
+        if directory.join("fixture-warmup-pause").exists(){thread::sleep(Duration::from_secs(120));}
+        scripted_reply(&directory, "fixture-warmup-reply.json");
+        emit(json!({"type":"result","is_error":false,"result":"hi"}));return;
+    }
     let work = std::env::current_dir().unwrap();
     let project = work
         .to_string_lossy()

@@ -9,7 +9,10 @@ use nora_provider_plugin_sdk::{
 use serde_json::Value;
 use std::sync::{Arc, RwLock};
 
+#[path = "warmup.rs"]
+mod warmup;
 pub(crate) struct OpenAIPlugin {
+    warmup_catalog: RwLock<Option<std::path::PathBuf>>,
     inner: BundledProvider,
     config: RwLock<Option<(Definition, Option<NetworkProxy>)>>,
 }
@@ -18,6 +21,7 @@ impl Default for OpenAIPlugin {
     fn default() -> Self {
         Self {
             inner: BundledProvider::new(OpenAI),
+            warmup_catalog: RwLock::new(None),
             config: RwLock::new(None),
         }
     }
@@ -130,6 +134,11 @@ impl ProviderPlugin for OpenAIPlugin {
         crate::alpha_search::search(&auth, request, headers, &client).await
     }
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
+        *self
+            .warmup_catalog
+            .write()
+            .map_err(|_| PluginError::invalid("The provider configuration is unavailable."))? =
+            Some(params.data_directory.join("models.json"));
         let mut definition = Definition::parse(params.manifest.clone())?;
         definition.adapter = Arc::new(OpenAI);
         let proxy: Option<NetworkProxy> = serde_json::from_value(
@@ -190,6 +199,9 @@ impl ProviderPlugin for OpenAIPlugin {
         self.inner.fetch(request).await
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
+        if method == "warmup" {
+            return self.warmup(&params).await;
+        }
         if method == "modelMetadata" && params.get("clientProfile").is_some() {
             if params["clientProfile"] != "codex" {
                 return Err(PluginError::unsupported(
@@ -224,3 +236,7 @@ mod client_observation_tests;
 #[cfg(test)]
 #[path = "../test/client_profile.test.rs"]
 mod client_profile_tests;
+
+#[cfg(test)]
+#[path = "../test/warmup.test.rs"]
+mod warmup_tests;

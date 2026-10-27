@@ -1,3 +1,6 @@
+#[path = "responses_body.rs"]
+mod responses_body;
+
 #[path = "fast.rs"]
 pub(crate) mod fast;
 
@@ -320,7 +323,7 @@ impl ProviderAdapter for OpenAI {
         body: &mut Option<Vec<u8>>,
     ) -> PluginResult<()> {
         let _ = headers;
-        fast::finalize(is_oauth(Some(credentials)), target, body);
+        responses_body::finalize(is_oauth(Some(credentials)), target, body);
         Ok(())
     }
     async fn usage(
@@ -393,3 +396,7 @@ fn source_client(proxy: Option<&NetworkProxy>) -> PluginResult<nora_ai::ReqwestH
 #[cfg(test)]
 #[path = "../test/refresh.test.rs"]
 mod refresh_tests;
+
+#[cfg(test)]
+#[path = "../test/responses_body.test.rs"]
+mod responses_body_tests;

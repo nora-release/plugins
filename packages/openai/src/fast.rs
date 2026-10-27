@@ -62,31 +62,14 @@ pub(crate) fn models(result: &mut Value, subscription: bool) {
     }
 }
 
-pub(crate) fn finalize(subscription: bool, target: &Url, body: &mut Option<Vec<u8>>) {
-    if !subscription
-        || target.host_str() != Some("chatgpt.com")
-        || !target.path().ends_with("/responses")
-    {
-        return;
-    }
-    let Some(bytes) = body.as_ref() else { return };
-    let Ok(mut value) = serde_json::from_slice::<Value>(bytes) else {
-        return;
-    };
-    let Some(object) = value.as_object_mut() else {
-        return;
-    };
-    if !object.contains_key("service_tier")
-        || matches!(
+pub(crate) fn apply(object: &mut serde_json::Map<String, Value>) {
+    if object.contains_key("service_tier")
+        && !matches!(
             object["service_tier"].as_str(),
             Some("priority" | "ultrafast")
         )
     {
-        return;
-    }
-    object.remove("service_tier");
-    if let Ok(bytes) = serde_json::to_vec(&value) {
-        *body = Some(bytes);
+        object.remove("service_tier");
     }
 }
 

@@ -52,7 +52,6 @@ fn codex_priority_does_not_invent_ultrafast_or_include_media_models() {
 
 #[test]
 fn codex_accepts_only_priority_and_explicit_ultrafast() {
-    let url = Url::parse("https://chatgpt.com/backend-api/codex/responses").unwrap();
     for tier in [
         json!("auto"),
         json!("default"),
@@ -64,9 +63,8 @@ fn codex_accepts_only_priority_and_explicit_ultrafast() {
         json!("ultrafast"),
     ] {
         let original = json!({"model":"gpt-6-sol","service_tier":tier,"input":"hello"});
-        let mut body = Some(serde_json::to_vec(&original).unwrap());
-        finalize(true, &url, &mut body);
-        let actual: Value = serde_json::from_slice(body.as_ref().unwrap()).unwrap();
+        let mut actual = original.clone();
+        apply(actual.as_object_mut().unwrap());
         if matches!(tier.as_str(), Some("priority" | "ultrafast")) {
             assert_eq!(actual, original);
         } else {
@@ -75,7 +73,10 @@ fn codex_accepts_only_priority_and_explicit_ultrafast() {
         }
     }
     for (subscription, target) in [
-        (false, url),
+        (
+            false,
+            Url::parse("https://chatgpt.com/backend-api/codex/responses").unwrap(),
+        ),
         (
             true,
             Url::parse("https://chatgpt.com/backend-api/codex/images/generations").unwrap(),
@@ -83,7 +84,7 @@ fn codex_accepts_only_priority_and_explicit_ultrafast() {
     ] {
         let original = br#"{"service_tier":"flex","input":"keep"}"#.to_vec();
         let mut body = Some(original.clone());
-        finalize(subscription, &target, &mut body);
+        super::super::responses_body::finalize(subscription, &target, &mut body);
         assert_eq!(body, Some(original));
     }
 }

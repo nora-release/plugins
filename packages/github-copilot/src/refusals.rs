@@ -75,9 +75,11 @@ pub(super) fn identity(credentials: &Value) -> String {
                     .is_some_and(|value| !value.is_empty())
         })
         .unwrap_or(credentials);
+    let mut value = value.clone();
+    value.sort_all_objects();
     format!(
         "{:x}",
-        Sha256::digest(serde_json::to_vec(value).unwrap_or_default())
+        Sha256::digest(serde_json::to_vec(&value).unwrap_or_default())
     )
 }
 

@@ -214,8 +214,10 @@ pub fn bearer(credentials: &Value) -> PluginResult<&str> {
         .ok_or_else(|| PluginError::authentication("Connect this account before using it."))
 }
 pub fn fingerprint(value: &Value) -> String {
+    let mut value = value.clone();
+    value.sort_all_objects();
     hex::encode(Sha256::digest(
-        serde_json::to_vec(value).unwrap_or_default(),
+        serde_json::to_vec(&value).unwrap_or_default(),
     ))
 }
 pub fn encode(value: &str) -> String {

@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/magpie-community/plugins",
+  "file": "packages/block-patterns/cases.json",
+  "sha256": "5a96842a2ce7e437871e56586c4f93041d2fe1afae2450d4c53ca00cb78920d1",
+  "license": "MIT"
+}

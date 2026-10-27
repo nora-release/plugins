@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/magpie-community/plugins",
+  "file": "packages/word-guard/cases.json",
+  "sha256": "bb45f1d2c0222ab17ad36d4aa7a46ecfe1d94c7b521bf91795cc6a3a28063f72",
+  "license": "MIT"
+}

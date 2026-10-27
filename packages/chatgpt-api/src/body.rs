@@ -101,7 +101,9 @@ pub(crate) fn conversation_key(instructions: &str, input: &[Value]) -> Option<St
     let mut hash = Sha256::new();
     hash.update(instructions.as_bytes());
     for item in input {
-        let encoded = serde_json::to_string(item)
+        let mut item = item.clone();
+        item.sort_all_objects();
+        let encoded = serde_json::to_string(&item)
             .ok()?
             .replace('<', "\\u003c")
             .replace('>', "\\u003e")

@@ -331,8 +331,8 @@ fn metadata_accepts_only_ids_and_never_echoes_invalid_credentials_or_rows() {
             .unwrap()
             .keys()
             .map(String::as_str)
-            .collect::<Vec<_>>(),
-        ["canonical", "price"]
+            .collect::<std::collections::BTreeSet<_>>(),
+        std::collections::BTreeSet::from(["canonical", "price"])
     );
     assert!(!result.to_string().contains("canonical_model_id"));
 }

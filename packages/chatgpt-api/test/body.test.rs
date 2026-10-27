@@ -58,12 +58,7 @@ fn conversation_key_is_stable_across_turns_and_matches_go_html_encoding() {
         )
         .unwrap()
     );
-    let encoded = serde_json::to_string(&user)
-        .unwrap()
-        .replace('<', "\\u003c")
-        .replace('>', "\\u003e")
-        .replace('&', "\\u0026")
-        .replace('\u{2028}', "\\u2028");
+    let encoded = r#"{"content":[{"text":"\u003cfix\u003e\u0026\u2028","type":"input_text"}],"role":"user","type":"message"}"#;
     let digest = format!(
         "{:x}",
         Sha256::digest(format!("You are my agent.{encoded}").as_bytes())
@@ -99,4 +94,16 @@ fn explains_shared_usage_eligibility_capability_and_reauthentication() {
     .unwrap()
     .contains("usage limit"));
     assert!(explain(400,&json!({"detail":{"code":"subscription_sharing_unsupported_capability","param":"image_generation"}})).unwrap().contains("image_generation"));
+}
+
+#[test]
+fn conversation_key_keeps_previous_nested_key_order() {
+    let a: Value =
+        serde_json::from_str(r#"{"role":"user","content":[{"type":"text","text":"x"}]}"#).unwrap();
+    let b: Value =
+        serde_json::from_str(r#"{"content":[{"text":"x","type":"text"}],"role":"user"}"#).unwrap();
+    assert_eq!(
+        conversation_key("system", &[a]),
+        conversation_key("system", &[b])
+    );
 }

@@ -64,3 +64,14 @@ fn codex_keeps_backend_required_fields_but_accepts_optional_extra_fields() {
     assert_eq!(parsed["include"], json!(["reasoning.encrypted_content"]));
     assert_eq!(parsed["access_programs"], json!(["example"]));
 }
+
+#[test]
+fn session_keys_preserve_sorted_objects_and_array_order() {
+    let request: FetchRequest = serde_json::from_value(serde_json::json!({"url":"https://example.invalid","method":"POST"})).unwrap();
+    let a = br#"{"messages":[{"role":"user","content":[{"type":"text","text":"x"},{"type":"text","text":"y"}]}]}"#;
+    let b = br#"{"messages":[{"content":[{"text":"x","type":"text"},{"text":"y","type":"text"}],"role":"user"}]}"#;
+    let c = br#"{"messages":[{"content":[{"text":"y","type":"text"},{"text":"x","type":"text"}],"role":"user"}]}"#;
+    assert_eq!(session(&request,Some(a)),session(&request,Some(b)));
+    assert_ne!(session(&request,Some(b)),session(&request,Some(c)));
+    assert_eq!(session(&request,Some(a)),"nora-ea022673a62cd704cad8c911802f1654");
+}

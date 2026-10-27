@@ -1,5 +1,16 @@
 [workspace]
 members = [
+    "packages/middleware-runtime",
+    "packages/antigravity-cloak",
+    "packages/block-patterns",
+    "packages/codex-history",
+    "packages/model-map",
+    "packages/param-override",
+    "packages/reserve",
+    "packages/system-prompt",
+    "packages/think-tags",
+    "packages/word-guard",
+
     "packages/network",
     "packages/cloudflare-workers-ai",
     "packages/chatgpt-api",

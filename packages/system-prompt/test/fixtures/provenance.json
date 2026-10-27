@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/magpie-community/plugins",
+  "file": "packages/system-prompt/cases.json",
+  "sha256": "b61a9ff7a1d7d83c604c2e33949c573c111572d7384596147a08ad35ef63e11d",
+  "license": "MIT"
+}

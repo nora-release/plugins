@@ -1,0 +1,28 @@
+{
+  "apiVersion": 1,
+  "id": "model-map",
+  "name": "Model Map",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider",
+    "type": "native"
+  },
+  "api": "gateway-middleware",
+  "authMethods": [],
+  "models": [],
+  "config": {
+    "gatewayMiddleware": {
+      "version": 1,
+      "request": true,
+      "event": true,
+      "response": true
+    },
+    "middlewareOptions": {
+      "mapping": {
+        "fast": "deepseek-chat",
+        "/^gpt-4o(-.*)?$/": "deepseek-chat"
+      }
+    },
+    "description": "Route requested model names to other models while preserving their public names in replies."
+  }
+}

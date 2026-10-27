@@ -28,6 +28,12 @@ fn each_standalone_plugin_uses_the_shared_macos_tls_configuration() {
         .map(|p| (p["name"].as_str().unwrap(), p))
         .collect();
     for name in packages.keys() {
+        // Pure request transformations use the SDK's JSON-RPC server but never
+        // construct a network client. Check actual workspace network paths,
+        // rather than making those packages link an unused TLS implementation.
+        if !uses_network(name, &packages, &mut BTreeSet::new()) {
+            continue;
+        }
         assert!(
             system_tls(name, &packages, true, &mut BTreeSet::new()),
             "{name} must inherit system TLS when built on its own for macOS"
@@ -37,6 +43,23 @@ fn each_standalone_plugin_uses_the_shared_macos_tls_configuration() {
             "{name} must retain its existing TLS backend on other systems"
         );
     }
+}
+
+fn uses_network<'a>(
+    name: &'a str,
+    packages: &BTreeMap<&'a str, &'a Value>,
+    visited: &mut BTreeSet<&'a str>,
+) -> bool {
+    if !visited.insert(name) {
+        return false;
+    }
+    let Some(package) = packages.get(name) else { return false };
+    package["dependencies"].as_array().unwrap().iter().any(|dep| {
+        if !dep["kind"].is_null() { return false; }
+        let name = dep["name"].as_str().unwrap();
+        matches!(name, "reqwest" | "tokio-tungstenite" | "nora-provider-network")
+            || uses_network(name, packages, visited)
+    })
 }
 
 fn system_tls<'a>(

@@ -126,7 +126,9 @@ fn session(chat: &Value, named: &str) -> String {
             .and_then(|m| m.get("content"))
             .cloned()
             .unwrap_or(json!(""));
-        format!("chat\0{}", json!([system, first]))
+        let mut history = json!([system, first]);
+        history.sort_all_objects();
+        format!("chat\0{history}")
     };
     let hash = format!("{:x}", Sha256::digest(seed));
     format!(

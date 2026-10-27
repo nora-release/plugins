@@ -8,9 +8,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 pub fn digest(value: &impl serde::Serialize) -> String {
+    let mut value = serde_json::to_value(value).unwrap_or(Value::Null);
+    value.sort_all_objects();
     format!(
         "{:x}",
-        Sha256::digest(serde_json::to_vec(value).unwrap_or_default())
+        Sha256::digest(serde_json::to_vec(&value).unwrap_or_default())
     )
 }
 pub fn read(path: &Path) -> Option<Value> {

@@ -80,6 +80,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -574,6 +580,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+
+[[package]]
 name = "form_urlencoded"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -778,6 +790,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
 ]
 
 [[package]]
@@ -1317,6 +1340,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-gateway-middleware"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "libc",
+ "nora-provider-plugin-sdk",
+ "regress",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "nora-provider"
 version = "1.2.0"
 dependencies = [
@@ -1422,6 +1458,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-antigravity-cloak"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-auth"
 version = "1.2.0"
 dependencies = [
@@ -1473,6 +1518,15 @@ version = "1.2.0"
 dependencies = [
  "nora-provider-plugin-sdk",
  "nora-provider-typesafe",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "nora-provider-block-patterns"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
  "serde_json",
  "tokio",
 ]
@@ -1601,6 +1655,15 @@ dependencies = [
  "sha2",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "nora-provider-codex-history"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -1991,6 +2054,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-model-map"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-moonshotai"
 version = "1.2.0"
 dependencies = [
@@ -2155,6 +2227,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-param-override"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-plugin-sdk"
 version = "0.1.0"
 source = "git+https://github.com/nora-release/nora.git?rev=8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7#8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7"
@@ -2288,6 +2369,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-reserve"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-search-api"
 version = "1.2.0"
 dependencies = [
@@ -2390,6 +2480,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-system-prompt"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-tavily"
 version = "1.2.0"
 dependencies = [
@@ -2415,6 +2514,15 @@ dependencies = [
  "sha2",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "nora-provider-think-tags"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -2495,6 +2603,15 @@ dependencies = [
  "sha2",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "nora-provider-word-guard"
+version = "1.2.0"
+dependencies = [
+ "nora-gateway-middleware",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -3039,6 +3156,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "regress"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "158a764437582235e3501f683b93a0a6f8d825d04a789dbe5ed30b8799b8908a"
+dependencies = [
+ "hashbrown 0.16.1",
+ "memchr",
+]
+
+[[package]]
 name = "reqwest"
 version = "0.12.28"
 dependencies = [
@@ -3340,6 +3467,7 @@ version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "serde",

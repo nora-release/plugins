@@ -38,6 +38,8 @@ pub(crate) fn session(request: &FetchRequest, body: Option<&[u8]>) -> String {
             })
         })
         .or_else(|| parsed.get("input"));
+    let mut first = first.cloned().unwrap_or(Value::Null);
+    first.sort_all_objects();
     let digest = Sha256::digest(serde_json::to_vec(&first).unwrap_or_default());
     format!(
         "nora-{}",

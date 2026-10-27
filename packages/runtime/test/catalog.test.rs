@@ -389,3 +389,47 @@ fn release_catalog_rejects_unsafe_platforms_and_non_plain_https_download_bases()
         assert!(!output.exists());
     }
 }
+
+#[test]
+fn native_request_extensions_prepare_and_publish_without_provider_accounts() {
+    let fixture = Fixture::new();
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let prepared = fixture.0.join("extensions");
+    crate::definition::prepare(&source, &prepared).unwrap();
+    let output = fixture.0.join("all.json");
+    write_catalog(&source, &output, None).unwrap();
+    let catalog: Value = serde_json::from_slice(&std::fs::read(output).unwrap()).unwrap();
+    for id in [
+        "antigravity-cloak",
+        "block-patterns",
+        "codex-history",
+        "model-map",
+        "param-override",
+        "reserve",
+        "system-prompt",
+        "think-tags",
+        "word-guard",
+    ] {
+        let declared: Value = serde_json::from_slice(
+            &std::fs::read(source.join(id).join("nora-provider.json")).unwrap(),
+        )
+        .unwrap();
+        let actual: Value = serde_json::from_slice(
+            &std::fs::read(prepared.join(id).join("nora-provider.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(actual, declared, "{id}");
+        assert_eq!(actual["api"], "gateway-middleware");
+        assert_eq!(actual["models"], json!([]));
+        assert_eq!(actual["authMethods"], json!([]));
+        let entry = catalog["providers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|entry| entry["id"] == id)
+            .unwrap();
+        assert_eq!(entry["description"], declared["config"]["description"]);
+        assert_ne!(entry["description"], "Connect with your API key.");
+        assert!(entry.get("localSignIns").is_none());
+    }
+}

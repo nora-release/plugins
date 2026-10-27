@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/magpie-community/plugins",
+  "file": "packages/codex-history/cases.json",
+  "sha256": "bccdcd05e8396a1303402e5922e789776b9d42a640793f89a70ea0ce2f5425f3",
+  "license": "MIT"
+}

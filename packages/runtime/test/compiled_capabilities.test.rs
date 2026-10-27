@@ -170,6 +170,25 @@ fn every_prepared_package_independently_confirms_the_sdk_features_it_declares() 
             initialized["result"]["apiVersion"], 1,
             "{id}: {initialized}"
         );
+        if manifest["api"] == "gateway-middleware" {
+            assert!(
+                manifest.pointer("/config/sdkCapabilities").is_none(),
+                "{id}"
+            );
+            assert_eq!(
+                initialized["result"]["capabilities"]["gatewayMiddleware"]["version"], 1,
+                "{id}"
+            );
+            assert_eq!(
+                initialized["result"]["capabilities"]["gatewayMiddleware"]["bodyFile"], true,
+                "{id}"
+            );
+            assert_eq!(
+                initialized["result"]["capabilities"]["accountDiscovery"], false,
+                "{id}"
+            );
+            continue;
+        }
         let declared = manifest
             .pointer("/config/sdkCapabilities")
             .and_then(Value::as_object)

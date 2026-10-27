@@ -38,3 +38,13 @@ fn malformed_large_cache_files_and_original_times_are_not_reinterpreted_as_fresh
         Some(1792976400000)
     );
 }
+
+#[test]
+fn cache_digest_keeps_previous_json_and_tuple_bytes() {
+    let a: Value=serde_json::from_str(r#"{"z":3,"a":{"y":2,"x":1}}"#).unwrap();
+    let b: Value=serde_json::from_str(r#"{"a":{"x":1,"y":2},"z":3}"#).unwrap();
+    assert_eq!(digest(&a),digest(&b));
+    assert_eq!(digest(&a),"f80735c375180d651e7c5350543887a94bbef5ed349bb2ab7209fcc0758f66e4");
+    assert_ne!(digest(&json!([a,2])),digest(&json!([2,b])));
+    assert_eq!(digest(&("project",Some("account"),None::<String>)),format!("{:x}",Sha256::digest(br#"["project","account",null]"#)));
+}

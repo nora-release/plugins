@@ -41,7 +41,7 @@ impl Vertex {
         }
         let default = self.proxy.read().map_err(|_| reconnect())?;
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
+            ReqwestHttpClient::with_client(nora_provider_network::http_client(
                 supplied.or(default.as_ref()),
             )?)
             .with_observer_fn(|| async {

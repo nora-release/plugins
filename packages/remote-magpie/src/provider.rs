@@ -37,7 +37,7 @@ impl Remote {
             return Ok(client.clone());
         }
         let config = self.config()?;
-        let client = nora_provider_plugin_sdk::http_client(proxy.or(config.proxy.as_ref()))?;
+        let client = nora_provider_network::http_client(proxy.or(config.proxy.as_ref()))?;
         Ok(Arc::new(
             ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
                 nora_provider_plugin_sdk::before_http_request()

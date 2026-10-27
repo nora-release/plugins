@@ -118,7 +118,7 @@ impl ProviderPlugin for Typesafe {
     async fn models(&self, mut context: CallContext) -> PluginResult<Value> {
         let definition = self.definition()?;
         context.network_proxy = self.effective_proxy(context.network_proxy)?;
-        let client = ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
+        let client = ReqwestHttpClient::with_client(nora_provider_network::http_client(
             context.network_proxy.as_ref(),
         )?)
         .with_observer_fn(|| async {
@@ -131,7 +131,7 @@ impl ProviderPlugin for Typesafe {
     async fn fetch(&self, mut request: FetchRequest) -> PluginResult<FetchResponse> {
         let definition = self.definition()?;
         request.network_proxy = self.effective_proxy(request.network_proxy)?;
-        let client = ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
+        let client = ReqwestHttpClient::with_client(nora_provider_network::http_client(
             request.network_proxy.as_ref(),
         )?)
         .with_observer_fn(|| async {

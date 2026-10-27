@@ -87,7 +87,7 @@ fn semver(version: &str) -> Option<(u64, u64, u64)> {
 }
 
 pub async fn bind_current_account() -> Result<OAuthCredentials, String> {
-    let client = nora_provider_plugin_sdk::http_client(None)
+    let client = nora_provider_network::http_client(None)
         .map(|client| {
             nora_ai::ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
                 nora_provider_plugin_sdk::before_http_request()

@@ -37,7 +37,7 @@ impl Factory {
         if let Some(client) = &self.client {
             return Ok(client.clone());
         }
-        let client = nora_provider_plugin_sdk::http_client_builder(proxy)?
+        let client = nora_provider_network::http_client_builder(proxy)?
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|_| {

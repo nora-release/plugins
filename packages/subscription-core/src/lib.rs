@@ -110,7 +110,7 @@ impl Core {
             return Ok(client.clone());
         }
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(proxy)?)
+            ReqwestHttpClient::with_client(nora_provider_network::http_client(proxy)?)
                 .with_observer_fn(|| async {
                     nora_provider_plugin_sdk::before_http_request()
                         .await

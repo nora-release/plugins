@@ -311,7 +311,7 @@ impl SearchApiPlugin {
             &settings.base
         };
         validate_base(base)?;
-        let client = nora_provider_plugin_sdk::http_client_builder(context.network_proxy.as_ref())?
+        let client = nora_provider_network::http_client_builder(context.network_proxy.as_ref())?
             .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(30))
             .build()

@@ -57,7 +57,7 @@ impl KimiWork {
         if let Some(client) = &self.client {
             return Ok(Arc::clone(client));
         }
-        let client = nora_provider_plugin_sdk::http_client(proxy)?;
+        let client = nora_provider_network::http_client(proxy)?;
         Ok(Arc::new(
             ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
                 nora_provider_plugin_sdk::before_http_request()

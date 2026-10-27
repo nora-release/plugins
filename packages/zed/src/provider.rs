@@ -76,7 +76,7 @@ impl Zed {
         if let Some(client) = &self.client {
             return Ok(client.clone());
         }
-        let client = nora_provider_plugin_sdk::http_client_builder(proxy.as_ref())?
+        let client = nora_provider_network::http_client_builder(proxy.as_ref())?
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|_| PluginError::invalid("The Zed HTTP client could not be configured."))?;

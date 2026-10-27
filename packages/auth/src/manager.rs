@@ -41,11 +41,17 @@ impl OAuthManager {
     pub fn at_default_store() -> Self {
         Self::with_default_providers(
             OAuthStore::at_default_path(),
-            Arc::new(ReqwestHttpClient::new().with_observer_fn(|| async {
-                nora_provider_plugin_sdk::before_http_request()
-                    .await
-                    .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
-            })),
+            Arc::new(
+                ReqwestHttpClient::with_client(
+                    nora_provider_network::default_http_client()
+                        .expect("OAuth HTTP client could not be initialized"),
+                )
+                .with_observer_fn(|| async {
+                    nora_provider_plugin_sdk::before_http_request()
+                        .await
+                        .map_err(|error| nora_ai::HttpClientError::Transport(error.to_string()))
+                }),
+            ),
         )
     }
 

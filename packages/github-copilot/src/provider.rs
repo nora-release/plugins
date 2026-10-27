@@ -401,7 +401,7 @@ fn oauth_error(error: OAuthError) -> PluginError {
 
 fn source_client(proxy: Option<&NetworkProxy>) -> PluginResult<nora_ai::ReqwestHttpClient> {
     Ok(
-        nora_ai::ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(proxy)?)
+        nora_ai::ReqwestHttpClient::with_client(nora_provider_network::http_client(proxy)?)
             .with_observer_fn(|| async {
                 nora_provider_plugin_sdk::before_http_request()
                     .await

@@ -6,6 +6,7 @@ license = "MIT"
 rust-version = "1.88"
 
 [dependencies]
+nora-provider-network.workspace = true
 nora-provider-plugin-sdk.workspace = true
 nora-ai.workspace = true
 async-trait = "0.1.89"

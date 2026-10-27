@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+nora-provider-network.workspace = true
 nora-ai.workspace = true
 nora-provider-plugin-sdk.workspace = true
 async-trait = "0.1"

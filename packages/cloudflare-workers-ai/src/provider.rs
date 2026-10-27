@@ -94,7 +94,7 @@ impl CloudflareWorkersAi {
             return Ok(client.clone());
         }
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(selected)?)
+            ReqwestHttpClient::with_client(nora_provider_network::http_client(selected)?)
                 .with_observer_fn(|| async {
                     nora_provider_plugin_sdk::before_http_request()
                         .await

@@ -48,7 +48,7 @@ impl JoyCode {
         }
         let config = self.config()?;
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
+            ReqwestHttpClient::with_client(nora_provider_network::http_client(
                 proxy.or(config.proxy.as_ref()),
             )?)
             .with_observer_fn(|| async {

@@ -292,6 +292,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "combine"
+version = "4.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4356eba6976435498d05a311ee9fc486da3bc81c200d3f0d7dd9703b41913f92"
+dependencies = [
+ "bytes",
+ "memchr",
+]
+
+[[package]]
 name = "compression-codecs"
 version = "0.4.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -325,6 +335,16 @@ checksum = "1a373e3602691c3cdea496d2f0ee5935151e6168fe87739483c463db1b2f2f87"
 dependencies = [
  "time",
  "version_check",
+]
+
+[[package]]
+name = "core-foundation"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2a6cd9ae233e7f62ba4e9353e81a88df7fc8a5987b8d445b4d90c879bd156f6"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
 ]
 
 [[package]]
@@ -1061,6 +1081,55 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
+name = "jni"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5efd9a482cf3a427f00d6b35f14332adc7902ce91efb778580e180ff90fa3498"
+dependencies = [
+ "cfg-if",
+ "combine",
+ "jni-macros",
+ "jni-sys",
+ "log",
+ "simd_cesu8",
+ "thiserror 2.0.19",
+ "walkdir",
+ "windows-link",
+]
+
+[[package]]
+name = "jni-macros"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a00109accc170f0bdb141fed3e393c565b6f5e072365c3bd58f5b062591560a3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "simd_cesu8",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "jni-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6377a88cb3910bee9b0fa88d4f42e1d2da8e79915598f65fb0c7ee14c878af2"
+dependencies = [
+ "jni-sys-macros",
+]
+
+[[package]]
+name = "jni-sys-macros"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264"
+dependencies = [
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "jobserver"
 version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1261,6 +1330,7 @@ dependencies = [
  "multer",
  "nora-ai",
  "nora-provider-auth",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rcgen",
  "regex",
@@ -1269,6 +1339,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "time",
  "tokio",
  "tokio-rustls",
  "tokio-util",
@@ -1357,6 +1428,7 @@ dependencies = [
  "chrono",
  "jsonwebtoken",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rand 0.8.6",
  "rsa",
@@ -1376,6 +1448,7 @@ dependencies = [
  "getrandom 0.2.17",
  "md-5",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "regex",
  "serde_json",
@@ -1422,6 +1495,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde",
@@ -1479,6 +1553,7 @@ dependencies = [
  "futures",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "tokio",
@@ -1496,6 +1571,7 @@ dependencies = [
  "getrandom 0.2.17",
  "hmac",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "p256",
  "rand_core 0.6.4",
@@ -1516,6 +1592,7 @@ dependencies = [
  "nora-ai",
  "nora-provider",
  "nora-provider-auth",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "sha2",
@@ -1559,6 +1636,7 @@ dependencies = [
  "http",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde_json",
@@ -1602,6 +1680,7 @@ dependencies = [
  "libc",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "rand 0.8.6",
@@ -1633,6 +1712,7 @@ dependencies = [
  "futures",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "percent-encoding",
@@ -1664,6 +1744,7 @@ dependencies = [
  "libc",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "regex",
  "serde",
@@ -1694,6 +1775,7 @@ dependencies = [
  "nora-ai",
  "nora-provider",
  "nora-provider-auth",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "sha2",
@@ -1726,6 +1808,7 @@ dependencies = [
  "futures",
  "jsonwebtoken",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "percent-encoding",
  "rand 0.8.6",
@@ -1747,6 +1830,7 @@ dependencies = [
  "futures",
  "hmac",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "sha2",
@@ -1795,6 +1879,7 @@ dependencies = [
  "futures",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde",
  "serde_json",
@@ -1814,6 +1899,7 @@ dependencies = [
  "futures",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rusqlite",
  "serde_json",
@@ -1834,6 +1920,7 @@ dependencies = [
  "futures",
  "hex",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "rand 0.8.6",
@@ -1927,6 +2014,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-network"
+version = "1.2.0"
+dependencies = [
+ "bytes",
+ "h2",
+ "http",
+ "nora-provider-plugin-sdk",
+ "rcgen",
+ "reqwest",
+ "rustls",
+ "rustls-platform-verifier",
+ "time",
+ "tokio",
+ "tokio-rustls",
+ "webpki-roots 1.0.9",
+]
+
+[[package]]
 name = "nora-provider-nous-portal"
 version = "1.2.0"
 dependencies = [
@@ -1937,6 +2042,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde",
@@ -1973,6 +2079,7 @@ dependencies = [
  "nora-ai",
  "nora-provider",
  "nora-provider-auth",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde",
  "serde_json",
@@ -2073,6 +2180,7 @@ dependencies = [
  "md-5",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rand 0.8.6",
  "regex",
@@ -2164,6 +2272,7 @@ dependencies = [
  "futures",
  "libc",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde",
@@ -2181,6 +2290,7 @@ dependencies = [
  "futures",
  "html-escape",
  "httpdate",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde_json",
@@ -2262,6 +2372,7 @@ dependencies = [
  "libc",
  "md-5",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "percent-encoding",
  "rand 0.8.6",
@@ -2314,6 +2425,7 @@ dependencies = [
  "libc",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "p256",
  "rand 0.8.6",
@@ -2343,6 +2455,7 @@ dependencies = [
  "futures",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "serde_json",
@@ -2389,6 +2502,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "nora-ai",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-search-api",
  "regex",
@@ -2487,6 +2601,7 @@ dependencies = [
  "futures",
  "nora-ai",
  "nora-provider",
+ "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rand 0.8.6",
  "reqwest",
@@ -2585,6 +2700,12 @@ name = "opaque-debug"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
+
+[[package]]
+name = "openssl-probe"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 
 [[package]]
 name = "p256"
@@ -3019,6 +3140,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
+name = "rustc_version"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
+dependencies = [
+ "semver",
+]
+
+[[package]]
 name = "rustls"
 version = "0.23.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3033,6 +3163,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustls-native-certs"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a073f5dc7469f984c52ad2752b63b0807745133b6de880b7b64c1ac4c48aec4"
+dependencies = [
+ "openssl-probe",
+ "rustls-pki-types",
+ "schannel",
+ "security-framework",
+]
+
+[[package]]
 name = "rustls-pki-types"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3041,6 +3183,33 @@ dependencies = [
  "web-time",
  "zeroize",
 ]
+
+[[package]]
+name = "rustls-platform-verifier"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1167586491e2b18b8bfbb293e8180ec17c201c4f076d7cb3070ca964e7598f98"
+dependencies = [
+ "core-foundation",
+ "core-foundation-sys",
+ "jni",
+ "log",
+ "once_cell",
+ "rustls",
+ "rustls-native-certs",
+ "rustls-platform-verifier-android",
+ "rustls-webpki",
+ "security-framework",
+ "security-framework-sys",
+ "webpki-root-certs",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "rustls-platform-verifier-android"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eec689c0bc40ff2458a5977b6619cb718087084a18e02a131c599b62d05e1a5f"
 
 [[package]]
 name = "rustls-webpki"
@@ -3066,6 +3235,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
+name = "same-file"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
+dependencies = [
+ "winapi-util",
+]
+
+[[package]]
+name = "schannel"
+version = "0.1.30"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cb23c424d8ee841bb4d813677ca237e2a610067d594fec130f87d6093495ab5"
+dependencies = [
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3084,6 +3271,35 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "security-framework"
+version = "3.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7f4bc775c73d9a02cde8bf7b2ec4c9d12743edf609006c7facc23998404cd1d"
+dependencies = [
+ "bitflags",
+ "core-foundation",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys",
+]
+
+[[package]]
+name = "security-framework-sys"
+version = "2.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ce2691df843ecc5d231c0b14ece2acc3efb62c0a398c7e1d875f3983ce020e3"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
+name = "semver"
+version = "1.0.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
 
 [[package]]
 name = "serde"
@@ -3202,6 +3418,16 @@ name = "simd-adler32"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
+
+[[package]]
+name = "simd_cesu8"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11031e251abf8611c80f460e19dbdeb54a66db918e49c65a7065b46ac7aec520"
+dependencies = [
+ "rustc_version",
+ "simdutf8",
+]
 
 [[package]]
 name = "simdutf8"
@@ -3701,6 +3927,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "walkdir"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
+dependencies = [
+ "same-file",
+ "winapi-util",
+]
+
+[[package]]
 name = "want"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3810,6 +4046,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "webpki-root-certs"
+version = "1.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e49d0e65abc00c142e8f9428da991da9f1a250c39be97459901eb12b9b49f62a"
+dependencies = [
+ "rustls-pki-types",
+]
+
+[[package]]
 name = "webpki-roots"
 version = "0.26.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3853,6 +4098,15 @@ name = "winapi-i686-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
+
+[[package]]
+name = "winapi-util"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
+dependencies = [
+ "windows-sys 0.61.2",
+]
 
 [[package]]
 name = "winapi-x86_64-pc-windows-gnu"

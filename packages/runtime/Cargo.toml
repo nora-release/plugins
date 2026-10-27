@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+nora-provider-network.workspace = true
 nora-provider-plugin-sdk.workspace = true
 nora-ai.workspace = true
 nora-provider-auth = { path = "../auth" }
@@ -28,6 +29,7 @@ tokio-util = { version = "0.7", features = ["io"] }
 url = "2"
 
 [dev-dependencies]
+time = "0.3"
 fs2 = "0.4"
 rcgen = "0.13"
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }

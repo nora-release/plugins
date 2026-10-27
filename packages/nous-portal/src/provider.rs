@@ -41,7 +41,7 @@ impl NousPortal {
             return Ok(client.clone());
         }
         Ok(Arc::new(ReqwestHttpClient::with_client(
-            nora_provider_plugin_sdk::http_client(proxy.or(config.proxy.as_ref()))?,
+            nora_provider_network::http_client(proxy.or(config.proxy.as_ref()))?,
         )))
     }
     fn params_client(&self, params: &Value) -> PluginResult<Arc<dyn HttpClient>> {

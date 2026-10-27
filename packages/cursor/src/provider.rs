@@ -91,7 +91,7 @@ impl Cursor {
         }
         Ok(Arc::new(
             ReqwestHttpClient::with_client(
-                nora_provider_plugin_sdk::http_client_builder(proxy.as_ref())?
+                nora_provider_network::http_client_builder(proxy.as_ref())?
                     .redirect(reqwest::redirect::Policy::none())
                     .build()
                     .map_err(|_| {
@@ -250,7 +250,7 @@ impl Cursor {
             None
         } else {
             Some(
-                nora_provider_plugin_sdk::http_client_builder(proxy.as_ref())?
+                nora_provider_network::http_client_builder(proxy.as_ref())?
                     .http2_prior_knowledge()
                     .redirect(reqwest::redirect::Policy::none())
                     .read_timeout(Duration::from_secs(125))

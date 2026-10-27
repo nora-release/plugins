@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "packages/network",
     "packages/cloudflare-workers-ai",
     "packages/chatgpt-api",
     "packages/nous-portal",
@@ -92,5 +93,6 @@ license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
+nora-provider-network = { path = "packages/network" }
 nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }
 nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }

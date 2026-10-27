@@ -15,6 +15,7 @@ name = "nora_provider_auth_tests"
 path = "test/lib.rs"
 
 [dependencies]
+nora-provider-network.workspace = true
 nora-ai.workspace = true
 nora-provider-plugin-sdk.workspace = true
 async-trait = "0.1"

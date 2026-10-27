@@ -81,8 +81,7 @@ impl OpenAIPlugin {
             proxy.as_ref().or(default_proxy.as_ref()),
         )
         .await?;
-        let client =
-            nora_provider_plugin_sdk::http_client(proxy.as_ref().or(default_proxy.as_ref()))?;
+        let client = nora_provider_network::http_client(proxy.as_ref().or(default_proxy.as_ref()))?;
         let client = ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
             nora_provider_plugin_sdk::before_http_request()
                 .await

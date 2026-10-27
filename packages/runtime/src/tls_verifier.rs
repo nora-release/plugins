@@ -1,9 +1,8 @@
 use nora_provider_plugin_sdk::{NetworkProxy, PluginError, PluginResult};
+#[cfg(test)]
+use rustls::client::WebPkiServerVerifier;
 use rustls::{
-    client::{
-        danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-        WebPkiServerVerifier,
-    },
+    client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
     pki_types::{CertificateDer, ServerName, UnixTime},
     DigitallySignedStruct, Error, SignatureScheme,
 };
@@ -14,7 +13,7 @@ use std::{collections::BTreeSet, sync::Arc};
 #[derive(Debug)]
 struct TargetVerifier {
     hosts: BTreeSet<String>,
-    verified: Arc<WebPkiServerVerifier>,
+    verified: Arc<dyn ServerCertVerifier>,
 }
 impl ServerCertVerifier for TargetVerifier {
     fn verify_server_cert(
@@ -64,14 +63,38 @@ pub(crate) fn configuration(
     hosts: BTreeSet<String>,
     proxy: Option<&NetworkProxy>,
 ) -> PluginResult<rustls::ClientConfig> {
-    let mut roots = rustls::RootCertStore::empty();
-    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    with_roots(hosts, proxy, roots)
+    configuration_with_extra_roots(hosts, proxy, std::iter::empty())
 }
+
+fn configuration_with_extra_roots(
+    hosts: BTreeSet<String>,
+    proxy: Option<&NetworkProxy>,
+    certificates: impl IntoIterator<Item = CertificateDer<'static>>,
+) -> PluginResult<rustls::ClientConfig> {
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let verified = nora_provider_network::tls::verifier(provider.clone(), certificates)
+        .map_err(|_| invalid())?;
+    with_verifier(hosts, proxy, verified, provider)
+}
+
+#[cfg(test)]
 fn with_roots(
-    mut hosts: BTreeSet<String>,
+    hosts: BTreeSet<String>,
     proxy: Option<&NetworkProxy>,
     roots: rustls::RootCertStore,
+) -> PluginResult<rustls::ClientConfig> {
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let verified = WebPkiServerVerifier::builder_with_provider(Arc::new(roots), provider.clone())
+        .build()
+        .map_err(|_| invalid())?;
+    with_verifier(hosts, proxy, verified, provider)
+}
+
+fn with_verifier(
+    mut hosts: BTreeSet<String>,
+    proxy: Option<&NetworkProxy>,
+    verified: Arc<dyn ServerCertVerifier>,
+    provider: Arc<rustls::crypto::CryptoProvider>,
 ) -> PluginResult<rustls::ClientConfig> {
     // A proxy sharing the target's DNS name cannot be distinguished by a TLS
     // verifier (it receives no port). In that case both connections verify.
@@ -84,10 +107,6 @@ fn with_roots(
             }
         }
     }
-    let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let verified = WebPkiServerVerifier::builder_with_provider(Arc::new(roots), provider.clone())
-        .build()
-        .map_err(|_| invalid())?;
     let config = rustls::ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .map_err(|_| invalid())?
@@ -103,3 +122,7 @@ fn invalid() -> PluginError {
 #[cfg(test)]
 #[path = "../test/tls_verifier.test.rs"]
 mod tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "../test/tls_system_trust.test.rs"]
+mod system_trust_tests;

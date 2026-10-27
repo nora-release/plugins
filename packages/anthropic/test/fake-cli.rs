@@ -335,6 +335,24 @@ fn main() {
             assert!(prompt.contains("You must call at least one available tool before answering."));
         }
         let id = format!("msg-{sequence}");
+        if prompt.contains("REFUSAL") {
+            let details = json!({"type":"refusal","category":"cyber","explanation":"flagged"});
+            let mut message = json!({"id":id,"type":"message","role":"assistant","model":"claude-test","content":[],"stop_reason":"refusal","stop_sequence":null,"stop_details":details,"usage":{"input_tokens":3,"output_tokens":2}});
+            if prompt.contains("WHOLE_REFUSAL") {
+                emit(json!({"type":"assistant","message":message}));
+            } else {
+                message["stop_reason"] = Value::Null;
+                message.as_object_mut().unwrap().remove("stop_details");
+                message["usage"]["output_tokens"] = json!(0);
+                event(json!({"type":"message_start","message":message}));
+                event(
+                    json!({"type":"message_delta","delta":{"stop_reason":"refusal","stop_sequence":null,"stop_details":details},"usage":{"output_tokens":2}}),
+                );
+                event(json!({"type":"message_stop"}));
+            }
+            emit(json!({"type":"result","is_error":false,"result":""}));
+            continue;
+        }
         if args.windows(2).any(|pair| pair[0] == "--json-schema") && !prompt.contains("USE_TOOL") {
             let schema: Value = serde_json::from_str(
                 &args

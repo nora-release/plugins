@@ -220,7 +220,9 @@ impl State {
             message["content"] = json!(content);
             message["usage"] = self.usage.clone();
             message["stop_reason"] = json!(self.stopped.as_deref().unwrap_or("end_turn"));
-            message["stop_sequence"] = Value::Null;
+            if message.get("stop_sequence").is_none() {
+                message["stop_sequence"] = Value::Null;
+            }
             self.queued
                 .push_back(serde_json::to_vec(&message).map_err(|_| cli::error())?);
         }
@@ -347,6 +349,11 @@ impl State {
                 if let Some(reason) = event.pointer("/delta/stop_reason").and_then(Value::as_str) {
                     self.stopped = Some(reason.into());
                 }
+                for key in ["stop_sequence", "stop_details"] {
+                    if let Some(value) = event["delta"].get(key) {
+                        self.message[key] = value.clone();
+                    }
+                }
                 for (key, value) in event["usage"].as_object().into_iter().flatten() {
                     if !value.is_null() {
                         self.usage[key] = value.clone();
@@ -423,6 +430,13 @@ impl State {
                     } else {
                         self.fail(status);
                     }
+                } else if self.pending_stop
+                    && self
+                        .stopped
+                        .as_deref()
+                        .is_some_and(nora_ai::provider_refusal_stop)
+                {
+                    self.finish(false).await?;
                 } else if self.run.output_schema.is_some() {
                     let Some(output) = value
                         .get("structured_output")

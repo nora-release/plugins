@@ -12,6 +12,8 @@ use tokio::{
 mod fixture;
 #[path = "learned-usage-integration.test.rs"]
 mod learned_usage_integration;
+#[path = "refusal-integration.test.rs"]
+mod refusal_integration;
 #[path = "session-activity-integration.test.rs"]
 mod session_activity_integration;
 #[path = "session-integration.test.rs"]

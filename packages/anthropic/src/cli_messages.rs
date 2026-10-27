@@ -29,7 +29,7 @@ impl History {
 struct Whole {
     id: String,
     blocks: usize,
-    stop: Value,
+    ending: Value,
     usage: Value,
 }
 
@@ -110,9 +110,8 @@ impl Receiver {
             return Ok(Vec::new());
         };
         self.history.remember(&whole.id, Received::Whole)?;
-        let mut events = self.normalize(
-            json!({"type":"message_delta","delta":{"stop_reason":whole.stop},"usage":whole.usage}),
-        )?;
+        let mut events = self
+            .normalize(json!({"type":"message_delta","delta":whole.ending,"usage":whole.usage}))?;
         events.extend(self.normalize(json!({"type":"message_stop"}))?);
         Ok(events)
     }
@@ -129,11 +128,12 @@ impl Receiver {
             start["content"] = json!([]);
             start["stop_reason"] = Value::Null;
             start["stop_sequence"] = Value::Null;
+            start.as_object_mut().unwrap().remove("stop_details");
             output.extend(self.normalize(json!({"type":"message_start","message":start}))?);
             self.whole = Some(Whole {
                 id: id.into(),
                 blocks: 0,
-                stop: Value::Null,
+                ending: json!({"stop_reason":null,"stop_sequence":null}),
                 usage: json!({}),
             });
         }
@@ -149,7 +149,12 @@ impl Receiver {
         let first = whole.blocks;
         whole.blocks += blocks.len();
         if !message["stop_reason"].is_null() {
-            whole.stop = message["stop_reason"].clone();
+            whole.ending["stop_reason"] = message["stop_reason"].clone();
+        }
+        for key in ["stop_sequence", "stop_details"] {
+            if let Some(value) = message.get(key) {
+                whole.ending[key] = value.clone();
+            }
         }
         for (key, value) in message["usage"].as_object().into_iter().flatten() {
             whole.usage[key] = value.clone();
@@ -306,6 +311,9 @@ impl Receiver {
                     self.stop = true;
                 }
                 if !self.client_tools
+                    && !event["delta"]["stop_reason"]
+                        .as_str()
+                        .is_some_and(nora_ai::provider_refusal_stop)
                     && (self.schema && self.stop
                         || event["delta"]["stop_reason"] == "tool_use" && !self.own.is_empty())
                 {

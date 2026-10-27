@@ -1,5 +1,41 @@
 use super::*;
 
+#[test]
+fn refusal_keeps_classifier_details_and_finishes_even_with_a_requested_schema() {
+    for schema in [false, true] {
+        for streamed in [false, true] {
+            let mut receiver = Receiver::new(false).with_schema(schema);
+            let details = json!({"type":"refusal","category":"cyber","explanation":"flagged"});
+            let mut events = Vec::new();
+            if streamed {
+                events.extend(receiver.push(json!({"type":"message_start","message":{"id":"refused","content":[],"usage":{"input_tokens":3}}})).unwrap());
+                events.extend(receiver.push(json!({"type":"message_delta","delta":{"stop_reason":"refusal","stop_sequence":null,"stop_details":details},"usage":{"output_tokens":2}})).unwrap());
+                events.extend(receiver.push(json!({"type":"message_stop"})).unwrap());
+            } else {
+                let mut message = whole("refused", json!([]), "refusal");
+                message["stop_sequence"] = Value::Null;
+                message["stop_details"] = details.clone();
+                events.extend(receiver.whole(&message).unwrap());
+                events.extend(receiver.finish_whole().unwrap());
+            }
+            let ending = events
+                .iter()
+                .find(|event| event["type"] == "message_delta")
+                .unwrap();
+            assert_eq!(
+                ending["delta"]["stop_reason"], "refusal",
+                "schema={schema} streamed={streamed}: {events:?}"
+            );
+            assert_eq!(
+                ending["delta"]["stop_details"], details,
+                "schema={schema} streamed={streamed}"
+            );
+            assert!(events.iter().any(|event| event["type"] == "message_stop"));
+            assert!(!receiver.continues);
+        }
+    }
+}
+
 fn whole(id: &str, content: Value, stop: &str) -> Value {
     json!({"id":id,"model":"claude-test","role":"assistant","content":content,"stop_reason":stop,"usage":{"input_tokens":2,"output_tokens":777}})
 }

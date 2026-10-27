@@ -2018,6 +2018,7 @@ name = "nora-provider-network"
 version = "1.2.0"
 dependencies = [
  "bytes",
+ "futures-util",
  "h2",
  "http",
  "nora-provider-plugin-sdk",
@@ -2025,6 +2026,7 @@ dependencies = [
  "reqwest",
  "rustls",
  "rustls-platform-verifier",
+ "socket2",
  "time",
  "tokio",
  "tokio-rustls",
@@ -3036,8 +3038,6 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 [[package]]
 name = "reqwest"
 version = "0.12.28"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64",
  "bytes",

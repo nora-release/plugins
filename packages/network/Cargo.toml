@@ -6,6 +6,8 @@ license.workspace = true
 rust-version.workspace = true
 [features]
 default = []
+# Requires this application workspace's fixed reqwest source patch.
+ipv4-fallback = []
 http2 = ["reqwest/http2"]
 
 [dependencies]
@@ -17,6 +19,8 @@ webpki-roots = "1"
 rustls-platform-verifier = "0.7.1"
 
 [dev-dependencies]
+futures-util = "0.3"
+socket2 = "0.6"
 bytes = "1"
 h2 = "0.4"
 http = "1"

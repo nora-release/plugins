@@ -4,7 +4,10 @@ use serde_json::{json, Value};
 /// this with the executable's independently returned SDK feature versions.
 pub(crate) fn declare(manifest: &mut Value) {
     // Pure request processors do not run provider account or network services.
-    if manifest["api"] == "gateway-middleware" {
+    if matches!(
+        manifest["api"].as_str(),
+        Some("gateway-middleware" | "gateway-masker")
+    ) {
         return;
     }
     let alpha_search = manifest.get("id").and_then(Value::as_str) == Some("openai");

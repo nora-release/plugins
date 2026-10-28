@@ -2351,6 +2351,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-provider-redact"
+version = "1.2.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "getrandom 0.2.17",
+ "hmac",
+ "libc",
+ "nora-provider-plugin-sdk",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
 name = "nora-provider-remote-magpie"
 version = "1.2.0"
 dependencies = [

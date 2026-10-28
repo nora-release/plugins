@@ -77,3 +77,44 @@ fn only_dedicated_packages_declare_their_account_and_client_hooks() {
         assert!(unrelated["config"]["sdkCapabilities"].get(key).is_none());
     }
 }
+
+#[test]
+fn masking_extension_is_packaged_without_provider_capabilities() {
+    let mut manifest: serde_json::Value =
+        serde_json::from_str(include_str!("../../redact/nora-provider.json")).unwrap();
+    super::declare(&mut manifest);
+    assert!(manifest["config"].get("sdkCapabilities").is_none());
+    assert_eq!(manifest["config"]["gatewayMasker"]["version"], 1);
+}
+
+#[test]
+fn masking_extension_is_available_to_manual_catalog_and_package_builds() {
+    let root = std::env::temp_dir().join(format!(
+        "nora-masker-package-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&root).unwrap();
+    let source =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../redact/nora-provider.json");
+    let packages = root.join("packages");
+    crate::definition::prepare(&source, &packages).unwrap();
+    crate::catalog::write_catalog(&packages, &root.join("catalog.json"), None).unwrap();
+    let package: Value =
+        serde_json::from_slice(&std::fs::read(packages.join("redact/nora-provider.json")).unwrap())
+            .unwrap();
+    assert_eq!(package["api"], "gateway-masker");
+    assert_eq!(package["config"]["gatewayMasker"]["version"], 1);
+    assert!(package["config"].get("sdkCapabilities").is_none());
+    let catalog: Value =
+        serde_json::from_slice(&std::fs::read(root.join("catalog.json")).unwrap()).unwrap();
+    assert_eq!(catalog["providers"][0]["id"], "redact");
+    assert_eq!(
+        include_str!("../../redact/LICENSE-Magpie"),
+        include_str!("../../../LICENSES/Magpie-MIT.txt")
+    );
+    let _ = std::fs::remove_dir_all(root);
+}

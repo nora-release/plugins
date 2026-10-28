@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "packages/redact",
     "packages/middleware-runtime",
     "packages/antigravity-cloak",
     "packages/block-patterns",

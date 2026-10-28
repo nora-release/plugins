@@ -58,8 +58,17 @@ fn wrong_endpoints_authentication_failures_and_api_key_errors_do_not_hide_a_mode
 
 #[test]
 fn refusal_account_identity_keeps_previous_sorted_keys() {
-    let a: Value=serde_json::from_str(r#"{"accountIdentity":{"subject":"same","issuer":"service","scope":"org"}}"#).unwrap();
-    let b: Value=serde_json::from_str(r#"{"accountIdentity":{"scope":"org","issuer":"service","subject":"same"}}"#).unwrap();
-    assert_eq!(identity(&a),identity(&b));
-    assert_eq!(identity(&a),"e4d755fbf42c6a342d6eea5991a0e837f924ce33ae6bf82012f07fa70c0dfdfe");
+    let a: Value = serde_json::from_str(
+        r#"{"accountIdentity":{"subject":"same","issuer":"service","scope":"org"}}"#,
+    )
+    .unwrap();
+    let b: Value = serde_json::from_str(
+        r#"{"accountIdentity":{"scope":"org","issuer":"service","subject":"same"}}"#,
+    )
+    .unwrap();
+    assert_eq!(identity(&a), identity(&b));
+    assert_eq!(
+        identity(&a),
+        "e4d755fbf42c6a342d6eea5991a0e837f924ce33ae6bf82012f07fa70c0dfdfe"
+    );
 }

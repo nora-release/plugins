@@ -53,13 +53,23 @@ fn uses_network<'a>(
     if !visited.insert(name) {
         return false;
     }
-    let Some(package) = packages.get(name) else { return false };
-    package["dependencies"].as_array().unwrap().iter().any(|dep| {
-        if !dep["kind"].is_null() { return false; }
-        let name = dep["name"].as_str().unwrap();
-        matches!(name, "reqwest" | "tokio-tungstenite" | "nora-provider-network")
-            || uses_network(name, packages, visited)
-    })
+    let Some(package) = packages.get(name) else {
+        return false;
+    };
+    package["dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|dep| {
+            if !dep["kind"].is_null() {
+                return false;
+            }
+            let name = dep["name"].as_str().unwrap();
+            matches!(
+                name,
+                "reqwest" | "tokio-tungstenite" | "nora-provider-network"
+            ) || uses_network(name, packages, visited)
+        })
 }
 
 fn system_tls<'a>(

@@ -419,11 +419,14 @@ fn signature(value: &Value) -> String {
                 "tool_result" | "tool-result" => None,
                 kind => Some(format!(
                     "[{kind}:{:x}]",
-                    Sha256::digest({
-                        let mut part = part.clone();
-                        part.sort_all_objects();
-                        part.to_string()
-                    }.as_bytes())
+                    Sha256::digest(
+                        {
+                            let mut part = part.clone();
+                            part.sort_all_objects();
+                            part.to_string()
+                        }
+                        .as_bytes()
+                    )
                 )),
             })
             .collect(),
@@ -510,5 +513,5 @@ fn attend(
 mod tests;
 
 #[cfg(test)]
-#[path="../test/request_identity.test.rs"]
+#[path = "../test/request_identity.test.rs"]
 mod identity_tests;

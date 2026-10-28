@@ -89,7 +89,11 @@ async fn custom_host_is_rejected_before_credentials_or_model_requests_leave() {
 fn anonymous_session_keeps_nested_json_identity() {
     let a: Value=serde_json::from_str(r#"{"messages":[{"role":"user","content":[{"type":"text","text":"x"},{"type":"text","text":"y"}]}]}"#).unwrap();
     let b: Value=serde_json::from_str(r#"{"messages":[{"content":[{"text":"x","type":"text"},{"text":"y","type":"text"}],"role":"user"}]}"#).unwrap();
-    assert_eq!(session(&a,""),session(&b,""));
-    let mut reordered=b;reordered["messages"][0]["content"].as_array_mut().unwrap().reverse();
-    assert_ne!(session(&a,""),session(&reordered,""));
+    assert_eq!(session(&a, ""), session(&b, ""));
+    let mut reordered = b;
+    reordered["messages"][0]["content"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    assert_ne!(session(&a, ""), session(&reordered, ""));
 }

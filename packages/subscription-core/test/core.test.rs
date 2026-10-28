@@ -26,5 +26,8 @@ fn persistent_fingerprint_keeps_previous_sorted_json_bytes() {
     let expected = "f80735c375180d651e7c5350543887a94bbef5ed349bb2ab7209fcc0758f66e4";
     assert_eq!(fingerprint(&first), fingerprint(&second));
     assert_eq!(fingerprint(&first), expected);
-    assert_ne!(fingerprint(&json!([first,2])), fingerprint(&json!([2,second])));
+    assert_ne!(
+        fingerprint(&json!([first, 2])),
+        fingerprint(&json!([2, second]))
+    );
 }

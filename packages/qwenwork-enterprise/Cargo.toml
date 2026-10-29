@@ -1,0 +1,11 @@
+[package]
+name = "nora-provider-qwenwork-enterprise"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider-qoder = { path = "../qoder" }
+nora-provider-plugin-sdk.workspace = true
+tokio = { version = "1", features = ["rt", "macros"] }

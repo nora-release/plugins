@@ -1,0 +1,11 @@
+[package]
+name = "nora-provider-firecrawl"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider-search-api = { path = "../search-api" }
+nora-provider-plugin-sdk.workspace = true
+tokio = { version = "1", features = ["macros", "rt"] }

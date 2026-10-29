@@ -1,0 +1,80 @@
+{
+  "apiVersion": 2,
+  "id": "qwen",
+  "name": "Qwen",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "qwen",
+        "catalog": "alibaba",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://dashscope-intl.aliyuncs.com/apps/anthropic"
+              }
+            ],
+            "models": [],
+            "catalog": "alibaba",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://dashscope-intl.aliyuncs.com/apps/anthropic"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

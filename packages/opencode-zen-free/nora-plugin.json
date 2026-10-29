@@ -1,0 +1,27 @@
+{
+  "apiVersion": 2,
+  "id": "opencode-zen-free",
+  "name": "OpenCode Zen Free",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://opencode.ai/inference/v1",
+      "authMethods": [
+        {
+          "id": "public",
+          "type": "apiKey",
+          "keyless": true,
+          "label": "Enable OpenCode Zen free access",
+          "fields": []
+        }
+      ],
+      "config": {
+        "persistent": true
+      }
+    }
+  }
+}

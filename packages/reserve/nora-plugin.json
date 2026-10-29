@@ -1,0 +1,22 @@
+{
+  "apiVersion": 2,
+  "id": "reserve",
+  "name": "Reserve",
+  "version": "1.2.0",
+  "summary": "Keep account capacity in reserve or prefer subscriptions before pay-per-token accounts.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "middleware": {
+      "version": 1,
+      "strategies": [
+        "ceiling",
+        "accounts-first"
+      ],
+      "options": {
+        "ceiling": 80
+      }
+    }
+  }
+}

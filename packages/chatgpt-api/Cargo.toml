@@ -1,0 +1,28 @@
+[package]
+name = "nora-provider-chatgpt-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider-auth = { path = "../auth" }
+nora-network.workspace = true
+nora-ai.workspace = true
+nora-provider-plugin-sdk.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "socks", "gzip", "brotli", "deflate", "zstd"] }
+async-trait = "0.1"
+base64 = "0.22"
+chrono = "0.4"
+futures = "0.3"
+getrandom = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time", "io-util", "net"] }
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+bytes = "1"
+tokio = { version = "1", features = ["test-util"] }

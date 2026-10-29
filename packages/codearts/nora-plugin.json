@@ -1,0 +1,29 @@
+{
+  "apiVersion": 2,
+  "id": "codearts",
+  "name": "CodeArts",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://snap-access.cn-north-4.myhuaweicloud.com/api/v2",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in with Huawei Cloud"
+        }
+      ],
+      "config": {
+        "accountActions": [
+          "checkin"
+        ],
+        "maxConcurrency": 3,
+        "initialResponseTimeoutMs": 480000
+      }
+    }
+  }
+}

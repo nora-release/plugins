@@ -1,0 +1,57 @@
+{
+  "apiVersion": 2,
+  "id": "opencode-go",
+  "name": "OpenCode Go",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://opencode.ai/zen/go",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "ownClient": true,
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "opencode-go",
+        "keyProvider": "opencode-go",
+        "legacy": {
+          "providerID": "opencode-go",
+          "keyProvider": "opencode-go",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "modelDiscovery": {
+          "defaultBaseURL": "https://opencode.ai/zen/go",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://opencode.ai/zen/go/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://opencode.ai/zen/go"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

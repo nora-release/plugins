@@ -1,0 +1,120 @@
+{
+  "apiVersion": 2,
+  "id": "stepfun-cn",
+  "name": "StepFun (China)",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.stepfun.com/step_plan/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "Step Plan",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "profile-api",
+          "type": "api",
+          "label": "Pay as you go",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "stepfun-step-plan, stepfun",
+        "keyProvider": "stepfun-cn",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.stepfun.com/step_plan/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.stepfun.com/step_plan/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.stepfun.com/step_plan"
+            }
+          ],
+          "noList": false
+        },
+        "legacyProfile": "api",
+        "profiles": [
+          {
+            "id": "plan",
+            "name": "Step Plan",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.stepfun.com/step_plan/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://api.stepfun.com/step_plan"
+              }
+            ],
+            "models": [],
+            "catalog": "stepfun-step-plan, stepfun",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          },
+          {
+            "id": "api",
+            "name": "Pay as you go",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.stepfun.com/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://api.stepfun.com"
+              }
+            ],
+            "models": [],
+            "catalog": "stepfun-step-plan, stepfun",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer"
+      }
+    }
+  }
+}

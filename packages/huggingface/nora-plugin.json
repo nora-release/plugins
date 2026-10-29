@@ -1,0 +1,43 @@
+{
+  "apiVersion": 2,
+  "id": "huggingface",
+  "name": "Hugging Face",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://router.huggingface.co/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "huggingface",
+        "keyProvider": "huggingface",
+        "legacy": {
+          "providerID": "huggingface",
+          "keyProvider": "huggingface",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        }
+      }
+    }
+  }
+}

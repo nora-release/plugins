@@ -1,0 +1,70 @@
+use super::*;
+use nora_provider_plugin_sdk::{CallContext, InitializeParams, ProviderPlugin};
+use serde_json::{json, Value};
+use std::path::PathBuf;
+
+fn manifest() -> Value {
+    serde_json::from_str(include_str!("../nora-plugin.json")).unwrap()
+}
+fn params(manifest: Value) -> InitializeParams {
+    InitializeParams {
+        subscription_accounts_enabled: true,
+        installed_manifest: None,
+        runtime_config: serde_json::Value::Null,
+        api_version: 2,
+        plugin_id: "vercel-jev".into(),
+        plugin_directory: PathBuf::new(),
+        data_directory: PathBuf::new(),
+        manifest,
+    }
+}
+#[test]
+fn manifest_declares_decision_only_and_explicit_authentication() {
+    let value = manifest();
+    assert_eq!(value["id"], DecisionFamily::Vercel.id());
+    assert_eq!(value["contributes"]["provider"]["api"], "systemone");
+    assert_eq!(
+        value["contributes"]["provider"]["config"]["operations"],
+        json!(["decision"])
+    );
+    let allowed = value["contributes"]["provider"]["config"]["operationsAuthMethods"]["decision"]
+        .as_array()
+        .unwrap();
+    for method in value["contributes"]["provider"]["authMethods"]
+        .as_array()
+        .unwrap()
+    {
+        assert!(allowed.contains(&method["id"]));
+    }
+    for model in value["contributes"]["provider"]["models"]
+        .as_array()
+        .unwrap()
+    {
+        assert_eq!(model["info"]["decision"], true);
+        assert_eq!(model["info"]["chat"], false);
+        assert_eq!(model["info"]["catalogSource"], "preset");
+    }
+}
+#[tokio::test]
+async fn unconfigured_catalog_stays_a_preset_without_network_or_claimed_authentication() {
+    let plugin = DecisionProvider::new(DecisionFamily::Vercel);
+    plugin.initialize(params(manifest())).await.unwrap();
+    let models = plugin.models(CallContext::default()).await.unwrap();
+    assert_eq!(models["source"], "preset");
+    assert!(!models["models"].as_array().unwrap().is_empty());
+    assert!(plugin
+        .authorize(json!({"authMethodID":"oauth"}))
+        .await
+        .is_err());
+    assert!(plugin
+        .refresh(json!({"credentials":{"type":"oauth","access":"foreign"}}))
+        .await
+        .is_err());
+}
+#[tokio::test]
+async fn another_provider_manifest_cannot_initialize_this_executable() {
+    let plugin = DecisionProvider::new(DecisionFamily::Vercel);
+    let mut value = manifest();
+    value["id"] = json!("another-provider");
+    assert!(plugin.initialize(params(value)).await.is_err());
+}

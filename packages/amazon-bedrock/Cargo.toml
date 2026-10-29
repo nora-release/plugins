@@ -1,0 +1,18 @@
+[package]
+name = "nora-provider-amazon-bedrock"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-ai.workspace = true
+nora-provider-plugin-sdk.workspace = true
+nora-provider-subscription-core = { path = "../subscription-core" }
+nora-provider = { path = "../runtime" }
+async-trait = "0.1"
+base64 = "0.22"
+futures = "0.3"
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "time", "sync"] }
+url = "2"

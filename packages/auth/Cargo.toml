@@ -1,0 +1,33 @@
+[package]
+name = "nora-provider-auth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Provider-owned account authentication shared by native Nora provider packages and legacy CLI callers."
+
+[lib]
+name = "nora_provider_auth"
+path = "src/lib.rs"
+
+[[test]]
+name = "nora_provider_auth_tests"
+path = "test/lib.rs"
+
+[dependencies]
+nora-network.workspace = true
+nora-ai.workspace = true
+nora-provider-plugin-sdk.workspace = true
+async-trait = "0.1"
+base64 = "0.22"
+chrono = "0.4"
+jsonwebtoken = { version = "9.3", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = "2"
+tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt", "sync", "time"] }
+
+[dev-dependencies]
+rand = "0.8"
+rsa = "0.9"
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread"] }

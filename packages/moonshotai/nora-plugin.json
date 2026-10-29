@@ -1,0 +1,74 @@
+{
+  "apiVersion": 2,
+  "id": "moonshotai",
+  "name": "Moonshot AI",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.moonshot.ai/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "upstreamStatus": {
+          "vendor": "moonshot",
+          "name": "Moonshot AI",
+          "page": "https://status.moonshot.cn",
+          "summary": "https://status.moonshot.cn/api/v2/summary.json",
+          "hosts": [
+            "api.moonshot.cn",
+            "api.moonshot.ai"
+          ],
+          "components": [
+            "Open API",
+            "API Service",
+            "Model"
+          ],
+          "componentSuffixes": [
+            " Model"
+          ]
+        },
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "moonshotai",
+        "keyProvider": "moonshotai",
+        "legacy": {
+          "providerID": "moonshotai",
+          "keyProvider": "moonshotai",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.moonshot.ai/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.moonshot.ai/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.moonshot.ai/anthropic"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

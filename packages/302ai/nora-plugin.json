@@ -1,0 +1,80 @@
+{
+  "apiVersion": 2,
+  "id": "302ai",
+  "name": "302.AI",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.302.ai/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "302ai",
+        "catalog": "302ai",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.302.ai/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://api.302.ai"
+              }
+            ],
+            "models": [],
+            "catalog": "302ai",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.302.ai/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.302.ai/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.302.ai"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

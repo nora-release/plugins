@@ -1,0 +1,104 @@
+[
+  {
+    "id": "raccoon-8c4485",
+    "name": "Raccoon-Work",
+    "context": 1000000,
+    "output": 100000,
+    "images": true,
+    "reasoning": true,
+    "rate": 1,
+    "free": false
+  },
+  {
+    "id": "raccoon-19b265",
+    "name": "Raccoon-Work-260817-A",
+    "context": 1000000,
+    "output": 100000,
+    "images": false,
+    "reasoning": true,
+    "rate": 1,
+    "free": false
+  },
+  {
+    "id": "raccoon-405a1c",
+    "name": "Raccoon-Work-260817-B",
+    "context": 1000000,
+    "output": 100000,
+    "images": false,
+    "reasoning": false,
+    "rate": 1,
+    "free": false
+  },
+  {
+    "id": "sn-sensenova-6-8-flash",
+    "name": "SenseNova-6.8-Flash",
+    "context": 256000,
+    "output": 63999,
+    "images": true,
+    "reasoning": true,
+    "rate": 0,
+    "rateWas": 0.5,
+    "free": true
+  },
+  {
+    "id": "sn-sensenova-6-8-flash-lite",
+    "name": "SenseNova-6.8-Flash-Lite",
+    "context": 256000,
+    "output": 63999,
+    "images": true,
+    "reasoning": true,
+    "rate": 0,
+    "rateWas": 0.5,
+    "free": true
+  },
+  {
+    "id": "sn-glm-5-3",
+    "name": "GLM-5-3",
+    "context": 1000000,
+    "output": 100000,
+    "images": true,
+    "reasoning": true,
+    "rate": 0.75,
+    "free": false
+  },
+  {
+    "id": "sn-kimi-k3",
+    "name": "Kimi-K3",
+    "context": 1000000,
+    "output": 100000,
+    "images": true,
+    "reasoning": true,
+    "rate": 1,
+    "free": false
+  },
+  {
+    "id": "sn-glm-5-3-flash",
+    "name": "GLM-5-3-Flash",
+    "context": 1000000,
+    "output": 100000,
+    "images": false,
+    "reasoning": true,
+    "rate": 0.2,
+    "free": false
+  },
+  {
+    "id": "sn-deepseek-v4-1-flash",
+    "name": "DeepSeek-V4.1-Flash",
+    "context": 1000000,
+    "output": 100000,
+    "images": false,
+    "reasoning": true,
+    "rate": 0.25,
+    "free": false
+  },
+  {
+    "id": "raccoon-chat-ml-5-5",
+    "name": "Raccoon Chat (\u9ed8\u8ba4)",
+    "context": 180000,
+    "output": 80000,
+    "images": false,
+    "reasoning": true,
+    "rate": 1,
+    "free": false
+  }
+]

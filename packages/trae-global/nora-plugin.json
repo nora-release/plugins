@@ -1,0 +1,27 @@
+{
+  "apiVersion": 2,
+  "id": "trae-global",
+  "name": "Trae Global",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://coresg-normal.trae.ai/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in with Trae Global"
+        }
+      ],
+      "config": {
+        "authTimeoutMs": 600000,
+        "accountActions": [],
+        "initialResponseTimeoutMs": 240000
+      }
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "apiVersion": 2,
+  "id": "kimi-coding",
+  "name": "Kimi Coding",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "anthropic-messages",
+      "baseURL": "https://api.kimi.com/coding",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "kimi-coding",
+        "keyProvider": "kimi-coding",
+        "headers": {
+          "User-Agent": "KimiCLI/1.5"
+        },
+        "legacy": {
+          "providerID": "kimi-coding",
+          "keyProvider": "kimi-coding",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.kimi.com/coding",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.kimi.com/coding/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.kimi.com/coding"
+            }
+          ]
+        },
+        "ownSearch": {
+          "version": 1,
+          "manual": true
+        },
+        "sdkCapabilities": {
+          "webSearch": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "base_resp": {
+    "status_code": 0,
+    "status_msg": "success"
+  },
+  "model_remains": [
+    {
+      "model_name": "general",
+      "start_time": 1792800000000,
+      "end_time": 1792818000000,
+      "current_interval_remaining_percent": 75,
+      "current_interval_status": 1,
+      "current_interval_total_count": 0,
+      "current_weekly_remaining_percent": 90,
+      "current_weekly_status": 1,
+      "current_weekly_total_count": 0
+    },
+    {
+      "model_name": "video",
+      "current_interval_remaining_percent": 20,
+      "current_interval_status": 1,
+      "current_interval_total_count": 5,
+      "current_interval_usage_count": 1
+    }
+  ],
+  "unknownPrivateField": "unexposed-private-field"
+}

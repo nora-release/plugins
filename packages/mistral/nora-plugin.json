@@ -1,0 +1,73 @@
+{
+  "apiVersion": 2,
+  "id": "mistral",
+  "name": "Mistral",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.mistral.ai/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "mistral",
+        "keyProvider": "mistral",
+        "legacy": {
+          "providerID": "mistral",
+          "keyProvider": "mistral",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.mistral.ai/v1"
+              }
+            ],
+            "models": [],
+            "catalog": "mistral",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.mistral.ai/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.mistral.ai/v1"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

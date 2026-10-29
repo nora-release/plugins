@@ -1,0 +1,48 @@
+{
+  "apiVersion": 2,
+  "id": "qwenwork-enterprise",
+  "name": "QwenWork Enterprise",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://gateway.qwenwork.cn",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in with QwenWork",
+          "prompts": [
+            {
+              "key": "domain",
+              "type": "text",
+              "label": "Enterprise domain",
+              "placeholder": "your-company.vpc.qwenwork.cn",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "models": [
+        {
+          "id": "flash",
+          "name": "标准"
+        },
+        {
+          "id": "pro",
+          "name": "高级"
+        },
+        {
+          "id": "qwen3.8-max-preview",
+          "name": "Qwen3.8-Max"
+        }
+      ],
+      "config": {
+        "authTimeoutMs": 1050000
+      }
+    }
+  }
+}

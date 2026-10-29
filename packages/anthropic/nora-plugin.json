@@ -1,0 +1,127 @@
+{
+  "apiVersion": 2,
+  "id": "anthropic",
+  "name": "Anthropic",
+  "version": "1.2.0",
+  "summary": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "anthropic-messages",
+      "baseURL": "https://api.anthropic.com",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in with installed Claude Code",
+          "fields": [
+            {
+              "id": "claudePath",
+              "key": "claudePath",
+              "type": "text",
+              "label": "Claude Code executable path (optional)",
+              "required": false
+            }
+          ]
+        },
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "claudeCode",
+          "type": "source",
+          "label": "Use Claude Code’s sign-in"
+        }
+      ],
+      "config": {
+        "upstreamStatus": {
+          "vendor": "anthropic",
+          "name": "Anthropic",
+          "page": "https://status.claude.com",
+          "summary": "https://status.claude.com/api/v2/summary.json",
+          "hosts": [
+            "api.anthropic.com"
+          ],
+          "components": [
+            "Claude Code"
+          ],
+          "componentPrefixes": [
+            "Claude API"
+          ]
+        },
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "anthropic",
+        "keyProvider": "anthropic-api-key",
+        "oauthProvider": "anthropic",
+        "legacy": {
+          "providerID": "anthropic",
+          "keyProvider": "anthropic-api-key",
+          "oauthProvider": "anthropic",
+          "credentialProvider": "anthropic"
+        },
+        "headerHints": [
+          "anthropic-workspace-id"
+        ],
+        "accountImport": {
+          "formats": [
+            "auto",
+            "claude-credentials",
+            "cli-proxy",
+            "sub2api",
+            "refresh-token",
+            "nora-account",
+            "magpie-login"
+          ],
+          "refreshesTokens": false,
+          "maxEntries": 200,
+          "maxBytes": 4194304
+        },
+        "accountAutomation": {
+          "version": 1,
+          "warmup": {
+            "method": "warmup",
+            "label": "Claude Code",
+            "authMethods": [
+              "oauth",
+              "claudeCode"
+            ],
+            "expectedWindows": [
+              {
+                "id": "five_hour",
+                "spanSeconds": 18000
+              },
+              {
+                "id": "seven_day",
+                "spanSeconds": 604800
+              }
+            ]
+          }
+        }
+      },
+      "localSignIns": [
+        {
+          "method": "claudeCode",
+          "label": "Claude Code",
+          "keychain": "Claude Code-credentials",
+          "paths": [
+            "~/.claude/.credentials.json"
+          ]
+        }
+      ]
+    }
+  }
+}

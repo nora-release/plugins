@@ -1,0 +1,29 @@
+[package]
+name = "nora-provider-xai"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider = { path = "../runtime" }
+nora-provider-auth = { path = "../auth" }
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+async-trait = "0.1"
+base64 = "0.22"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros"] }
+url = "2"
+chrono = "0.4"
+fs2 = "0.4"
+sha2 = "0.10"
+futures = "0.3"
+
+[[test]]
+name = "grok_source"
+path = "test/grok-source-integration.test.rs"
+
+[[test]]
+name = "cpa_import"
+path = "test/cpa-import-integration.test.rs"

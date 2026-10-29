@@ -1,0 +1,70 @@
+{
+  "apiVersion": 2,
+  "id": "vercel-jev",
+  "name": "Jev · Vercel AI Gateway",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "systemone",
+      "baseURL": "https://ai-gateway.vercel.sh/typesafe/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "AI Gateway API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            },
+            {
+              "id": "endpoint",
+              "key": "endpoint",
+              "type": "text",
+              "label": "Decision endpoint (optional)",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "models": [
+        {
+          "id": "typesafe-ai/jev",
+          "name": "Jev",
+          "api": "systemone",
+          "contextWindow": 32000,
+          "input": [
+            "text"
+          ],
+          "info": {
+            "decision": true,
+            "chat": false,
+            "toolCalling": false,
+            "catalogSource": "preset",
+            "pricingKnown": false
+          }
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "catalog": "",
+        "keyProvider": "vercel-jev-api-key",
+        "operations": [
+          "decision"
+        ],
+        "operationsAuthMethods": {
+          "decision": [
+            "api",
+            "apiKey"
+          ]
+        }
+      }
+    }
+  }
+}

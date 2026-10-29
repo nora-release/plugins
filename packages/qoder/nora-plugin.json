@@ -1,0 +1,55 @@
+{
+  "apiVersion": 2,
+  "id": "qoder",
+  "name": "Qoder",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api3.qoder.sh",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in with Qoder"
+        },
+        {
+          "id": "pat",
+          "type": "oauth",
+          "label": "Sign in with Qoder PAT",
+          "prompts": [
+            {
+              "key": "pat",
+              "type": "password",
+              "label": "Personal Access Token",
+              "placeholder": "pt-...",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "accountActions": [
+          "checkin"
+        ],
+        "authTimeoutMs": 1050000,
+        "accountAutomation": {
+          "version": 1,
+          "checkin": {
+            "method": "checkin",
+            "statusMethod": "checkinStatus",
+            "timeZone": "Asia/Shanghai",
+            "authMethods": [
+              "oauth",
+              "pat"
+            ],
+            "recheckSeconds": 1800
+          }
+        }
+      }
+    }
+  }
+}

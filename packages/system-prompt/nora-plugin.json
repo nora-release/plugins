@@ -1,0 +1,21 @@
+{
+  "apiVersion": 2,
+  "id": "system-prompt",
+  "name": "System Prompt",
+  "version": "1.2.0",
+  "summary": "Add or replace the system prompt in each supported API format.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "middleware": {
+      "version": 1,
+      "request": true,
+      "options": {
+        "system_prompt": "Reply in the language the user writes in.",
+        "override": true,
+        "position": "append"
+      }
+    }
+  }
+}

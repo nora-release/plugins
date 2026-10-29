@@ -1,0 +1,8 @@
+{
+  "code": 200,
+  "success": true,
+  "data": [
+    {"productName": "GLM Coding Pro", "status": "EXPIRED", "autoRenew": 1, "nextRenewTime": "2026-08-01 00:00:00"},
+    {"productName": "GLM Coding Pro", "status": "VALID", "valid": "2026-10-18 10:00:00-2026-11-18 10:00:00", "autoRenew": 1, "nextRenewTime": "2026-11-18 10:00:00"}
+  ]
+}

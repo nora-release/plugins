@@ -1,0 +1,47 @@
+[
+  {
+    "id": "claude-sonnet-5",
+    "name": "Claude Sonnet 5",
+    "context": 1000000,
+    "images": true
+  },
+  {
+    "id": "claude-opus-5-5",
+    "name": "Claude Opus 5.5",
+    "context": 1000000,
+    "images": true
+  },
+  {
+    "id": "gpt-6-sol",
+    "name": "GPT-6 Sol",
+    "context": 1050000,
+    "images": true
+  },
+  {
+    "id": "deepseek/deepseek-v4-pro",
+    "name": "DeepSeek V4 Pro",
+    "context": 1000000
+  },
+  {
+    "id": "deepseek/deepseek-v4-flash",
+    "name": "DeepSeek V4 Flash",
+    "context": 1000000
+  },
+  {
+    "id": "moonshotai/Kimi-K3",
+    "name": "Kimi K3",
+    "context": 1000000,
+    "images": true
+  },
+  {
+    "id": "zai-org/GLM-5.3",
+    "name": "GLM-5.3",
+    "context": 1000000
+  },
+  {
+    "id": "MiniMaxAI/MiniMax-M3",
+    "name": "MiniMax M3",
+    "context": 1000000,
+    "images": true
+  }
+]

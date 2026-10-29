@@ -1,0 +1,34 @@
+[package]
+name = "nora-provider-openai"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-network.workspace = true
+nora-provider = { path = "../runtime" }
+nora-provider-auth = { path = "../auth" }
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+async-trait = "0.1"
+base64 = "0.22"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+url = "2"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+fs2 = "0.4"
+zstd = "0.14"
+
+[dev-dependencies]
+futures = "0.3"
+
+[[test]]
+name = "refresh"
+path = "test/refresh-integration.test.rs"
+
+[[test]]
+name = "client_profile_protocol"
+path = "test/client_profile_protocol.test.rs"

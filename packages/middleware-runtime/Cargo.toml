@@ -1,0 +1,19 @@
+[package]
+name = "nora-gateway-middleware"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider-plugin-sdk.workspace = true
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+regress = "=0.11.1"
+sha2 = "0.10"
+libc = "0.2"
+
+[[test]]
+name = "regex"
+path = "test/regex.test.rs"

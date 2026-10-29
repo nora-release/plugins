@@ -1,0 +1,16 @@
+{
+  "type": "user",
+  "message": {
+    "role": "user",
+    "content": [{"type": "tool_result", "tool_use_id": "search-own", "content": "Web search results for query: official documentation"}]
+  },
+  "tool_use_result": {
+    "query": "official documentation",
+    "results": [
+      "A short public summary.",
+      {"tool_use_id": "srvtoolu_upstream", "content": [{"title": "Example documentation", "url": "https://example.com/docs", "page_age": "today"}]}
+    ],
+    "durationSeconds": 0.2,
+    "searchCount": 1
+  }
+}

@@ -1,0 +1,30 @@
+[package]
+name = "nora-provider-anthropic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nora-provider-auth = { path = "../auth" }
+nora-network.workspace = true
+nora-provider = { path = "../runtime" }
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+async-trait = "0.1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "macros", "process", "io-util", "io-std", "net", "sync", "time", "fs"] }
+url = "2"
+chrono = "0.4"
+futures = "0.3"
+base64 = "0.22"
+sha2 = "0.10"
+libc = "0.2"
+regex = "1"
+chrono-tz = "0.10"
+unicode-normalization = "0.1"
+fs2 = "0.4"
+
+[[test]]
+name = "claude-cli"
+path = "test/cli-integration.test.rs"

@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/magpie-community/plugins",
+  "file": "packages/param-override/cases.json",
+  "sha256": "bc207b5f433caa90707ace937c194c330ad4207f030233df1dc4d29bde42f174",
+  "license": "MIT"
+}

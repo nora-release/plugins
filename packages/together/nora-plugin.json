@@ -1,0 +1,67 @@
+{
+  "apiVersion": 2,
+  "id": "together",
+  "name": "Together AI",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.together.xyz/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "together",
+        "catalog": "togetherai",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.together.xyz/v1"
+              }
+            ],
+            "models": [],
+            "catalog": "togetherai",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.together.xyz/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.together.xyz/v1"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

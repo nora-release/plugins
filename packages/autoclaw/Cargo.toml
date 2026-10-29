@@ -1,0 +1,20 @@
+[package]
+name = "nora-provider-autoclaw"
+version = "1.2.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[dependencies]
+nora-network.workspace = true
+nora-provider-plugin-sdk.workspace = true
+nora-ai.workspace = true
+async-trait = "0.1.89"
+base64 = "0.22.1"
+futures = "0.3.32"
+getrandom = "0.2.17"
+md-5 = "0.10.6"
+regex = "1.13.1"
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["rt", "macros", "sync", "time", "net", "io-util"] }
+url = "2.5.8"

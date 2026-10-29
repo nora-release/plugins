@@ -1,0 +1,419 @@
+{
+  "apiVersion": 2,
+  "id": "volcengine",
+  "name": "Volcengine Ark",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "Coding Plan",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            },
+            {
+              "id": "accessKeyID",
+              "key": "accessKeyID",
+              "type": "password",
+              "label": "AccessKeyID (usage, optional)",
+              "required": false
+            },
+            {
+              "id": "secretAccessKey",
+              "key": "secretAccessKey",
+              "type": "password",
+              "label": "SecretAccessKey (usage, optional)",
+              "required": false
+            }
+          ]
+        },
+        {
+          "id": "profile-agent",
+          "type": "api",
+          "label": "Agent Plan",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            },
+            {
+              "id": "accessKeyID",
+              "key": "accessKeyID",
+              "type": "password",
+              "label": "AccessKeyID (usage, optional)",
+              "required": false
+            },
+            {
+              "id": "secretAccessKey",
+              "key": "secretAccessKey",
+              "type": "password",
+              "label": "SecretAccessKey (usage, optional)",
+              "required": false
+            }
+          ]
+        },
+        {
+          "id": "profile-api",
+          "type": "api",
+          "label": "Pay as you go",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            },
+            {
+              "id": "accessKeyID",
+              "key": "accessKeyID",
+              "type": "password",
+              "label": "AccessKeyID (usage, optional)",
+              "required": false
+            },
+            {
+              "id": "secretAccessKey",
+              "key": "secretAccessKey",
+              "type": "password",
+              "label": "SecretAccessKey (usage, optional)",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "models": [
+        {
+          "id": "ark-code-latest"
+        },
+        {
+          "id": "doubao-seed-evolving"
+        },
+        {
+          "id": "doubao-seed-2.1-pro"
+        },
+        {
+          "id": "doubao-seed-2.1-lite"
+        },
+        {
+          "id": "doubao-seed-2.1-turbo"
+        },
+        {
+          "id": "doubao-seed-2.0-mini"
+        },
+        {
+          "id": "minimax-m3"
+        },
+        {
+          "id": "glm-5.3"
+        },
+        {
+          "id": "glm-5.3-flash"
+        },
+        {
+          "id": "deepseek-v4.1-flash"
+        },
+        {
+          "id": "deepseek-v4-flash"
+        },
+        {
+          "id": "deepseek-v4-pro"
+        },
+        {
+          "id": "kimi-k2.7-code"
+        },
+        {
+          "id": "kimi-k2.8-preview"
+        },
+        {
+          "id": "kimi-k3"
+        },
+        {
+          "id": "doubao-embedding-vision",
+          "info": {
+            "chat": false,
+            "embedding": true,
+            "toolCalling": false
+          }
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "volcengine",
+        "catalog": "volcengine",
+        "profiles": [
+          {
+            "id": "coding",
+            "name": "Coding Plan",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/coding"
+              }
+            ],
+            "models": [
+              {
+                "id": "ark-code-latest"
+              },
+              {
+                "id": "doubao-seed-evolving"
+              },
+              {
+                "id": "doubao-seed-2.1-pro"
+              },
+              {
+                "id": "doubao-seed-2.1-lite"
+              },
+              {
+                "id": "doubao-seed-2.1-turbo"
+              },
+              {
+                "id": "doubao-seed-2.0-mini"
+              },
+              {
+                "id": "minimax-m3"
+              },
+              {
+                "id": "glm-5.3"
+              },
+              {
+                "id": "glm-5.3-flash"
+              },
+              {
+                "id": "deepseek-v4.1-flash"
+              },
+              {
+                "id": "deepseek-v4-flash"
+              },
+              {
+                "id": "deepseek-v4-pro"
+              },
+              {
+                "id": "kimi-k2.7-code"
+              },
+              {
+                "id": "kimi-k2.8-preview"
+              },
+              {
+                "id": "kimi-k3"
+              },
+              {
+                "id": "doubao-embedding-vision",
+                "info": {
+                  "chat": false,
+                  "embedding": true,
+                  "toolCalling": false
+                }
+              }
+            ],
+            "catalog": "volcengine",
+            "noList": true,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          },
+          {
+            "id": "agent",
+            "name": "Agent Plan",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/plan/v3"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/plan/v3"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/plan"
+              }
+            ],
+            "models": [
+              {
+                "id": "ark-code-latest"
+              },
+              {
+                "id": "doubao-seed-evolving"
+              },
+              {
+                "id": "doubao-seed-2.1-pro"
+              },
+              {
+                "id": "doubao-seed-2.1-lite"
+              },
+              {
+                "id": "doubao-seed-2.1-turbo"
+              },
+              {
+                "id": "doubao-seed-2.0-mini"
+              },
+              {
+                "id": "minimax-m3"
+              },
+              {
+                "id": "glm-5.3"
+              },
+              {
+                "id": "glm-5.3-flash"
+              },
+              {
+                "id": "deepseek-v4.1-flash"
+              },
+              {
+                "id": "deepseek-v4-flash"
+              },
+              {
+                "id": "deepseek-v4-pro"
+              },
+              {
+                "id": "kimi-k2.7-code"
+              },
+              {
+                "id": "kimi-k2.8-preview"
+              },
+              {
+                "id": "kimi-k3"
+              },
+              {
+                "id": "doubao-embedding-vision",
+                "info": {
+                  "chat": false,
+                  "embedding": true,
+                  "toolCalling": false
+                }
+              },
+              {
+                "id": "doubao-seedream-5-0-pro",
+                "info": {
+                  "chat": false,
+                  "imageOutput": true,
+                  "toolCalling": false
+                }
+              },
+              {
+                "id": "doubao-seedance-2.0",
+                "info": {
+                  "chat": false,
+                  "videoOutput": true,
+                  "toolCalling": false
+                }
+              },
+              {
+                "id": "doubao-seedance-2.0-fast",
+                "info": {
+                  "chat": false,
+                  "videoOutput": true,
+                  "toolCalling": false
+                }
+              },
+              {
+                "id": "doubao-seedance-2.0-mini",
+                "info": {
+                  "chat": false,
+                  "videoOutput": true,
+                  "toolCalling": false
+                }
+              },
+              {
+                "id": "doubao-seedance-2.5",
+                "info": {
+                  "chat": false,
+                  "videoOutput": true,
+                  "toolCalling": false
+                }
+              }
+            ],
+            "catalog": "volcengine",
+            "noList": true,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          },
+          {
+            "id": "api",
+            "name": "Pay as you go",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/v3"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/v3"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://ark.cn-beijing.volces.com/api/coding"
+              }
+            ],
+            "models": [],
+            "catalog": "volcengine",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://ark.cn-beijing.volces.com/api/coding/v3",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3"
+            },
+            {
+              "api": "openai-responses",
+              "baseURL": "https://ark.cn-beijing.volces.com/api/coding/v3"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://ark.cn-beijing.volces.com/api/coding"
+            }
+          ],
+          "noList": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,113 @@
+[workspace]
+members = [
+    "packages/redact",
+    "packages/middleware-runtime",
+    "packages/antigravity-cloak",
+    "packages/block-patterns",
+    "packages/codex-history",
+    "packages/model-map",
+    "packages/param-override",
+    "packages/reserve",
+    "packages/system-prompt",
+    "packages/think-tags",
+    "packages/word-guard",
+
+    "packages/cloudflare-workers-ai",
+    "packages/chatgpt-api",
+    "packages/nous-portal",
+    "packages/search-api",
+    "packages/tavily",
+    "packages/brave-search",
+    "packages/exa-search",
+    "packages/firecrawl",
+    "packages/you-search",
+    "packages/deepseek-search",
+    "packages/searxng",
+
+    "packages/autoclaw",
+    "packages/autoclaw-cn",
+    "packages/remote-magpie",
+    "packages/clinepass",
+    "packages/vercel-jev",
+    "packages/cloudflare-jev",
+    "packages/bailian-decision",
+    "packages/qwen-decision",
+    "packages/devin",
+    "packages/mimo-app",
+    "packages/kimi-code",
+    "packages/trae-cn",
+    "packages/trae-global",
+    "packages/tencent-cloud",
+    "packages/volcengine",
+    "packages/zcode",
+
+    "packages/factory",
+    "packages/opencode-zen-free",
+    "packages/amazon-bedrock",
+    "packages/amazon-bedrock-mantle",
+    "packages/qoder",
+    "packages/qwenwork",
+    "packages/qwenwork-enterprise",
+    "packages/gcp-ai",
+    "packages/joycode",
+    "packages/qoder-cn",
+    "packages/commandcode-plan",
+    "packages/zed",
+    "packages/codearts",
+    "packages/raccoon",
+    "packages/cursor",
+    "packages/cline",
+    "packages/google-vertex",
+    "packages/workbuddy",
+    "packages/workbuddy-ai",
+    "packages/minimax-code",
+    "packages/minimax-code-global",
+    "packages/opendesign",
+    "packages/subscription-core",
+    "packages/typesafe",
+    "packages/google-gemini",
+    "packages/kiro",
+    "packages/codeassist",
+    "packages/gemini-cli",
+    "packages/antigravity",
+    "packages/kimi-work",
+    "packages/ollama-cloud",
+    "packages/minimax-cn",
+    "packages/minimax",
+    "packages/opencode-go",
+    "packages/kimi-coding",
+    "packages/zai",
+    "packages/zhipu",
+    "packages/aihubmix",
+    "packages/stepfun-cn",
+    "packages/stepfun",
+    "packages/siliconflow-global",
+    "packages/siliconflow",
+    "packages/openrouter",
+    "packages/moonshotai-cn",
+    "packages/moonshotai",
+    "packages/deepseek",
+    "packages/quota",
+    "packages/auth",
+    "packages/runtime",
+    "packages/openai",
+    "packages/xai",
+    "packages/anthropic",
+    "packages/github-copilot",
+]
+resolver = "2"
+
+[workspace.package]
+version = "1.2.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[workspace.dependencies]
+nora-network = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779", features = ["ipv4-fallback"] }
+nora-plugin-manifest = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779" }
+nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779", features = ["ipv4-fallback"] }
+
+[patch.crates-io]
+reqwest = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779" }

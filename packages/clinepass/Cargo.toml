@@ -1,0 +1,12 @@
+[package]
+name = "nora-provider-clinepass"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+[dependencies]
+nora-provider-cline = {path="../cline"}
+nora-provider-plugin-sdk.workspace = true
+tokio = {version="1",features=["rt","macros"]}
+[dev-dependencies]
+serde_json = "1"

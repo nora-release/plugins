@@ -1,0 +1,36 @@
+{
+  "apiVersion": 2,
+  "id": "nous-portal",
+  "name": "Nous Portal (OAuth)",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://inference-api.nousresearch.com/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Nous Portal (device code)"
+        }
+      ],
+      "models": [
+        {
+          "id": "Hermes-4-70B",
+          "name": "Hermes-4-70B",
+          "contextWindow": 0,
+          "maxTokens": 0
+        }
+      ],
+      "config": {
+        "keyProvider": "nous-portal",
+        "connectionManaged": true,
+        "subscriptionAccounts": true,
+        "ownClient": true
+      }
+    }
+  }
+}

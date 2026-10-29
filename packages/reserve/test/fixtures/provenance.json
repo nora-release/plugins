@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/magpie-community/plugins",
+  "file": "packages/reserve/strategies.json",
+  "sha256": "c04e42ff66978915b2caaf169e56a411cf4ba49f2a28c98b69b437f8d5b26888",
+  "license": "MIT"
+}

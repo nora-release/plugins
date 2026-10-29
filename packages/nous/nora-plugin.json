@@ -1,0 +1,67 @@
+{
+  "apiVersion": 2,
+  "id": "nous",
+  "name": "Nous Portal",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://inference-api.nousresearch.com/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "nous",
+        "catalog": "nous",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://inference-api.nousresearch.com/v1"
+              }
+            ],
+            "models": [],
+            "catalog": "nous",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://inference-api.nousresearch.com/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://inference-api.nousresearch.com/v1"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

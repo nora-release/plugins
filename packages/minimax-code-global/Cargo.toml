@@ -1,0 +1,12 @@
+[package]
+name = "nora-provider-minimax-code-global"
+version = "1.2.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[dependencies]
+nora-provider-subscription-core = { path = "../subscription-core" }
+nora-provider-plugin-sdk.workspace = true
+tokio = { version = "1", features = ["rt", "macros"] }
+nora-provider-minimax-code = { path = "../minimax-code" }

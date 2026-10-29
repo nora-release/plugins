@@ -1,0 +1,57 @@
+{
+  "apiVersion": 2,
+  "id": "minimax",
+  "name": "MiniMax",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "anthropic-messages",
+      "baseURL": "https://api.minimax.io/anthropic",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "minimax",
+        "keyProvider": "minimax",
+        "legacy": {
+          "providerID": "minimax",
+          "keyProvider": "minimax",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.minimax.io/anthropic",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.minimax.io/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.minimax.io/anthropic"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

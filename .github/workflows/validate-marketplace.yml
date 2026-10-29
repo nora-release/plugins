@@ -25,18 +25,8 @@ jobs:
         with:
           path: registry
           persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '24'
-      - name: Install pnpm
-        run: npm install --global pnpm@11.5.3 --ignore-scripts --no-audit --no-fund
       - name: Validate catalog and release archives without running plugins
-        shell: bash
         run: |
-          set -euo pipefail
-          pnpm --dir "$GITHUB_WORKSPACE/validator" install --frozen-lockfile --ignore-scripts
-          node "$GITHUB_WORKSPACE/validator/node_modules/@nora/plugin-kit/scripts/plugin-marketplace.mjs" validate \
-            --registry "$GITHUB_WORKSPACE/registry/registry.json" \
-            --catalog "$GITHUB_WORKSPACE/registry/marketplace.json" \
-            --verify-downloads
+          make -C "$GITHUB_WORKSPACE/validator" marketplace-check \
+            REGISTRY="$GITHUB_WORKSPACE/registry/registry.json" \
+            CATALOG="$GITHUB_WORKSPACE/registry/marketplace.json"

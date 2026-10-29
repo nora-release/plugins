@@ -1,0 +1,65 @@
+{
+  "apiVersion": 2,
+  "id": "commandcode-plan",
+  "name": "Command Code Plan",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.commandcode.ai/provider/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Command Code account"
+        },
+        {
+          "id": "apiKey",
+          "type": "apiKey",
+          "label": "Command Code API key",
+          "fields": [
+            {
+              "id": "key",
+              "key": "key",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "cli",
+          "type": "source",
+          "label": "Use selected Command Code CLI account",
+          "fields": [
+            {
+              "id": "sourcePath",
+              "key": "sourcePath",
+              "type": "text",
+              "label": "Command Code account file",
+              "required": false,
+              "placeholder": "~/.commandcode/auth.json"
+            }
+          ]
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "options": [
+          {
+            "label": "Zero Data Retention",
+            "type": "boolean",
+            "default": false,
+            "description": "Requests upstreams that keep no prompts or replies. They can cost more, and an unavailable upstream returns an error.",
+            "confirm": "ZDR requests usually cost more, and a model with no zero-data-retention upstream fails instead of falling back.",
+            "id": "zdr"
+          }
+        ],
+        "authTimeoutMs": 600000
+      }
+    }
+  }
+}

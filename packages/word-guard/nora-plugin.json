@@ -1,0 +1,26 @@
+{
+  "apiVersion": 2,
+  "id": "word-guard",
+  "name": "Word Guard",
+  "version": "1.2.0",
+  "summary": "Reject or mask configured words and patterns in requests and replies.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "middleware": {
+      "version": 1,
+      "request": true,
+      "event": true,
+      "response": true,
+      "options": {
+        "words": [
+          "project-codename"
+        ],
+        "patterns": [],
+        "action": "reject",
+        "check": "last"
+      }
+    }
+  }
+}

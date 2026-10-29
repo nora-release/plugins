@@ -1,0 +1,207 @@
+{
+  "apiVersion": 2,
+  "id": "openai",
+  "name": "OpenAI",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-responses",
+      "baseURL": "https://api.openai.com",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in"
+        },
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "codexCLI",
+          "type": "source",
+          "label": "Use Codex sign-in"
+        }
+      ],
+      "config": {
+        "clientProfiles": [
+          "codex"
+        ],
+        "upstreamStatus": {
+          "vendor": "openai",
+          "name": "OpenAI",
+          "page": "https://status.openai.com",
+          "summary": "https://status.openai.com/api/v2/summary.json",
+          "hosts": [
+            "api.openai.com",
+            "chatgpt.com"
+          ],
+          "components": [
+            "Chat Completions",
+            "Responses",
+            "Codex",
+            "Codex CLI"
+          ]
+        },
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "sourceAuthMethods": [
+          {
+            "id": "codexCLI",
+            "type": "source",
+            "label": "Use Codex sign-in"
+          }
+        ],
+        "accountActions": [
+          "consumeReset"
+        ],
+        "accountActionDetails": {
+          "consumeReset": {
+            "label": "Use reset credit…",
+            "confirmation": "Use one reset credit for this account? The credit that expires first will be used. This cannot be undone.",
+            "authMethods": [
+              "oauth",
+              "codexCLI"
+            ]
+          }
+        },
+        "catalog": "openai",
+        "keyProvider": "openai-api-key",
+        "oauthProvider": "openai-codex",
+        "legacy": {
+          "providerID": "openai",
+          "keyProvider": "openai-api-key",
+          "oauthProvider": "openai-codex",
+          "credentialProvider": "openAICodex"
+        },
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.openai.com",
+          "bases": [
+            {
+              "api": "openai-responses",
+              "baseURL": "https://api.openai.com/v1"
+            }
+          ]
+        },
+        "operations": [
+          "images.generations",
+          "images.edits",
+          "embeddings",
+          "audio.transcriptions",
+          "audio.translations",
+          "videos.create",
+          "videos.get",
+          "videos.content"
+        ],
+        "operationsAuthMethods": {
+          "images.generations": [
+            "api",
+            "apiKey",
+            "oauth"
+          ],
+          "images.edits": [
+            "api",
+            "apiKey",
+            "oauth"
+          ],
+          "embeddings": [
+            "api",
+            "apiKey"
+          ],
+          "audio.transcriptions": [
+            "api",
+            "apiKey"
+          ],
+          "audio.translations": [
+            "api",
+            "apiKey"
+          ],
+          "videos.create": [
+            "api",
+            "apiKey"
+          ],
+          "videos.get": [
+            "api",
+            "apiKey"
+          ],
+          "videos.content": [
+            "api",
+            "apiKey"
+          ]
+        },
+        "forwardedHeaders": [
+          "session-id",
+          "thread-id",
+          "session_id",
+          "conversation_id",
+          "x-client-request-id",
+          "version",
+          "x-openai-*",
+          "x-codex-*"
+        ],
+        "accountImport": {
+          "formats": [
+            "auto",
+            "codex-auth",
+            "cli-proxy",
+            "cockpit",
+            "sub2api",
+            "codexbar",
+            "refresh-token",
+            "nora-account",
+            "magpie-login"
+          ],
+          "refreshesTokens": true,
+          "maxEntries": 200,
+          "maxBytes": 4194304
+        },
+        "accountAutomation": {
+          "version": 1,
+          "warmup": {
+            "method": "warmup",
+            "label": "Codex",
+            "accountDailyTime": true,
+            "authMethods": [
+              "oauth",
+              "codexCLI"
+            ]
+          },
+          "reset": {
+            "prepareMethod": "prepareReset",
+            "executeMethod": "consumeReset",
+            "cases": [
+              "week",
+              "expiring"
+            ],
+            "authMethods": [
+              "oauth",
+              "codexCLI"
+            ]
+          }
+        }
+      },
+      "localSignIns": [
+        {
+          "method": "codexCLI",
+          "label": "Codex",
+          "paths": [
+            "~/.codex/auth.json"
+          ]
+        }
+      ]
+    }
+  }
+}

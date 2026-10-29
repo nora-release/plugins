@@ -1,0 +1,51 @@
+{
+  "apiVersion": 2,
+  "id": "autoclaw-cn",
+  "name": "AutoClaw CN",
+  "version": "1.2.0",
+  "summary": "Connect AutoClaw CN with a phone verification code, with account credits and optional daily check-in.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://autoglm-acceleration-api.zhipuai.cn/autoclaw-proxy/proxy/autoclaw",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in with a phone verification code",
+          "prompts": [
+            {
+              "key": "phone",
+              "type": "text",
+              "label": "China phone number",
+              "placeholder": "13800138000",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "keyProvider": "autoclaw-cn",
+        "authTimeoutMs": 660000,
+        "accountActions": [
+          "checkin"
+        ],
+        "accountAutomation": {
+          "version": 1,
+          "checkin": {
+            "method": "checkin",
+            "statusMethod": "checkinStatus",
+            "timeZone": "Asia/Shanghai",
+            "authMethods": [
+              "oauth"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

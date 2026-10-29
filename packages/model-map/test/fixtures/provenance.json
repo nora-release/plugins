@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/magpie-community/plugins",
+  "file": "packages/model-map/cases.json",
+  "sha256": "eefdd578845443ce4bf0bf659ebc1b4ef14e6cf2466af8afdb10409d6175395b",
+  "license": "MIT"
+}

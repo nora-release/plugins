@@ -1,499 +1,2073 @@
 {
+  "schemaVersion": 2,
   "providers": [
     {
+      "apiVersion": 2,
+      "id": "302ai",
+      "name": "302.AI",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/302ai",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/302ai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "fe41c08c227e19209a847cc46d49063d87f5583ae2209046c0dee25be4ab8eea"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "aihubmix",
       "name": "AiHubMix",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/aihubmix",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "8f81246f89c8f3bef467a18f4717d451ffd81a48ae053cc427ea3eae66fb2982",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/aihubmix-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/aihubmix-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "7afae51ad13524b18475358ab20f46e010d718a57ffcb3a6f0be2b96db342a37"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/aihubmix",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "amazon-bedrock",
       "name": "Amazon Bedrock",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/amazon-bedrock",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "740e6653d43c742ad8cbb8df25987a9fa9e7dc23db4a1fd9ec4836f2b8807076",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/amazon-bedrock-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/amazon-bedrock-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "e4d4cb0bdc2816c62aa42ea980ff23e4803e61ff1b992ce0c9ed3c4ae9e55b5d"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/amazon-bedrock",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly.",
+      "apiVersion": 2,
+      "id": "amazon-bedrock-mantle",
+      "name": "Amazon Bedrock (Mantle)",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/amazon-bedrock-mantle",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/amazon-bedrock-mantle-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "a3e635679357f4a7e3228069cb9dafa46ab886f3a63488a6931017aaa3a3342e"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "anthropic",
       "name": "Anthropic",
+      "description": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/anthropic",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "e361d00b57a28f5bb09d4a81f50d859711d740bc8ac16a129614f96e016b7c36",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/anthropic-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/anthropic-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ff6096ce8987e2141deb40ed44e8707bcb3fd74ae1ba572bd2e17b057b09b103"
         }
       },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/anthropic",
-      "version": "1.1.0"
+      "localSignIns": [
+        {
+          "method": "claudeCode",
+          "label": "Claude Code",
+          "keychain": "Claude Code-credentials",
+          "paths": [
+            "~/.claude/.credentials.json"
+          ]
+        }
+      ]
     },
     {
-      "description": "Connect Antigravity with Google sign-in or an explicitly selected read-only account file.",
+      "apiVersion": 2,
       "id": "antigravity",
       "name": "Antigravity",
+      "description": "Connect Antigravity with Google sign-in or an explicitly selected read-only account file.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/antigravity",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "7da3bed1b2d5903c13bf104fb3b33fb0b61605b063d40fc20d6418450678bd87",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/antigravity-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/antigravity-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "6a887f835cf16fa09ed9630ff8db292ac6e4b3466b016112881c24e57f2f18bc"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/antigravity",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
+      "id": "antigravity-cloak",
+      "name": "Antigravity Cloak",
+      "description": "Adapt Claude Code and Claude Agent SDK system prompts only for Antigravity.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/antigravity-cloak",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/antigravity-cloak-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c947036e46f1aaa671bccf5fc8fe47efbdb6d15862a3c07eb3ea9c6f553e13b4"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "autoclaw",
+      "name": "AutoClaw",
+      "description": "Connect AutoClaw with Google or z.ai web sign-in, with account credits and optional daily check-in.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/autoclaw",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/autoclaw-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "f92889d4ace91e878fefdef53ec558d89f3f6233e402c551df4b3c82b4639f85"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "autoclaw-cn",
+      "name": "AutoClaw CN",
+      "description": "Connect AutoClaw CN with a phone verification code, with account credits and optional daily check-in.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/autoclaw-cn",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/autoclaw-cn-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "b3005bd1db3c0b4c2938152b9164060befd234b47c18afcffa11d28bc876a1a9"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "azure-openai-responses",
       "name": "Azure OpenAI Responses",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/azure-openai-responses",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "4ef74e0b560c4b099ff45845f062f7a1c45e160529e7800d50a68f32293b2e62",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/azure-openai-responses-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/azure-openai-responses-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "67e6cb70ad8d694df93626f51e287d99499a3a913814bacb1f22b950ae71ac96"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/azure-openai-responses",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "baidu-qianfan",
+      "name": "Baidu Qianfan",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/baidu-qianfan",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/baidu-qianfan-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "f9ee593858a215f151bbb7f207f960f71714f96868664441125c1aab7bb73419"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "bailian-decision",
+      "name": "Bailian Decision Model",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/bailian-decision",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/bailian-decision-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "2542403d9f8bb6f072bcbaa9064f18895170743cdc32a9e576f49ef2cf555b70"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "bailian-token-plan",
+      "name": "Bailian Token Plan",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/bailian-token-plan",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/bailian-token-plan-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "466e39fc94e9f6ce04a4c04f8f099cc2d8ff987834242c86cb19fd07bcb25405"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "block-patterns",
+      "name": "Block Patterns",
+      "description": "Reject requests containing configured text or regular-expression patterns.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/block-patterns",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/block-patterns-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "69f9fae7376944f118522d6a8e513502f2951a24c6020f77a1b443d4f4a7b35a"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "brave-search",
+      "name": "Brave Search",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/brave-search",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/brave-search-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "98bd7302cb10c9d38766a91ffdcd108359b7ede5170e4240a5f3a3bfaf9bc15c"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "cerebras",
       "name": "Cerebras",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cerebras",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "7ef76609a31f415ebc75d887f5fbd985bf7398dd33185476dd39f49dc388cf24",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/cerebras-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/cerebras-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "47826410590a0bcdcc598395126785cef97e57ecc68fb11f7374bb184a2bc1c1"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/cerebras",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "chatgpt-api",
+      "name": "ChatGPT API",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/chatgpt-api",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/chatgpt-api-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "17c1dec01feeeb7a693a27c30fa9f2f7a45a8962fd566e327b447dd6d609a4c1"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "cherryin",
+      "name": "CherryIN",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cherryin",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/cherryin-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "47c8a78d625a0f79cdfa1368fb2683fa6c522bf996f71cebe8567cdd331e4d5f"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "cline",
+      "name": "Cline",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cline",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/cline-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "9bc407ba250cebd1a96d6f1ec767efb3d9e0578c4336821174d7bed59c4517eb"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "clinepass",
+      "name": "ClinePass",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/clinepass",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/clinepass-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c5900abc0562842ef5d46f714e4fae1b92f0879ff123f56b528aa5b69c652cb8"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "cloudflare-ai-gateway",
       "name": "Cloudflare AI Gateway",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cloudflare-ai-gateway",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "3fae824eb532a2ae00ff5c31d5cd777f638273a74cc36a496b61ad2f9dbd0b59",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/cloudflare-ai-gateway-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/cloudflare-ai-gateway-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "0b1f9eb185c06c326b1b4f0a90f9f2feaae0382e43f0dc629f26a95a2d9b464e"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/cloudflare-ai-gateway",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "cloudflare-jev",
+      "name": "Cloudflare Workers AI · Jev, Clef",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cloudflare-jev",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/cloudflare-jev-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "bd85c8754f277e2ace290524c4e24604ceca4a9c48fc4cabc61714ed0f795100"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "cloudflare-workers-ai",
       "name": "Cloudflare Workers AI",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cloudflare-workers-ai",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "ecce60767761aba25662942ea647059f4e40ccbb82c1ceae8873b091a2523e78",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/cloudflare-workers-ai-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/cloudflare-workers-ai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "39dec710b24361e1221eaad7a8eee98514218e8d9ba1e21aca015d25b64df435"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/cloudflare-workers-ai",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "codearts",
+      "name": "CodeArts",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/codearts",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/codearts-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ac5a02752e8ca3e4c1334e3f48e70c99f01eb5856bf983d35deebe64568c4e3d"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "codex-history",
+      "name": "Codex History",
+      "description": "Choose Codex Responses history compatibility separately for each provider.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/codex-history",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/codex-history-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ee6c14e60df9e836fa459d76077d70c1c68a7c9ed9653513dccb5d4b2e7bbed6"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "commandcode",
+      "name": "Command Code",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/commandcode",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/commandcode-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "f5fe092fdbf3888ec1175057c20af90c608491ec2273d6a48ef6fc9d5ceb2e3f"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "commandcode-plan",
+      "name": "Command Code Plan",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/commandcode-plan",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/commandcode-plan-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "590e8f99148a8b0a72e7e80b3fef2d58a4d703db314cd1edf97328b7e759e427"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "compatible",
+      "name": "Custom Provider",
+      "description": "Connect any OpenAI, Anthropic, or Gemini compatible service.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/compatible",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/compatible-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "0a93e49e865314a4734b8c4490527de57e5189a07a5d8943aeaa5c8cb12c4b9d"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "cursor",
+      "name": "Cursor",
+      "description": "Cursor subscriptions through Cursor Agent Connect. Only the tools advertised by Nora may run.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cursor",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/cursor-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "507fbc2b714d3993729b2017f17b794f5d0b25e59d96b3fd2c8947c171d5def3"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "deepseek",
       "name": "DeepSeek",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/deepseek",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "b6998f96c22bdb5d1a7f05ea332576b2d157420664f39c194035413170a84320",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/deepseek-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/deepseek-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "cd8335ae4436aa88a8c10a4fb61782378c9e0f10a4a5a90618df72fd0c0a4ef8"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/deepseek",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "deepseek-search",
+      "name": "DeepSeek Search",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/deepseek-search",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/deepseek-search-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "9dadde99bee3ec93f13884e1204da77a42e05f6596dd9d140b6bb677af8ad48c"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "devin",
+      "name": "Devin",
+      "description": "Devin CLI subscription service through native Connect protobuf. A CLI source is read only when explicitly selected.",
+      "version": "1.1.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/devin",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/devin-1.1.0-aarch64-apple-darwin.zip",
+          "sha256": "e1607e437e0078ffbb5918a62194f361edd9419d63ae72b3de84cae6ffc07efa"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "exa-search",
+      "name": "Exa",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/exa-search",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/exa-search-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "b3ebfcb39e40731f9a74188ca9db612da76899fda039996d8b1901854f994d85"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "factory",
+      "name": "Factory",
+      "description": "Factory subscriptions and API keys. Models follow the Droid registry; account billing limits are queried live.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/factory",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/factory-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ccf3d1242fe3d82997c7eb72c39e49dbccb35485b498be972ec699e2a8143f62"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "firecrawl",
+      "name": "Firecrawl",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/firecrawl",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/firecrawl-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ff2c86e8faa147cde5cb92aad70f98b44e3fed6298f6613957c2236d59063a77"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "fireworks",
       "name": "Fireworks",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/fireworks",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "0529ab44eff6734388b694a6a3048994d9e0b06f7b71e7b3b2ec9ad0cb4c15e4",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/fireworks-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/fireworks-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "f176ffc1f2b6134187ef11f530f620c0e8e0a40ce4b69663a5611fce8eed7e5f"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/fireworks",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect Gemini CLI with Google sign-in or an explicitly selected read-only account file.",
+      "apiVersion": 2,
+      "id": "gcp-ai",
+      "name": "GCP AI",
+      "description": "Use your own Google Cloud ADC or gcloud account for Vertex AI, with promotional-credit balance from the same Google account in Chrome.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gcp-ai",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/gcp-ai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "0ff230fb321c8e952d0b2a6ffe1512b33dc4fb046db86dc1fb4bd92f2f5cd476"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "gemini-cli",
       "name": "Gemini CLI",
+      "description": "Connect Gemini CLI with Google sign-in. The current Gemini CLI login is discovered automatically and renewed in its original file.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gemini-cli",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "feb90ad8b6a9dee3f0a45eba05e615bc2d582b01ef611185f50afa1e27d89139",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/gemini-cli-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/gemini-cli-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ea8055eacebe5f8bc37ccc1a98ff7e09998f3bc4a364cf3309bf0aa6d54618b2"
         }
       },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/gemini-cli",
-      "version": "1.1.0"
+      "localSignIns": [
+        {
+          "method": "geminiCLI",
+          "label": "Gemini CLI",
+          "paths": [
+            "~/.gemini/oauth_creds.json"
+          ]
+        }
+      ]
     },
     {
-      "description": "Connect your subscription or API key.",
+      "apiVersion": 2,
       "id": "github-copilot",
       "name": "GitHub Copilot",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/github-copilot",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "72f9491df6b94045f3f74b890ea46784be956d0a3b194d22bdd266832e2b1046",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/github-copilot-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/github-copilot-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "b93d767890d07803397439f0c092fa1900694bb602d1d795aad44193bebaa53a"
         }
       },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/github-copilot",
-      "version": "1.1.0"
+      "localSignIns": [
+        {
+          "method": "copilotEditors",
+          "label": "GitHub Copilot",
+          "paths": [
+            "~/.config/github-copilot/apps.json"
+          ]
+        }
+      ]
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "google-gemini",
       "name": "Google Gemini",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/google-gemini",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "e49b37711b73f335a257f68094a6c58ff8d6d31f424ddcad0ca411535b4a2ebb",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/google-gemini-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/google-gemini-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "998d3310653afa654b374eae9c25b64eca627e567fabe047b7b38849d7a15231"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/google-gemini",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
+      "id": "google-vertex",
+      "name": "Google Vertex AI",
+      "description": "Use your Google Cloud project and an explicitly connected Application Default Credentials file, service account key, or service account impersonation.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/google-vertex",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/google-vertex-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "e49e67e75c2c653291fde04521afb9fed245fe6f09109f6990d4c4c37e1fb7cf"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "groq",
       "name": "Groq",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/groq",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "470104e3b71a3501e7bc7b34a01d428109b000af6b08905217109d376e5d3ed3",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/groq-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/groq-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "bf0533578c4943ef24666b5e9424cec69fe5c9ccc0772c8a9220b7aed8c92be9"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/groq",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "huaweicloud",
+      "name": "Huawei Cloud MaaS",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/huaweicloud",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/huaweicloud-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "0a7ab597845d7c7a0d73b58c394f45761dd62db457f2d5f69ffd6a3fedc3f1a9"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "huggingface",
       "name": "Hugging Face",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/huggingface",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "613538ff4ac26f9340c9a8548f28b56cefbddc511f47515be486e9f274f9a1e6",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/huggingface-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/huggingface-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c4a9e0adbb2b202a6efd32b13f8524f7edcc229b376e95fad11dd8b0ddd78f8c"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/huggingface",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "joycode",
+      "name": "JoyCode",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/joycode",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/joycode-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "234cbc47554a08e6fdc28ee3ebcf00a3c07f97e523e265ad523e030bf07f0359"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "kilo",
+      "name": "Kilo Gateway",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kilo",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/kilo-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "89df13fc0b04610e9da62dd61cfcde1c0e6753ccad296b151a0e6e26035d3a09"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "kimi-code",
+      "name": "Kimi Code",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kimi-code",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/kimi-code-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "2bd5ffc39e50553f5e37ee7ee1a357a75afa6a2bdd3c0f7b97639ccd8b22479e"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "kimi-coding",
       "name": "Kimi Coding",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kimi-coding",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "00ff2a311cf50252d5c17988b0aa3059ab33fdbda9bf05fe291441d984fb2751",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/kimi-coding-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/kimi-coding-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "a4c1e985703729ba1debfafc704c6cc560439bd0c5033deb5070e0cfec17e5e3"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/kimi-coding",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Use your explicitly selected local Kimi Work account or supplied Work and membership tokens.",
+      "apiVersion": 2,
       "id": "kimi-work",
       "name": "Kimi Work",
+      "description": "Use your explicitly selected local Kimi Work account or supplied Work and membership tokens.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kimi-work",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "b1e9dae20d2eadcd1cc01754f32a6e90db8841e8bb0ca5113dba9e9c21f86b9f",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/kimi-work-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/kimi-work-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "bbe93de4080220690cf755afaf27c4514d72f48dfe248cfa5fd4f0f3c775688f"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/kimi-work",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect Kiro with Google, GitHub, AWS Builder ID, IAM Identity Center, an API key, or an explicitly selected read-only CLI/IDE account source.",
+      "apiVersion": 2,
       "id": "kiro",
       "name": "Kiro",
+      "description": "Connect Kiro with Google, GitHub, AWS Builder ID, IAM Identity Center or an API key. Existing Kiro CLI, Kiro IDE and Magpie logins are discovered automatically and renewed in their original source.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kiro",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "36c431c45da237874b990110570ab6c84d983a252bad26bd6dbdecdf63a44c6c",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/kiro-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/kiro-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "1bced2e99a92a69fdae656a07d2d9018d89321a559ddf47f200b9cd02c9fe03f"
         }
       },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/kiro",
-      "version": "1.1.0"
+      "localSignIns": [
+        {
+          "method": "cliSource",
+          "label": "Kiro CLI",
+          "paths": [
+            "~/Library/Application Support/kiro-cli/data.sqlite3"
+          ],
+          "inputs": {
+            "sourcePath": "{path}"
+          }
+        },
+        {
+          "method": "ideSource",
+          "label": "Kiro IDE",
+          "paths": [
+            "~/.aws/sso/cache/kiro-auth-token.json"
+          ],
+          "inputs": {
+            "sourcePath": "{path}"
+          }
+        },
+        {
+          "method": "magpieSource",
+          "label": "Magpie",
+          "paths": [
+            "~/.config/magpie/plugin-auth.json"
+          ],
+          "inputs": {
+            "sourcePath": "{path}"
+          }
+        }
+      ]
     },
     {
+      "apiVersion": 2,
+      "id": "lmstudio",
+      "name": "LM Studio",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/lmstudio",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/lmstudio-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "6d8d9f6c55b25552af3f1f7582125d798705119169c2fec3edd2be31e2550dd2"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "mimo-app",
+      "name": "MiMo App",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/mimo-app",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/mimo-app-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "70075742bc920f7c4e87e4b67f2ccc6bbf6d6e4887e8045c3b72374f27571895"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "minimax",
       "name": "MiniMax",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "3b780da4c03330d904ff94ce1af90e511a90a4a85d63463ecef2249894206db6",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/minimax-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/minimax-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "168f44bdc36f723d3ff32f6e553c4961d339ea62394a0765bbd1dd0598fb01e3"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/minimax",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "minimax-cn",
       "name": "MiniMax CN",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax-cn",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "b4c5e8c6c2617d63ccfde376cea96318c2ed98c576fb02caad8b7cf277c9c2d8",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/minimax-cn-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/minimax-cn-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "357b01c57c7485b8e414058c56ee3cb62096032da053cc9674d1422cc06a3ca4"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/minimax-cn",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
+      "id": "minimax-code",
+      "name": "MiniMax Code",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax-code",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/minimax-code-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "1cc3e70a4d32a87e02ee7180741ea9d5b3073bbeebd6b2bb1cb0cd6b00416bb3"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "minimax-code-global",
+      "name": "MiniMax Code Global",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax-code-global",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/minimax-code-global-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c9dbda4b6226b69a5f85263e5c163381f00ad2afd091ce8f1b05ef4466b98df3"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "mistral",
-      "name": "Mistral AI",
+      "name": "Mistral",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/mistral",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "6ff7553f7dc9ee57f7da1e9884dd9e86bc174adab9973f0ea9f93dc3b66c2550",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/mistral-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/mistral-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "3db10a3b19a858bc511bda0633ecbd4817c086043bd9a79926adfa9b7c450fff"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/mistral",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "mlx-serve",
+      "name": "MLX-Serve",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/mlx-serve",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/mlx-serve-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "a1dbbf1ba41b8638aa80b6da87b25db063ab6c7fd0dbfb0e6405e126b65cf18e"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "model-map",
+      "name": "Model Map",
+      "description": "Route requested model names to other models while preserving their public names in replies.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/model-map",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/model-map-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "919adf1572ce5fcb0f023c6d5898c251799ac7e8217d2ecb285c933608dafcd7"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "modelscope",
+      "name": "ModelScope",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/modelscope",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/modelscope-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ff5b294422250b5304b75ab7ef46ed5572fb5df14bebc9829c76457af57fc23b"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "moonshotai",
       "name": "Moonshot AI",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/moonshotai",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "098f52114bc2b7420cc969f142dbf504eafbf7347cb1168388bba659d27fbdd1",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/moonshotai-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/moonshotai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "093982b053af82a6eed473ccc99fcdffd31dddd3219fecc678674c99975e7c09"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/moonshotai",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "moonshotai-cn",
       "name": "Moonshot AI CN",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/moonshotai-cn",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "50ff4e89294e98a95adffbae0a3aee7009b2f672d7f192b6f7418573f49c8147",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/moonshotai-cn-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/moonshotai-cn-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "ae070bf14a035b19dab1e5b3ff7d19f0377d21ef4cdf334155744a879fbfa9ab"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/moonshotai-cn",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "nous",
+      "name": "Nous Portal",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/nous",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/nous-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "b82ac12eab0142c38ada930b373c21fe3a434a4ad13ef1394ca41427132e18e3"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "nous-portal",
+      "name": "Nous Portal (OAuth)",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/nous-portal",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/nous-portal-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "81bf04b53a5bb91d45de317e443b6a98e1a1f860612c8e44cf516fc528e081a9"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "nvidia",
+      "name": "NVIDIA NIM",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/nvidia",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/nvidia-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "5e838994c36f96ceac215f9826324c830cc2b4f446500dabd20f7465449859d6"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "ollama",
+      "name": "Ollama",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/ollama",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/ollama-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "1e2489b1a4f695b0deb49a08e4789df695e490ebc667d24493d98e2b50292a49"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "ollama-cloud",
       "name": "Ollama Cloud",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/ollama-cloud",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "11acefc819dc97f900c87cfc80f6c30bb15aef7fbe21630a953d83b1a4a607d3",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/ollama-cloud-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/ollama-cloud-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c0ff0414b929f1772084e60618eca30a578e8df67fdbe71c99768938b566589c"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/ollama-cloud",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect your subscription or API key.",
+      "apiVersion": 2,
+      "id": "omlx",
+      "name": "oMLX",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/omlx",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/omlx-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "de57976ee67cf7d775d363fb8614884c4869f1dc5171b518a7f57a25b3e2646b"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "openai",
       "name": "OpenAI",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/openai",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "183399fee21cec59fd93fa1bfdc3b0454191063bc960d5a1e293621a7f03d4cc",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/openai-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/openai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "a90e7fe3c08e11970c7ea826ab97f57ec0a350cae0a96298e20d1f3421fc8d03"
         }
       },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/openai",
-      "version": "1.1.0"
+      "localSignIns": [
+        {
+          "method": "codexCLI",
+          "label": "Codex",
+          "paths": [
+            "~/.codex/auth.json"
+          ]
+        }
+      ]
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "opencode",
       "name": "OpenCode",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "a55abfc50c8ab5ac316cc6a11a776e6aacdbda82a3b0809b175c5854ef8988ff",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/opencode-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/opencode-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "9a52e311c9553a7db49bd8a1b7e3d04d0b5f3a15ed1a8b594e08ee2cddba90b5"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/opencode",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "opencode-go",
       "name": "OpenCode Go",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode-go",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "bb8c13993b6679341dc06e1317e7989b2abba9c793e95b192d08335924922a9d",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/opencode-go-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/opencode-go-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "cdbb8618a02cbf3bfd3c22d8365246dc66fea45e7596ab01e86ddb55511a1bcc"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/opencode-go",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "opencode-zen",
+      "name": "OpenCode Zen",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode-zen",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/opencode-zen-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "d3f395acb99307092331e1d03bafe4c63d1cdf6328825b11479a6261a411e868"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "opencode-zen-free",
+      "name": "OpenCode Zen Free",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode-zen-free",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/opencode-zen-free-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "4799ac4ecc580e9099954efddce52fcfd343f4f595fb767474914bcf749548b3"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "opendesign",
+      "name": "Open Design",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opendesign",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/opendesign-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c47e2b605ee65d84a355739862dfeb07780f60eec49d54c952004e56492cccc0"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "openrouter",
       "name": "OpenRouter",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/openrouter",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "01044edcebf2003d631d34f6b201f138027d005ed8dc963ddcbfa186b70c173a",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/openrouter-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/openrouter-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "def0398912cc074897b2ea0a92f502216efe4fc1825f2b2174688a7477b293fa"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/openrouter",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "param-override",
+      "name": "Param Override",
+      "description": "Set, delete, move or rewrite request fields with optional conditions.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/param-override",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/param-override-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c2c218a7bac9bf1b9e0bd13980e8178e46df9b11262be2985565e6291737cdd4"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "pipellm",
+      "name": "PipeLLM",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/pipellm",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/pipellm-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "f99865283aa8d358d4620e6c300502b7a0691ffcb6bd739cd2088db2d7db1f05"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qoder",
+      "name": "Qoder",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qoder",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qoder-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "d44022232448689c2605beaef6101873a32efdef37d92d8d73a7b9ce0766fa4d"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qoder-cn",
+      "name": "Qoder CN",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qoder-cn",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qoder-cn-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "1bca348cbcae898166f4d9ece66d26203f596894c3f5f68d767b6c03ef1f7d80"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qwen",
+      "name": "Qwen",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qwen-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "d7c38ffdf32e0522faf928d86cfa07df11d8adffa190e3cc95eef11bca330c72"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qwen-cn",
+      "name": "Qwen (China)",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen-cn",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qwen-cn-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "333943ac797c16a81e049da32b847a89ef151dcecc9d73d5c268db27746f4ae4"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qwen-decision",
+      "name": "Qwen Decision Model",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen-decision",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qwen-decision-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c98cd6f5ed4ccfe572e93d1a96098af71513dd42027e9252d74c1a686e063194"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qwen-token-plan",
+      "name": "Qwen Token Plan",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen-token-plan",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qwen-token-plan-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "b1251f847a469f807b618db5d7ad2d7ee11a633007971584ee6aada7c35c1c1d"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qwenwork",
+      "name": "QwenWork",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwenwork",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qwenwork-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "682126e12b2ea7ca780cfad772e71e3ae3d97a124de92179df1054eea92f798c"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "qwenwork-enterprise",
+      "name": "QwenWork Enterprise",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwenwork-enterprise",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/qwenwork-enterprise-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "559d05c2df2ca2e3f3a0c677ee4677654bed1a95923c37f32b9b290e86f9f871"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "raccoon",
+      "name": "Raccoon",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/raccoon",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/raccoon-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "1c09c44dddcc6a04bfad1daca4f202fe44c44010c4815c0f446b241b4a5c74c8"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "redact",
+      "name": "Privacy masking",
+      "description": "Mask secrets, personal data and selected words before sending requests, and restore them in replies.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/redact",
+      "contributes": [
+        "masker"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/redact-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "1233681793ba192bc2461f0f8cb575cf76cd80af04cbe6bdcf52339a00c97cfb"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "remote-magpie",
+      "name": "Remote Magpie",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/remote-magpie",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/remote-magpie-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "7b9afd37801f717fc011862cbad9409222f5028ef37b7f58095219596df14628"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "reserve",
+      "name": "Reserve",
+      "description": "Keep account capacity in reserve or prefer subscriptions before pay-per-token accounts.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/reserve",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/reserve-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "f2241915d8ad765b6bbfaad87de8a4265676ba3b573e2dc6aaa000d0a7e117eb"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "searxng",
+      "name": "SearXNG",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/searxng",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/searxng-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "87166cf84fd34cba3cb184d2d10d83aad9b09633484fcfda9c99fb5a4f999acc"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "siliconflow",
       "name": "SiliconFlow (China)",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/siliconflow",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "e17de192838da0463586bd90a79756a8778fabee9290115100a2d8e31b62a4b8",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/siliconflow-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/siliconflow-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "080d8cf3c1dfb6a2a2c2b172beda4a0f49db4773e4633b76412483a4c034f4b7"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/siliconflow",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "siliconflow-global",
       "name": "SiliconFlow",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/siliconflow-global",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "3613f50cd611e56c810f83bc7e88d027191d9d478593ea8baa651f12b9b1c1d4",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/siliconflow-global-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/siliconflow-global-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "e03484bfa30a456e25413d1996572fbb29dfa20c70d91747ea2f8c44453fe639"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/siliconflow-global",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "stepfun",
       "name": "StepFun",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/stepfun",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "ea583cc2cbf697c337f28dd8e8d9225ffd8600179fd8c3c63b17e98cd0da7665",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/stepfun-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/stepfun-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "cbe17ffbaa4a11883c5caa6f89740a242ba161b1f7400b138853188ce1c74768"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/stepfun",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "stepfun-cn",
       "name": "StepFun (China)",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/stepfun-cn",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "f322bcb7953a1f911bb8c71dc82811435768c1ede8747e010b901de230539996",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/stepfun-cn-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/stepfun-cn-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "528ec81e9b53bed2307212f45f07233d0631b032f6639ead4cd0d59ac299d4cb"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/stepfun-cn",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "system-prompt",
+      "name": "System Prompt",
+      "description": "Add or replace the system prompt in each supported API format.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/system-prompt",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/system-prompt-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "555a1bf1635e440a765d11098a4bc7f48e24e62a1aa8489d36e44ba6f8411bdb"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "tavily",
+      "name": "Tavily",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/tavily",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/tavily-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "cf348514b184bf271ae8b726721dcd9db2391d8ec09991ccd776ac0ac6e13ae8"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "tencent-cloud",
+      "name": "Tencent Cloud",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/tencent-cloud",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/tencent-cloud-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "872d7e7204aa6949b0480780192e1980907df0c8f158278365aeab2ef781a7b0"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "think-tags",
+      "name": "Think Tags",
+      "description": "Remove think tags from reply text or turn Chat reasoning into visible text.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/think-tags",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/think-tags-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "18110cb0bd220e0e948ca0e75f33e4862b44d114dd23af11bf316e6b7b22780f"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "together",
+      "name": "Together AI",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/together",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/together-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "c6c713102901ae92be953f5d4eba868a646019b87f9ff5a0337e7c5c25bba78f"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "trae-cn",
+      "name": "Trae CN",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/trae-cn",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/trae-cn-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "a77b717f3dd60632c0ad74b062423dd97aa5423a1ebff90e367ae4f1d8bd5335"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "trae-global",
+      "name": "Trae Global",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/trae-global",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/trae-global-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "b34e177eec70f0989b253d57929e17efbda623535c735ad215f50dbb7521d430"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "typesafe",
       "name": "TypeSafe Jev",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/typesafe",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "c6138acf397ce6431e34a4c7a8e89053ca6ecd0e237d3ccb54a8ae38e97f3251",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/typesafe-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/typesafe-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "dcf55a0ca1f540af2a5924345b7e67459c75fb99c844039a01dee077e84375ba"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/typesafe",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "vercel-ai-gateway",
       "name": "Vercel AI Gateway",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/vercel-ai-gateway",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "37f6352a3ac3883a10ac20e7934cbcaf1c82428d7e160ac629c15c8068b408f7",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/vercel-ai-gateway-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/vercel-ai-gateway-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "72bf2cc8c4619eed1ebb00d22e48f1ef3e29d3daf7609331a4b7ee4e21c38e5e"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/vercel-ai-gateway",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "vercel-jev",
+      "name": "Jev · Vercel AI Gateway",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/vercel-jev",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/vercel-jev-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "b23efcbb6799eb36e5dc18cdec602a189ced6be9f3e8887090f880fdbaa9927b"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "volcengine",
+      "name": "Volcengine Ark",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/volcengine",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/volcengine-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "2455e396b3c901ed07d195338590b306865d403e0c38026ed8a3d0cb0ea25e3e"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "word-guard",
+      "name": "Word Guard",
+      "description": "Reject or mask configured words and patterns in requests and replies.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/word-guard",
+      "contributes": [
+        "middleware"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/word-guard-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "bae17b9a7218bcb56bcd50e208778bbb33ba81b4644bcd333cb18326ae8ea3c1"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "workbuddy",
+      "name": "WorkBuddy",
       "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/workbuddy",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/workbuddy-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "e53df3306a62d753769b440b263c38461e528371f4571a00c66053471da4a494"
+        }
+      },
+      "localSignIns": [
+        {
+          "method": "desktop",
+          "label": "WorkBuddy",
+          "paths": [
+            "~/Library/Application Support/CodeBuddyExtension/Data/Public/auth/workbuddy-desktop.info"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": 2,
+      "id": "workbuddy-ai",
+      "name": "WorkBuddy AI",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/workbuddy-ai",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/workbuddy-ai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "e1a4b19ba8a2601b35985d6f77531f3e4942ce8bb58703397bc18fde16bba6e9"
+        }
+      },
+      "localSignIns": [
+        {
+          "method": "desktop",
+          "label": "WorkBuddy AI",
+          "paths": [
+            "~/Library/Application Support/CodeBuddyExtension/Data/Public/auth/workbuddy-desktop-ai.info"
+          ]
+        }
+      ]
+    },
+    {
+      "apiVersion": 2,
       "id": "xai",
       "name": "xAI",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/xai",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "af339f66ba48b2c725883d7a3cb0feee0ac92ea5628014fb267f0162c02370d3",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/xai-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/xai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "af24bf66456b09a1ab11539dc4404b1f3eaac249f9d31d62673545b6f161c2f5"
         }
       },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/xai",
-      "version": "1.1.0"
+      "localSignIns": [
+        {
+          "method": "grokCLI",
+          "label": "Grok CLI",
+          "paths": [
+            "~/.grok/auth.json"
+          ]
+        }
+      ]
     },
     {
-      "description": "Connect with your API key.",
+      "apiVersion": 2,
       "id": "xiaomi",
-      "name": "Xiaomi",
+      "name": "Xiaomi MiMo",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/xiaomi",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "88038112610dacc3602d0073e43ee86c77206ec847ff161d505c7faade14a98e",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/xiaomi-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/xiaomi-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "a3f01c281da29e64d1054c0482103ef6c6a58624b505dba00860be00143d4449"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/xiaomi",
-      "version": "1.1.0"
+      }
     },
     {
+      "apiVersion": 2,
+      "id": "you-search",
+      "name": "You.com",
       "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/you-search",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/you-search-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "dcfdf65762ba1359546ceb4826f0af281a76532ddb218b26d8881df4f7ed99ca"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "yylx",
+      "name": "鱼鱼连线",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/yylx",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/yylx-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "418671ae7033089a9239706b5682c73964f2ca0542593961b5e9815dbeaa4432"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
       "id": "zai",
       "name": "Z.ai",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zai",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "8e86135908035136219d284bbf5d4230124c78e656fa983aec8ac29ee3dfc464",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/zai-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/zai-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "9f74c89adf7818e102838ceb94d46b6de8532ed5e5812ddfad32e3fc4f48b14e"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/zai",
-      "version": "1.1.0"
+      }
     },
     {
-      "description": "Connect with your API key.",
-      "id": "zhipu",
-      "name": "Zhipu GLM",
+      "apiVersion": 2,
+      "id": "zcode",
+      "name": "ZCode",
+      "description": "Connect your subscription or API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zcode",
+      "contributes": [
+        "provider"
+      ],
       "packages": {
         "aarch64-apple-darwin": {
-          "sha256": "cb26c3d7f47de080c561dff933aaf3174a0b82a9c8e26c2cdf8ec5b9db463073",
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v1.1.0-router/zhipu-1.1.0-aarch64-apple-darwin.zip"
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/zcode-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "69d4fbc95831e5037316c998c43d62ceaed227d0905fb1d32a225122ab6ce058"
         }
-      },
-      "repository": "https://github.com/nora-release/plugins/tree/agent/router/packages/zhipu",
-      "version": "1.1.0"
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "zed",
+      "name": "Zed",
+      "description": "Zed subscription models through the Zed cloud native provider envelopes. Zed publishes plan metadata rather than remaining-token quotas.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zed",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/zed-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "16eb01e96302ea070212a8379e85315a5c29d6037a7aa000c4f03226df8305be"
+        }
+      }
+    },
+    {
+      "apiVersion": 2,
+      "id": "zhipu",
+      "name": "Zhipu GLM",
+      "description": "Connect with your API key.",
+      "version": "1.2.0",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zhipu",
+      "contributes": [
+        "provider"
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/zhipu-1.2.0-aarch64-apple-darwin.zip",
+          "sha256": "4c1b4701a24fc508696999e223cdc94aad295e9091e786cc45b1c5294be0a697"
+        }
+      }
     }
-  ],
-  "schemaVersion": 1
+  ]
 }

@@ -1320,12 +1320,13 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 [[package]]
 name = "nora-ai"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7#8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7"
+source = "git+https://github.com/nora-release/nora.git?rev=d8e98dde126803eddae3560152847f23c4977694#d8e98dde126803eddae3560152847f23c4977694"
 dependencies = [
  "async-trait",
  "base64",
  "bytes",
  "futures",
+ "nora-network",
  "rand 0.8.6",
  "regex",
  "reqwest",

@@ -75,11 +75,11 @@ async fn xml_all_qoder_sites_dispatch_calls_and_errors_through_the_locked_sdk() 
         Site::QwenWorkEnterprise,
     ] {
         let manifest: Value = serde_json::from_str(match site {
-            Site::International => include_str!("../nora-provider.json"),
-            Site::China => include_str!("../../qoder-cn/nora-provider.json"),
-            Site::QwenWork => include_str!("../../qwenwork/nora-provider.json"),
+            Site::International => include_str!("../nora-plugin.json"),
+            Site::China => include_str!("../../qoder-cn/nora-plugin.json"),
+            Site::QwenWork => include_str!("../../qwenwork/nora-plugin.json"),
             Site::QwenWorkEnterprise => {
-                include_str!("../../qwenwork-enterprise/nora-provider.json")
+                include_str!("../../qwenwork-enterprise/nora-plugin.json")
             }
         })
         .unwrap();

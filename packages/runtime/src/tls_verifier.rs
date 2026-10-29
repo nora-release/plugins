@@ -72,8 +72,8 @@ fn configuration_with_extra_roots(
     certificates: impl IntoIterator<Item = CertificateDer<'static>>,
 ) -> PluginResult<rustls::ClientConfig> {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
-    let verified = nora_provider_network::tls::verifier(provider.clone(), certificates)
-        .map_err(|_| invalid())?;
+    let verified =
+        nora_network::tls::verifier(provider.clone(), certificates).map_err(|_| invalid())?;
     with_verifier(hosts, proxy, verified, provider)
 }
 

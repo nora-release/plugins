@@ -102,14 +102,15 @@ fn both_compiled_native_packages_serve_models_identity_and_global_policy_without
     for site in [Site::International, Site::China] {
         let package = root.join(site.id());
         let mut manifest: Value =
-            serde_json::from_slice(&std::fs::read(package.join("nora-provider.json")).unwrap())
+            serde_json::from_slice(&std::fs::read(package.join("nora-plugin.json")).unwrap())
                 .unwrap();
         // Even a regression cannot contact an upstream: all HTTP is directed
         // through a deliberately closed local proxy in these private fixtures.
-        manifest["config"]["networkProxy"] = json!({"mode":"proxy","url":"http://127.0.0.1:1"});
+        manifest["contributes"]["provider"]["config"]["networkProxy"] =
+            json!({"mode":"proxy","url":"http://127.0.0.1:1"});
         let mut process = Process::new(&package.join("provider"));
-        let initialized=process.call(1,"initialize",json!({"apiVersion":1,"pluginID":site.id(),"subscriptionAccountsEnabled":true,"pluginDirectory":package,"dataDirectory":temporary.0.join(site.id()),"manifest":manifest,"config":{}}));
-        assert_eq!(initialized["result"]["apiVersion"], 1);
+        let initialized=process.call(1,"initialize",json!({"apiVersion":2,"pluginID":site.id(),"subscriptionAccountsEnabled":true,"pluginDirectory":package,"dataDirectory":temporary.0.join(site.id()),"manifest":manifest,"config":{}}));
+        assert_eq!(initialized["result"]["apiVersion"], 2);
         assert_eq!(initialized["result"]["capabilities"]["persistent"], true);
         let credentials = crate::tests::credentials(site);
         let params = json!({"account":"fixture","subscriptionAccountsEnabled":true,"credentials":credentials});
@@ -142,11 +143,12 @@ fn native_network_failures_keep_login_and_missing_refresh_still_requires_login()
     for site in [Site::International, Site::China] {
         let package = root.join(site.id());
         let mut manifest: Value =
-            serde_json::from_slice(&std::fs::read(package.join("nora-provider.json")).unwrap())
+            serde_json::from_slice(&std::fs::read(package.join("nora-plugin.json")).unwrap())
                 .unwrap();
-        manifest["config"]["networkProxy"] = json!({"mode":"proxy","url":"http://127.0.0.1:1"});
+        manifest["contributes"]["provider"]["config"]["networkProxy"] =
+            json!({"mode":"proxy","url":"http://127.0.0.1:1"});
         let mut process = Process::new(&package.join("provider"));
-        let initialized=process.call(1,"initialize",json!({"apiVersion":1,"pluginID":site.id(),"pluginDirectory":package,"dataDirectory":package.join("data"),"manifest":manifest,"subscriptionAccountsEnabled":true}));
+        let initialized=process.call(1,"initialize",json!({"apiVersion":2,"pluginID":site.id(),"pluginDirectory":package,"dataDirectory":package.join("data"),"manifest":manifest,"subscriptionAccountsEnabled":true}));
         assert!(initialized.get("error").is_none());
         let credentials = crate::tests::credentials(site);
         let params = json!({"account":"fixture","credentials":credentials,"subscriptionAccountsEnabled":true});

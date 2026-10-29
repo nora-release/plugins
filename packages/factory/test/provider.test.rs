@@ -23,11 +23,11 @@ fn initialize() -> InitializeParams {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: serde_json::Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: "factory".into(),
         plugin_directory: std::env::temp_dir(),
         data_directory: std::env::temp_dir(),
-        manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     }
 }
 async fn plugin(client: Arc<Client>, store: Arc<Store>) -> Factory {
@@ -65,7 +65,7 @@ async fn initialization_does_not_import_install_or_contact_accounts() {
     );
     assert!(client.requests.lock().unwrap().is_empty());
     let mut bad = initialize();
-    bad.manifest["baseURL"] = json!("https://custom.test/v1");
+    bad.manifest["contributes"]["provider"]["baseURL"] = json!("https://custom.test/v1");
     assert!(p.initialize(bad).await.is_err());
 }
 #[tokio::test]

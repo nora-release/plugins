@@ -251,9 +251,9 @@ async fn rpc(provider: Qoder, method: &str, params: Value) -> (Value, Vec<Value>
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     let site = provider.site;
     let manifest: Value = serde_json::from_str(if site == Site::QwenWorkEnterprise {
-        include_str!("../../qwenwork-enterprise/nora-provider.json")
+        include_str!("../../qwenwork-enterprise/nora-plugin.json")
     } else {
-        include_str!("../../qwenwork/nora-provider.json")
+        include_str!("../../qwenwork/nora-plugin.json")
     })
     .unwrap();
     let (host, plugin) = tokio::io::duplex(65536);
@@ -266,7 +266,7 @@ async fn rpc(provider: Qoder, method: &str, params: Value) -> (Value, Vec<Value>
     let (read, mut write) = tokio::io::split(host);
     let mut read = BufReader::new(read);
     let mut line = String::new();
-    write.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":site.id(),"pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
+    write.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":2,"pluginID":site.id(),"pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
     read.read_line(&mut line).await.unwrap();
     assert!(serde_json::from_str::<Value>(&line)
         .unwrap()

@@ -1,0 +1,24 @@
+{
+  "apiVersion": 2,
+  "id": "model-map",
+  "name": "Model Map",
+  "version": "1.2.0",
+  "summary": "Route requested model names to other models while preserving their public names in replies.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "middleware": {
+      "version": 1,
+      "request": true,
+      "event": true,
+      "response": true,
+      "options": {
+        "mapping": {
+          "fast": "deepseek-chat",
+          "/^gpt-4o(-.*)?$/": "deepseek-chat"
+        }
+      }
+    }
+  }
+}

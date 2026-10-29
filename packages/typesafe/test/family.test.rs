@@ -64,10 +64,10 @@ impl core::CredentialStore for Store {
 }
 fn manifest(family: DecisionFamily) -> Value {
     let value = match family {
-        DecisionFamily::Vercel => include_str!("../../vercel-jev/nora-provider.json"),
-        DecisionFamily::Cloudflare => include_str!("../../cloudflare-jev/nora-provider.json"),
-        DecisionFamily::Bailian => include_str!("../../bailian-decision/nora-provider.json"),
-        DecisionFamily::Qwen => include_str!("../../qwen-decision/nora-provider.json"),
+        DecisionFamily::Vercel => include_str!("../../vercel-jev/nora-plugin.json"),
+        DecisionFamily::Cloudflare => include_str!("../../cloudflare-jev/nora-plugin.json"),
+        DecisionFamily::Bailian => include_str!("../../bailian-decision/nora-plugin.json"),
+        DecisionFamily::Qwen => include_str!("../../qwen-decision/nora-plugin.json"),
     };
     serde_json::from_str(value).unwrap()
 }
@@ -84,7 +84,7 @@ fn setup(family: DecisionFamily, replies: Vec<Reply>) -> (DecisionProvider, Arc<
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: family.id().into(),
             plugin_directory: PathBuf::new(),
             data_directory: PathBuf::new(),

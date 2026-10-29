@@ -10,13 +10,14 @@ async fn warmup_requires_explicit_confirmation_before_any_cli_access() {
 }
 #[test]
 fn warmup_declares_omitted_idle_windows() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     assert_eq!(
-        manifest["config"]["accountAutomation"]["warmup"]["method"],
+        manifest["contributes"]["provider"]["config"]["accountAutomation"]["warmup"]["method"],
         "warmup"
     );
     assert_eq!(
-        manifest["config"]["accountAutomation"]["warmup"]["expectedWindows"][0]["id"],
+        manifest["contributes"]["provider"]["config"]["accountAutomation"]["warmup"]
+            ["expectedWindows"][0]["id"],
         "five_hour"
     );
 }
@@ -25,11 +26,11 @@ async fn fixture() -> (crate::fixture::Directory, Claude, Value, std::path::Path
     let plugin = Claude::default();
     plugin
         .initialize(InitializeParams {
-            api_version: 1,
+            api_version: 2,
             plugin_id: "anthropic".into(),
             plugin_directory: directory.0.clone(),
             data_directory: directory.0.join("data"),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: Value::Null,
             subscription_accounts_enabled: true,

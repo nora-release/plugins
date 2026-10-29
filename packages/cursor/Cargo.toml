@@ -6,7 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-nora-provider-network = { workspace = true, features = ["http2"] }
+nora-network = { workspace = true, features = ["http2"] }
 nora-ai.workspace = true
 nora-provider-plugin-sdk.workspace = true
 nora-provider = { path = "../runtime" }

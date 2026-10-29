@@ -1,0 +1,68 @@
+{
+  "apiVersion": 2,
+  "id": "kilo",
+  "name": "Kilo Gateway",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.kilo.ai/api/openrouter",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "config": {
+        "ownClient": true,
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "kilo",
+        "catalog": "kilo",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.kilo.ai/api/openrouter"
+              }
+            ],
+            "models": [],
+            "catalog": "kilo",
+            "noList": false,
+            "keyOptional": true,
+            "modelRoutes": [],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.kilo.ai/api/openrouter",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.kilo.ai/api/openrouter"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

@@ -68,7 +68,7 @@ impl GcpAi {
             return Ok(client.clone());
         }
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_network::http_client(proxy)?)
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(proxy)?)
                 .with_observer_fn(|| async {
                     nora_provider_plugin_sdk::before_http_request()
                         .await
@@ -265,7 +265,11 @@ impl ProviderPlugin for GcpAi {
                 "The GCP AI provider manifest is invalid.",
             ));
         }
-        let row = params.manifest.get("config").cloned().unwrap_or(json!({}));
+        let row = params
+            .manifest
+            .pointer("/contributes/provider/config")
+            .cloned()
+            .unwrap_or(json!({}));
         let proxy = serde_json::from_value::<Option<NetworkProxy>>(
             row.get("networkProxy").cloned().unwrap_or(Value::Null),
         )
@@ -283,12 +287,12 @@ impl ProviderPlugin for GcpAi {
                 proxy,
                 methods: params
                     .manifest
-                    .get("authMethods")
+                    .pointer("/contributes/provider/authMethods")
                     .cloned()
                     .unwrap_or(json!([])),
                 preset: params
                     .manifest
-                    .get("models")
+                    .pointer("/contributes/provider/models")
                     .cloned()
                     .unwrap_or_else(models::seeds),
             });

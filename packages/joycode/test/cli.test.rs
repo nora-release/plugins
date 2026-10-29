@@ -43,8 +43,8 @@ async fn compiled_plugin_exposes_real_protocol_models_and_cancellable_browser_si
             }
         }
     }
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    let initialized=call(&mut input,&mut output,1,"initialize",json!({"apiVersion":1,"pluginID":"joycode","pluginDirectory":"/tmp/joycode-cli","dataDirectory":"/tmp/joycode-cli-data","manifest":manifest})).await;
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    let initialized=call(&mut input,&mut output,1,"initialize",json!({"apiVersion":2,"pluginID":"joycode","pluginDirectory":"/tmp/joycode-cli","dataDirectory":"/tmp/joycode-cli-data","manifest":manifest})).await;
     assert_eq!(initialized["result"]["capabilities"]["persistent"], true);
     let methods = call(&mut input, &mut output, 2, "authMethods", json!({})).await;
     assert_eq!(methods["result"].as_array().unwrap().len(), 2);

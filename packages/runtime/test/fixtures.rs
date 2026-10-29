@@ -18,3 +18,19 @@ pub(crate) fn test_adapter(id: &str) -> std::sync::Arc<dyn ProviderAdapter> {
         _ => adapter::generic(),
     }
 }
+
+/// Wraps a provider definition written as flat test fields in the v2 package
+/// manifest that Nora sends at initialization.
+pub(crate) fn package(mut provider: serde_json::Value) -> serde_json::Value {
+    let fields = provider.as_object_mut().unwrap();
+    let id = fields.remove("id").unwrap();
+    let name = fields.remove("name").unwrap();
+    serde_json::json!({
+        "apiVersion": 2,
+        "id": id,
+        "name": name,
+        "version": "1.0.0",
+        "runtime": {"entry": "provider"},
+        "contributes": {"provider": provider},
+    })
+}

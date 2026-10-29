@@ -12,7 +12,7 @@ struct Plugin<M>(M);
 impl<M: Middleware> ProviderPlugin for Plugin<M> {
     async fn initialize(&self, _params: InitializeParams) -> PluginResult<Value> {
         Ok(
-            json!({"apiVersion":1,"capabilities":{"gatewayMiddleware":{"version":1,"bodyFile":true}}}),
+            json!({"apiVersion":2,"capabilities":{"gatewayMiddleware":{"version":1,"bodyFile":true}}}),
         )
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {

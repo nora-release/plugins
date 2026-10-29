@@ -1,0 +1,20 @@
+{
+  "apiVersion": 2,
+  "id": "codex-history",
+  "name": "Codex History",
+  "version": "1.2.0",
+  "summary": "Choose Codex Responses history compatibility separately for each provider.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "middleware": {
+      "version": 1,
+      "request": true,
+      "options": {
+        "providers": {},
+        "aliases": {}
+      }
+    }
+  }
+}

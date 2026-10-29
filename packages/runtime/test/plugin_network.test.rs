@@ -30,8 +30,9 @@ async fn endpoint() -> (String, JoinHandle<String>) {
 async fn configured(adapter: impl ProviderAdapter, proxy: Option<NetworkProxy>) -> BundledProvider {
     let provider = BundledProvider::new(adapter);
     let mut manifest: Value =
-        serde_json::from_str(include_str!("../../xai/nora-provider.json")).unwrap();
-    manifest["config"]["networkProxy"] = serde_json::to_value(proxy).unwrap();
+        serde_json::from_str(include_str!("../../xai/nora-plugin.json")).unwrap();
+    manifest["contributes"]["provider"]["config"]["networkProxy"] =
+        serde_json::to_value(proxy).unwrap();
     provider
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,

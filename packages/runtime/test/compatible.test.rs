@@ -2,7 +2,7 @@ use nora_provider_plugin_sdk::{InitializeParams, ProviderPlugin};
 use serde_json::{json, Value};
 
 fn manifest() -> Value {
-    serde_json::from_str(include_str!("../../compatible/nora-provider.json")).unwrap()
+    serde_json::from_str(include_str!("../../compatible/nora-plugin.json")).unwrap()
 }
 
 #[tokio::test]
@@ -14,9 +14,10 @@ async fn an_explicit_private_auth_header_does_not_add_other_authentication_heade
         nora_ai::AuthScheme::None,
     ] {
         let mut value = manifest();
-        value["baseURL"] = json!("https://relay.invalid");
-        value["api"] = json!("anthropic-messages");
-        value["config"]["apiKeyAuth"] = serde_json::to_value(&scheme).unwrap();
+        value["contributes"]["provider"]["baseURL"] = json!("https://relay.invalid");
+        value["contributes"]["provider"]["api"] = json!("anthropic-messages");
+        value["contributes"]["provider"]["config"]["apiKeyAuth"] =
+            serde_json::to_value(&scheme).unwrap();
         let definition = crate::definition::Definition::parse(value).unwrap();
         let request = nora_provider_plugin_sdk::FetchRequest {
             caller_user_agent: None,
@@ -51,13 +52,13 @@ async fn an_explicit_private_auth_header_does_not_add_other_authentication_heade
 async fn custom_provider_authorizes_without_a_key_when_a_service_does_not_require_one() {
     let plugin = crate::BundledProvider::default();
     let mut value = manifest();
-    value["baseURL"] = json!("http://localhost:11434/v1");
+    value["contributes"]["provider"]["baseURL"] = json!("http://localhost:11434/v1");
     plugin
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "compatible".into(),
             plugin_directory: "/tmp/compatible".into(),
             data_directory: "/tmp/compatible".into(),
@@ -103,8 +104,8 @@ async fn custom_provider_uses_the_configured_protocol_and_destination_without_ve
         ),
     ] {
         let mut value = manifest();
-        value["baseURL"] = json!(base);
-        value["api"] = json!(api);
+        value["contributes"]["provider"]["baseURL"] = json!(base);
+        value["contributes"]["provider"]["api"] = json!(api);
         let definition = crate::definition::Definition::parse(value).unwrap();
         assert!(definition.models.is_empty());
         assert!(definition.config.catalog.is_empty());

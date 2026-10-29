@@ -2,8 +2,8 @@ use super::*;
 
 fn definition(family: DecisionFamily) -> Definition {
     let value = match family {
-        DecisionFamily::Cloudflare => include_str!("../../cloudflare-jev/nora-provider.json"),
-        _ => include_str!("../../vercel-jev/nora-provider.json"),
+        DecisionFamily::Cloudflare => include_str!("../../cloudflare-jev/nora-plugin.json"),
+        _ => include_str!("../../vercel-jev/nora-plugin.json"),
     };
     Definition::parse(serde_json::from_str(value).unwrap()).unwrap()
 }

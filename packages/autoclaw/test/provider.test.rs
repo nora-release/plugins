@@ -102,16 +102,18 @@ async fn both_manifests_initialize_without_reading_sources_network_or_login_and_
         let mut provider = Autoclaw::new(site);
         provider.client = Some(client.clone());
         let manifest: Value = serde_json::from_str(if site == Site::China {
-            include_str!("../../autoclaw-cn/nora-provider.json")
+            include_str!("../../autoclaw-cn/nora-plugin.json")
         } else {
-            include_str!("../nora-provider.json")
+            include_str!("../nora-plugin.json")
         })
         .unwrap();
-        assert!(manifest.pointer("/config/connectionOptions").is_none());
+        assert!(manifest
+            .pointer("/contributes/provider/config/connectionOptions")
+            .is_none());
         assert!(manifest.get("localSignIns").is_none());
         provider
             .initialize(InitializeParams {
-                api_version: 1,
+                api_version: 2,
                 subscription_accounts_enabled: true,
                 plugin_id: site.id().into(),
                 plugin_directory: "/fake".into(),

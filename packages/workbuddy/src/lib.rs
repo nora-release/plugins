@@ -93,7 +93,7 @@ impl WorkBuddy {
         if let Some(client) = &self.client {
             return Ok(client.clone());
         }
-        let client = nora_provider_network::http_client(proxy.or(config.proxy.as_ref()))?;
+        let client = nora_provider_plugin_sdk::http_client(proxy.or(config.proxy.as_ref()))?;
         Ok(Arc::new(
             ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
                 nora_provider_plugin_sdk::before_http_request()
@@ -153,7 +153,7 @@ impl ProviderPlugin for WorkBuddy {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -168,7 +168,7 @@ impl ProviderPlugin for WorkBuddy {
             proxy,
             methods: params
                 .manifest
-                .get("authMethods")
+                .pointer("/contributes/provider/authMethods")
                 .cloned()
                 .unwrap_or(json!([])),
         });

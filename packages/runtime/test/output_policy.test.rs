@@ -19,7 +19,7 @@ impl HttpClient for Upstream {
 }
 
 fn fixture(api: &str, extra: Value) -> Definition {
-    Definition::parse(json!({
+    Definition::from_fields(json!({
         "id":"compatible","name":"Custom","api":api,"baseURL":"https://custom.invalid/v1",
         "config":{"keyProvider":"custom","extraBody":extra}
     }))

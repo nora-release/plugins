@@ -1,0 +1,40 @@
+{
+  "apiVersion": 2,
+  "id": "opendesign",
+  "name": "Open Design",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://amr-link.open-design.ai/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Open Design account"
+        },
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "Open Design API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "label": "API key",
+              "type": "password",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "authTimeoutMs": 900000
+      }
+    }
+  }
+}

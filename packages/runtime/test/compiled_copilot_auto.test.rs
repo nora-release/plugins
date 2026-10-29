@@ -117,7 +117,7 @@ fn compiled_copilot_auto_selects_a_protocol_and_sends_its_private_session() {
     raw["baseURL"] = json!(server.url);
     raw["config"]["networkProxy"] = json!({"mode":"direct"});
     let mut process = Process::new(&package, &temporary.0.join("home"), true);
-    let initialized = process.call(1, "initialize", json!({"apiVersion":1,"pluginID":"github-copilot", "subscriptionAccountsEnabled":true,
+    let initialized = process.call(1, "initialize", json!({"apiVersion":2,"pluginID":"github-copilot", "subscriptionAccountsEnabled":true,
         "pluginDirectory":package,"dataDirectory":temporary.0.join("data"),"manifest":raw,"config":{}}));
     assert_eq!(
         initialized["result"]["capabilities"]["sdkFeatures"]["modelResolution"],

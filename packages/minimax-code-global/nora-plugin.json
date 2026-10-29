@@ -1,0 +1,40 @@
+{
+  "apiVersion": 2,
+  "id": "minimax-code-global",
+  "name": "MiniMax Code Global",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "anthropic-messages",
+      "baseURL": "https://agent.minimax.io/mavis/api/v1/llm/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "MiniMax Code account"
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "accountActions": [
+          "checkin"
+        ],
+        "authTimeoutMs": 900000,
+        "accountAutomation": {
+          "version": 1,
+          "checkin": {
+            "method": "checkin",
+            "statusMethod": "checkinStatus",
+            "timeZone": "Asia/Shanghai",
+            "authMethods": [
+              "oauth"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

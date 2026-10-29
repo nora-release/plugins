@@ -53,7 +53,7 @@ impl CodeArts {
             return Ok(client.clone());
         }
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_network::http_client(
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
                 proxy.or(config.proxy.as_ref()),
             )?)
             .with_observer_fn(|| async {
@@ -190,7 +190,7 @@ impl ProviderPlugin for CodeArts {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -205,13 +205,13 @@ impl ProviderPlugin for CodeArts {
             proxy,
             methods: params
                 .manifest
-                .get("authMethods")
+                .pointer("/contributes/provider/authMethods")
                 .cloned()
                 .unwrap_or(json!([])),
             data: params.data_directory,
             max_inflight: params
                 .manifest
-                .pointer("/config/maxInflight")
+                .pointer("/contributes/provider/config/maxInflight")
                 .and_then(Value::as_u64)
                 .filter(|limit| *limit > 0)
                 .map(|limit| limit.min(3) as usize)

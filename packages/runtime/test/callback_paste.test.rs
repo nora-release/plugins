@@ -46,7 +46,7 @@ async fn callback_paste_runtime_codex_keeps_session_across_polls_and_bad_input()
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                 .parent()
                 .unwrap()
-                .join("openai/nora-provider.json"),
+                .join("openai/nora-plugin.json"),
         )
         .unwrap(),
     )

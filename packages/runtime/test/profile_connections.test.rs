@@ -1,5 +1,6 @@
 use super::mixed_accounts_tests::Endpoint;
 use super::*;
+use crate::fixtures::package;
 use base64::Engine;
 use nora_ai::AuthScheme;
 use std::path::PathBuf;
@@ -68,7 +69,7 @@ async fn local_profiles_list_models_and_send_each_protocol_to_the_custom_server(
                 PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                     .join("..")
                     .join(id)
-                    .join("nora-provider.json"),
+                    .join("nora-plugin.json"),
             )
             .unwrap(),
         )
@@ -128,11 +129,11 @@ async fn adding_and_changing_an_additional_api_keeps_the_primary_request_working
     let primary = Endpoint::start().await;
     let additional = Endpoint::start().await;
     let changed = Endpoint::start().await;
-    let original = json!({
+    let original = package(json!({
         "id":"profile-fixture","name":"Fixture","api":"openai-completions",
         "baseURL":format!("{}/chat/v1",primary.base),
         "config":{"keyProvider":"api-key","connectionOptions":true}
-    });
+    }));
     let value = json!({"type":"apiKey","access":"private-fixture-key"});
     for extra in [&additional, &changed] {
         let address = format!("{}/anthropic/v1", extra.base);
@@ -207,7 +208,7 @@ async fn default_and_auto_headers_preserve_each_profiles_real_endpoint_and_authe
     let plan = Endpoint::start().await;
     let api = Endpoint::start().await;
     let native = Endpoint::start().await;
-    let original = manifest(&plan.base, &api.base, &native.base);
+    let original = package(manifest(&plan.base, &api.base, &native.base));
     for patch in [json!({}), json!({"authHeader":"auto"})] {
         let plugin = plugin(original.clone(), original.clone(), patch).await;
         for (profile, endpoint, header) in [
@@ -271,7 +272,7 @@ async fn explicit_user_endpoints_and_headers_apply_after_both_profiles_while_sig
         configured["config"][key] = patch[key].clone();
     }
     configured["config"]["modelDiscovery"] = json!({"defaultBaseURL":configured["baseURL"],"bases":[{"api":"anthropic-messages","baseURL":patch["endpoints"]["anthropic-messages"]}]});
-    let plugin = plugin(original, configured, patch).await;
+    let plugin = plugin(package(original), package(configured), patch).await;
     for profile in ["plan", "api"] {
         let value = credentials(profile);
         let definition = plugin

@@ -33,12 +33,12 @@ async fn profile_worker() {
     let plugin = crate::plugin::OpenAIPlugin::default();
     let result = plugin
         .initialize(InitializeParams {
-            api_version: 1,
+            api_version: 2,
             subscription_accounts_enabled: false,
             plugin_id: "openai".into(),
             plugin_directory: path.clone(),
             data_directory: path,
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: json!({}),
         })

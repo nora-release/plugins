@@ -59,7 +59,7 @@ impl CodeAssist {
             return Ok(client.clone());
         }
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_network::http_client(proxy)?)
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(proxy)?)
                 .with_observer_fn(|| async {
                     nora_provider_plugin_sdk::before_http_request()
                         .await
@@ -397,7 +397,7 @@ impl ProviderPlugin for CodeAssist {
         if params.api_version != API_VERSION
             || params.plugin_id != self.app.id()
             || params.manifest["id"] != self.app.id()
-            || params.manifest["baseURL"] != self.app.base()
+            || params.manifest["contributes"]["provider"]["baseURL"] != self.app.base()
         {
             return Err(invalid(
                 "The Code Assist executable does not match its manifest.",
@@ -406,7 +406,7 @@ impl ProviderPlugin for CodeAssist {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -420,7 +420,7 @@ impl ProviderPlugin for CodeAssist {
             .map_err(|_| invalid("The Code Assist configuration is unavailable."))? =
             Some(Config {
                 proxy,
-                methods: params.manifest["authMethods"].clone(),
+                methods: params.manifest["contributes"]["provider"]["authMethods"].clone(),
             });
         Ok(
             json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true,"accountDiscovery":self.app==App::GeminiCLI,"sdkFeatures":{"accountImport":1}}}),

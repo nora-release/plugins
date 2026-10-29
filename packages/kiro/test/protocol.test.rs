@@ -67,12 +67,12 @@ impl Plugin {
             output,
             next: 0,
         };
-        let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+        let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
         let initialized = plugin
             .call(
                 "initialize",
                 json!({
-                    "apiVersion":1,"pluginID":"kiro","pluginDirectory":env!("CARGO_MANIFEST_DIR"),
+                    "apiVersion":2,"pluginID":"kiro","pluginDirectory":env!("CARGO_MANIFEST_DIR"),
                     "dataDirectory":directory.0.join("nora"),"manifest":manifest,
                     "hostCapabilities":{"credentialUpdates":true,"httpRequestMeter":true}
                 }),

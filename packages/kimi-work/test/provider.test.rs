@@ -52,12 +52,12 @@ fn provider(replies: Vec<Reply>) -> (KimiWork, Arc<MockHttp>) {
         requests: Mutex::new(Vec::new()),
         replies: Mutex::new(replies.into()),
     });
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     let provider = KimiWork {
         config: RwLock::new(Some(Config {
             proxy: None,
-            auth_methods: manifest["authMethods"].clone(),
-            preset_models: manifest["models"].clone(),
+            auth_methods: manifest["contributes"]["provider"]["authMethods"].clone(),
+            preset_models: manifest["contributes"]["provider"]["models"].clone(),
         })),
         client: Some(client.clone()),
     };
@@ -242,8 +242,8 @@ async fn nonofficial_addresses_and_methods_are_refused_before_any_network_reques
     ] {
         assert!(provider.fetch(request(url, method, b"{}")).await.is_err());
     }
-    let mut manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    manifest["baseURL"] = json!("https://foreign.invalid/coding/v1");
+    let mut manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    manifest["contributes"]["provider"]["baseURL"] = json!("https://foreign.invalid/coding/v1");
     let init = InitializeParams {
         subscription_accounts_enabled: true,
         installed_manifest: None,

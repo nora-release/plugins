@@ -41,8 +41,8 @@ impl Host {
             accept: true,
             saved: Vec::new(),
         };
-        let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-        let result=host.call("initialize",json!({"apiVersion":1,"pluginID":"xai","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":fixture.directory.join("plugin-data"),"manifest":manifest,"subscriptionAccountsEnabled":enabled,"hostCapabilities":{"credentialUpdates":true}})).await;
+        let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+        let result=host.call("initialize",json!({"apiVersion":2,"pluginID":"xai","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":fixture.directory.join("plugin-data"),"manifest":manifest,"subscriptionAccountsEnabled":enabled,"hostCapabilities":{"credentialUpdates":true}})).await;
         (host, result)
     }
     async fn write(&mut self, value: Value) {

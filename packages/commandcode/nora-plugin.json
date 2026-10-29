@@ -1,0 +1,88 @@
+{
+  "apiVersion": 2,
+  "id": "commandcode",
+  "name": "Command Code",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.commandcode.ai/provider/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "commandcode",
+        "catalog": "commandcode",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.commandcode.ai/provider/v1"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://api.commandcode.ai/provider/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://api.commandcode.ai/provider"
+              }
+            ],
+            "models": [],
+            "catalog": "commandcode",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.commandcode.ai/provider/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.commandcode.ai/provider/v1"
+            },
+            {
+              "api": "openai-responses",
+              "baseURL": "https://api.commandcode.ai/provider/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.commandcode.ai/provider"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

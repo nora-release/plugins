@@ -3,7 +3,7 @@ use serde_json::json;
 #[test]
 fn mcp_auto_drawing_marks_only_images_included_in_subscription_accounts() {
     let definition =
-        Definition::parse(serde_json::from_str(include_str!("../nora-provider.json")).unwrap())
+        Definition::parse(serde_json::from_str(include_str!("../nora-plugin.json")).unwrap())
             .unwrap();
     let adapter = OpenAI;
     for credentials in [None, Some(json!({"type":"apiKey","key":"fake"}))] {

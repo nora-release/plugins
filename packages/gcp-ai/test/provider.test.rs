@@ -10,12 +10,12 @@ async fn plugin(directory: &Directory, client: Arc<Client>) -> GcpAi {
     };
     plugin
         .initialize(InitializeParams {
-            api_version: 1,
+            api_version: 2,
             subscription_accounts_enabled: true,
             plugin_id: "gcp-ai".into(),
             plugin_directory: directory.0.clone(),
             data_directory: directory.0.join("data"),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: Value::Null,
         })

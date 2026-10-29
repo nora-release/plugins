@@ -10,7 +10,7 @@ fn client(
     let config =
         configuration_with_extra_roots(hosts.iter().map(|v| v.to_string()).collect(), proxy, roots)
             .unwrap();
-    let mut builder = nora_provider_network::http_client_builder(proxy).unwrap();
+    let mut builder = nora_provider_plugin_sdk::http_client_builder(proxy).unwrap();
     if let Some(NetworkProxy::Proxy { url }) = proxy {
         let url = url::Url::parse(url).unwrap();
         builder = builder.resolve(

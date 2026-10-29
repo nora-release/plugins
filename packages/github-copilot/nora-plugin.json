@@ -1,0 +1,94 @@
+{
+  "apiVersion": 2,
+  "id": "github-copilot",
+  "name": "GitHub Copilot",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.individual.githubcopilot.com",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in",
+          "fields": [
+            {
+              "id": "host",
+              "key": "host",
+              "type": "text",
+              "label": "GitHub host (github.com or an enterprise's <name>.ghe.com)",
+              "required": false
+            }
+          ]
+        },
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "copilotEditors",
+          "type": "source",
+          "label": "Use the Copilot editors’ sign-in"
+        }
+      ],
+      "models": [
+        {
+          "id": "oswe-vscode-prime",
+          "name": "Raptor mini (Preview)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 256000,
+          "maxTokens": 64000
+        }
+      ],
+      "config": {
+        "modelResolutionModels": [
+          "auto"
+        ],
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "sourceAuthMethods": [
+          {
+            "id": "copilotEditors",
+            "type": "source",
+            "label": "Use the Copilot editors’ sign-in"
+          }
+        ],
+        "catalog": "github-copilot",
+        "keyProvider": "github-copilot",
+        "oauthProvider": "github-copilot",
+        "legacy": {
+          "providerID": "github-copilot",
+          "keyProvider": "github-copilot",
+          "oauthProvider": "github-copilot",
+          "credentialProvider": "gitHubCopilot"
+        }
+      },
+      "localSignIns": [
+        {
+          "method": "copilotEditors",
+          "label": "GitHub Copilot",
+          "paths": [
+            "~/.config/github-copilot/apps.json"
+          ]
+        }
+      ]
+    }
+  }
+}

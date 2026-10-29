@@ -1353,6 +1353,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-network"
+version = "0.24.0"
+source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
+dependencies = [
+ "reqwest",
+ "rustls",
+ "rustls-platform-verifier",
+ "webpki-roots 1.0.9",
+]
+
+[[package]]
+name = "nora-plugin-manifest"
+version = "0.24.0"
+source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
+dependencies = [
+ "flate2",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "unicode-normalization",
+ "url",
+]
+
+[[package]]
 name = "nora-provider"
 version = "1.2.0"
 dependencies = [
@@ -1365,8 +1390,9 @@ dependencies = [
  "globset",
  "multer",
  "nora-ai",
+ "nora-network",
+ "nora-plugin-manifest",
  "nora-provider-auth",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rcgen",
  "regex",
@@ -1436,9 +1462,9 @@ dependencies = [
  "futures",
  "libc",
  "nora-ai",
+ "nora-network",
  "nora-provider",
  "nora-provider-auth",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "regex",
  "serde_json",
@@ -1476,7 +1502,7 @@ dependencies = [
  "chrono",
  "jsonwebtoken",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "rand 0.8.6",
  "rsa",
@@ -1496,7 +1522,7 @@ dependencies = [
  "getrandom 0.2.17",
  "md-5",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "regex",
  "serde_json",
@@ -1552,8 +1578,8 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "nora-ai",
+ "nora-network",
  "nora-provider-auth",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde",
@@ -1610,8 +1636,8 @@ dependencies = [
  "chrono",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "tokio",
@@ -1629,7 +1655,7 @@ dependencies = [
  "getrandom 0.2.17",
  "hmac",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "p256",
  "rand_core 0.6.4",
@@ -1648,9 +1674,9 @@ dependencies = [
  "chrono",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
  "nora-provider-auth",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "sha2",
@@ -1702,8 +1728,8 @@ dependencies = [
  "h2",
  "http",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde_json",
@@ -1746,8 +1772,8 @@ dependencies = [
  "futures",
  "libc",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "rand 0.8.6",
@@ -1778,8 +1804,8 @@ dependencies = [
  "chrono",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "percent-encoding",
@@ -1810,8 +1836,8 @@ dependencies = [
  "futures",
  "libc",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "regex",
  "serde",
@@ -1840,9 +1866,9 @@ dependencies = [
  "chrono",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
  "nora-provider-auth",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "sha2",
@@ -1875,7 +1901,7 @@ dependencies = [
  "futures",
  "jsonwebtoken",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "percent-encoding",
  "rand 0.8.6",
@@ -1897,7 +1923,7 @@ dependencies = [
  "futures",
  "hmac",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "serde_json",
  "sha2",
@@ -1945,8 +1971,8 @@ dependencies = [
  "base64",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde",
  "serde_json",
@@ -1965,8 +1991,8 @@ dependencies = [
  "crc32fast",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rusqlite",
  "serde_json",
@@ -1987,7 +2013,7 @@ dependencies = [
  "futures",
  "hex",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "rand 0.8.6",
@@ -2090,26 +2116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nora-provider-network"
-version = "1.2.0"
-dependencies = [
- "bytes",
- "futures-util",
- "h2",
- "http",
- "nora-provider-plugin-sdk",
- "rcgen",
- "reqwest",
- "rustls",
- "rustls-platform-verifier",
- "socket2",
- "time",
- "tokio",
- "tokio-rustls",
- "webpki-roots 1.0.9",
-]
-
-[[package]]
 name = "nora-provider-nous-portal"
 version = "1.2.0"
 dependencies = [
@@ -2120,7 +2126,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde",
@@ -2155,9 +2161,9 @@ dependencies = [
  "fs2",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
  "nora-provider-auth",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "serde",
  "serde_json",
@@ -2239,14 +2245,16 @@ dependencies = [
 
 [[package]]
 name = "nora-provider-plugin-sdk"
-version = "0.1.0"
-source = "git+https://github.com/nora-release/nora.git?rev=8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7#8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7"
+version = "0.24.0"
+source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
 dependencies = [
  "async-trait",
  "base64",
  "futures",
  "getrandom 0.2.17",
  "libc",
+ "nora-network",
+ "nora-plugin-manifest",
  "reqwest",
  "serde",
  "serde_json",
@@ -2267,8 +2275,8 @@ dependencies = [
  "futures",
  "md-5",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rand 0.8.6",
  "regex",
@@ -2377,7 +2385,7 @@ dependencies = [
  "futures",
  "libc",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde",
@@ -2404,7 +2412,7 @@ dependencies = [
  "futures",
  "html-escape",
  "httpdate",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "reqwest",
  "serde_json",
@@ -2486,7 +2494,7 @@ dependencies = [
  "libc",
  "md-5",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "percent-encoding",
  "rand 0.8.6",
@@ -2556,8 +2564,8 @@ dependencies = [
  "futures",
  "libc",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "p256",
  "rand 0.8.6",
@@ -2586,8 +2594,8 @@ dependencies = [
  "base64",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "nora-provider-subscription-core",
  "serde_json",
@@ -2643,7 +2651,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.17",
  "nora-ai",
- "nora-provider-network",
+ "nora-network",
  "nora-provider-plugin-sdk",
  "nora-provider-search-api",
  "regex",
@@ -2741,8 +2749,8 @@ dependencies = [
  "chrono",
  "futures",
  "nora-ai",
+ "nora-network",
  "nora-provider",
- "nora-provider-network",
  "nora-provider-plugin-sdk",
  "rand 0.8.6",
  "reqwest",
@@ -3187,6 +3195,7 @@ dependencies = [
 [[package]]
 name = "reqwest"
 version = "0.12.28"
+source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
 dependencies = [
  "base64",
  "bytes",

@@ -1,0 +1,73 @@
+{
+  "apiVersion": 2,
+  "id": "fireworks",
+  "name": "Fireworks",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.fireworks.ai/inference/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "fireworks-ai",
+        "keyProvider": "fireworks",
+        "legacy": {
+          "providerID": "fireworks",
+          "keyProvider": "fireworks",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.fireworks.ai/inference/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.fireworks.ai/inference/v1"
+            }
+          ],
+          "noList": false
+        },
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.fireworks.ai/inference/v1"
+              }
+            ],
+            "models": [],
+            "catalog": "fireworks-ai",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer"
+      }
+    }
+  }
+}

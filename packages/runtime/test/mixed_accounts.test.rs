@@ -131,8 +131,8 @@ async fn installed_vendor_configuration_is_restored_for_signed_in_accounts_only(
             plugin_id: "fixture".into(),
             plugin_directory: PathBuf::new(),
             data_directory: std::env::temp_dir().join("nora-mixed-account-runtime"),
-            manifest: configured,
-            installed_manifest: Some(original),
+            manifest: crate::fixtures::package(configured),
+            installed_manifest: Some(crate::fixtures::package(original)),
             runtime_config: serde_json::Value::Null,
         })
         .await

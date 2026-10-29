@@ -37,7 +37,7 @@ async fn provider(replies: Vec<fixture::Reply>) -> (Kiro, Arc<fixture::Client>, 
             plugin_id: "kiro".into(),
             plugin_directory: Default::default(),
             data_directory: Default::default(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
         })
         .await
         .unwrap();

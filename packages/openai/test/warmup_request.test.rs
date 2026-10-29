@@ -63,12 +63,12 @@ async fn normalized_models_obtain_real_cached_prices_without_unknown_fields_or_z
     let plugin = OpenAIPlugin::default();
     plugin
         .initialize(InitializeParams {
-            api_version: 1,
+            api_version: 2,
             subscription_accounts_enabled: true,
             plugin_id: "openai".into(),
             plugin_directory: root.0.clone(),
             data_directory: root.0.clone(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: json!({}),
         })
@@ -188,7 +188,7 @@ async fn the_real_request_builder_signs_and_shapes_one_tiny_request_over_loopbac
         net::TcpListener,
     };
     let mut definition =
-        Definition::parse(serde_json::from_str(include_str!("../nora-provider.json")).unwrap())
+        Definition::parse(serde_json::from_str(include_str!("../nora-plugin.json")).unwrap())
             .unwrap();
     definition.adapter = std::sync::Arc::new(OpenAI);
     let params = json!({"account":"saved-a","credentials":{"type":"oauth","provider":"openAICodex","credentialProvider":"openAICodex","access":"fixture-only-access","expires":4070908800000_i64,"extras":{"accountId":"workspace-a"}}});
@@ -243,7 +243,7 @@ async fn the_real_request_builder_signs_and_shapes_one_tiny_request_over_loopbac
             .unwrap();
     });
     // Only the socket destination changes; these are the actual finalized headers and bytes.
-    let client = nora_provider_network::http_client(Some(&NetworkProxy::Direct)).unwrap();
+    let client = nora_provider_plugin_sdk::http_client(Some(&NetworkProxy::Direct)).unwrap();
     let mut send = client
         .post(format!("http://{address}/backend-api/codex/responses"))
         .body(built.body.unwrap());

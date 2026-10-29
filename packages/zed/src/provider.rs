@@ -76,7 +76,7 @@ impl Zed {
         if let Some(client) = &self.client {
             return Ok(client.clone());
         }
-        let client = nora_provider_network::http_client_builder(proxy.as_ref())?
+        let client = nora_provider_plugin_sdk::http_client_builder(proxy.as_ref())?
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|_| PluginError::invalid("The Zed HTTP client could not be configured."))?;
@@ -338,7 +338,7 @@ impl ProviderPlugin for Zed {
         if params.api_version != API_VERSION
             || params.plugin_id != "zed"
             || params.manifest["id"] != "zed"
-            || params.manifest["baseURL"] != network::BASE
+            || params.manifest["contributes"]["provider"]["baseURL"] != network::BASE
         {
             return Err(PluginError::invalid(
                 "The Zed executable does not match its manifest.",
@@ -347,7 +347,7 @@ impl ProviderPlugin for Zed {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -361,7 +361,7 @@ impl ProviderPlugin for Zed {
             .map_err(|_| PluginError::invalid("Zed configuration is unavailable."))? =
             Some(Config {
                 proxy,
-                methods: params.manifest["authMethods"].clone(),
+                methods: params.manifest["contributes"]["provider"]["authMethods"].clone(),
             });
         Ok(json!({"apiVersion":API_VERSION}))
     }

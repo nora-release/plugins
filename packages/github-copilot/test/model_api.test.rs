@@ -31,7 +31,7 @@ impl HttpClient for Client {
 #[tokio::test]
 async fn discovery_advertises_supported_subscription_transports_separately_from_model_defaults() {
     let mut definition = nora_provider::definition::Definition::parse(
-        serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     )
     .unwrap();
     definition.adapter = Arc::new(Copilot::default());

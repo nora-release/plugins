@@ -123,7 +123,7 @@ async fn denied_models_without_terms_are_never_enabled_and_lookup_failure_does_n
 async fn the_hook_is_inert_for_other_adapters_and_api_key_accounts() {
     let client = client(Vec::new());
     let request = outgoing("fixture-key", "model");
-    let definition = nora_provider::definition::Definition::parse(json!({"id":"fixture","name":"Fixture", "api":"openai-completions", "baseURL":"https://api.githubcopilot.com", "config":{"keyProvider":"fixture"}})).unwrap();
+    let definition = nora_provider::definition::Definition::from_fields(json!({"id":"fixture","name":"Fixture", "api":"openai-completions", "baseURL":"https://api.githubcopilot.com", "config":{"keyProvider":"fixture"}})).unwrap();
     let credentials = json!({"type":"apiKey", "access":"fixture-key"});
     nora_provider::GenericProvider
         .before_send(&definition, &credentials, &request, &client)

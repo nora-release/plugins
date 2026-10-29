@@ -22,8 +22,8 @@ fn official_cases() {
 }
 #[test]
 fn declaration_contains_only_the_two_strategy_exports() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    let declaration = &manifest["config"]["gatewayMiddleware"];
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    let declaration = &manifest["contributes"]["middleware"];
     assert_eq!(
         declaration["strategies"],
         json!(["ceiling", "accounts-first"])

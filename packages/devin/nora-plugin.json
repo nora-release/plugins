@@ -1,0 +1,41 @@
+{
+  "apiVersion": 2,
+  "id": "devin",
+  "name": "Devin",
+  "version": "1.1.0",
+  "summary": "Devin CLI subscription service through native Connect protobuf. A CLI source is read only when explicitly selected.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://server.codeium.com/devin/v1",
+      "authMethods": [
+        {
+          "id": "browser",
+          "type": "oauth",
+          "label": "Sign in to Devin"
+        },
+        {
+          "id": "cliSource",
+          "type": "oauth",
+          "label": "Use a selected Devin CLI credentials.toml",
+          "fields": [
+            {
+              "id": "sourcePath",
+              "key": "sourcePath",
+              "type": "text",
+              "label": "Devin credentials.toml path",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "catalog": "",
+        "authTimeoutMs": 660000
+      }
+    }
+  }
+}

@@ -323,7 +323,7 @@ pub(crate) async fn fetch(
         }
         let method = reqwest::Method::from_bytes(request.method.as_bytes())
             .map_err(|_| PluginError::invalid("Invalid remote request method."))?;
-        let raw = nora_provider_network::http_client(request.network_proxy.as_ref())?;
+        let raw = nora_provider_plugin_sdk::http_client(request.network_proxy.as_ref())?;
         let mut outgoing = raw.request(method, &request.url);
         for (name, value) in &headers {
             outgoing = outgoing.header(name, value);

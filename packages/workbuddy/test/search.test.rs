@@ -72,9 +72,9 @@ async fn compiled_sdk_rpc_advertises_and_dispatches_both_regions_subscription_se
         )]);
         let provider = std::sync::Arc::new(configured(site, client.clone()));
         let manifest: Value = serde_json::from_str(if site == Site::China {
-            include_str!("../nora-provider.json")
+            include_str!("../nora-plugin.json")
         } else {
-            include_str!("../../workbuddy-ai/nora-provider.json")
+            include_str!("../../workbuddy-ai/nora-plugin.json")
         })
         .unwrap();
         let (io, server) = tokio::io::duplex(65536);
@@ -86,7 +86,7 @@ async fn compiled_sdk_rpc_advertises_and_dispatches_both_regions_subscription_se
         ));
         let (read, mut write) = tokio::io::split(io);
         let mut lines = BufReader::new(read).lines();
-        let init = json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":site.id(),"pluginDirectory":"/tmp/workbuddy-test","dataDirectory":"/tmp/workbuddy-test","manifest":manifest,"subscriptionAccountsEnabled":true}});
+        let init = json!({"id":1,"method":"initialize","params":{"apiVersion":2,"pluginID":site.id(),"pluginDirectory":"/tmp/workbuddy-test","dataDirectory":"/tmp/workbuddy-test","manifest":manifest,"subscriptionAccountsEnabled":true}});
         write
             .write_all(format!("{init}\n").as_bytes())
             .await

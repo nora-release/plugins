@@ -300,7 +300,7 @@ impl ProviderPlugin for MiniMaxCode {
         Ok(result)
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.core.config()?.manifest["authMethods"].clone())
+        Ok(self.core.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         if core::required(&params, "authMethodID")? != "oauth" {

@@ -1,0 +1,143 @@
+{
+  "apiVersion": 2,
+  "id": "xai",
+  "name": "xAI",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-responses",
+      "baseURL": "https://api.x.ai/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in"
+        },
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "grokCLI",
+          "type": "source",
+          "label": "Use Grok Build account",
+          "metadataKey": "noraAccountSource"
+        }
+      ],
+      "config": {
+        "accountImport": {
+          "formats": [
+            "auto",
+            "cli-proxy"
+          ],
+          "refreshesTokens": false,
+          "maxEntries": 200,
+          "maxBytes": 4194304,
+          "notice": "Stop using this account in CPA before importing it. Both clients rotate the same refresh token."
+        },
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "options": [
+          {
+            "id": "x_search",
+            "type": "boolean",
+            "label": "Native X search",
+            "description": "Offers X search to Grok when tools are automatic. Keeps existing search filters and explicit tool choices. Grok decides whether to search.",
+            "default": false
+          }
+        ],
+        "catalog": "xai",
+        "keyProvider": "xai-api-key",
+        "oauthProvider": "xai",
+        "sourceAuthMethods": [
+          {
+            "id": "grokCLI",
+            "type": "source",
+            "label": "Use Grok Build account",
+            "metadataKey": "noraAccountSource"
+          }
+        ],
+        "legacy": {
+          "providerID": "xai",
+          "keyProvider": "xai-api-key",
+          "oauthProvider": "xai",
+          "credentialProvider": "xAI"
+        },
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.x.ai/v1",
+          "bases": [
+            {
+              "api": "openai-responses",
+              "baseURL": "https://api.x.ai/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.x.ai"
+            }
+          ]
+        },
+        "operations": [
+          "images.generations",
+          "images.edits",
+          "videos.create",
+          "videos.get",
+          "videos.content"
+        ],
+        "operationsAuthMethods": {
+          "images.generations": [
+            "api",
+            "apiKey",
+            "oauth",
+            "source"
+          ],
+          "images.edits": [
+            "api",
+            "apiKey",
+            "oauth",
+            "source"
+          ],
+          "videos.create": [
+            "api",
+            "apiKey",
+            "oauth",
+            "source"
+          ],
+          "videos.get": [
+            "api",
+            "apiKey",
+            "oauth",
+            "source"
+          ],
+          "videos.content": [
+            "api",
+            "apiKey",
+            "oauth",
+            "source"
+          ]
+        }
+      },
+      "localSignIns": [
+        {
+          "method": "grokCLI",
+          "label": "Grok CLI",
+          "paths": [
+            "~/.grok/auth.json"
+          ]
+        }
+      ]
+    }
+  }
+}

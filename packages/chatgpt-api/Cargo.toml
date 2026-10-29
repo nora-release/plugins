@@ -7,7 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 nora-provider-auth = { path = "../auth" }
-nora-provider-network.workspace = true
+nora-network.workspace = true
 nora-ai.workspace = true
 nora-provider-plugin-sdk.workspace = true
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "socks", "gzip", "brotli", "deflate", "zstd"] }

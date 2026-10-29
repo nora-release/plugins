@@ -1,0 +1,50 @@
+{
+  "apiVersion": 2,
+  "id": "factory",
+  "name": "Factory",
+  "version": "1.2.0",
+  "summary": "Factory subscriptions and API keys. Models follow the Droid registry; account billing limits are queried live.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "anthropic-messages",
+      "baseURL": "https://api.factory.ai/api/llm/a/v1",
+      "authMethods": [
+        {
+          "id": "device",
+          "type": "oauth",
+          "label": "Sign in to Factory with a device code"
+        },
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "Factory API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "Factory API key (fk-…)",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "catalog": "",
+        "authTimeoutMs": 1140000,
+        "options": [
+          {
+            "id": "standard_only",
+            "type": "boolean",
+            "label": "Standard usage only",
+            "description": "Switch accounts when any Standard usage window is exhausted. Droid Core and Extra usage remain visible and do not keep the account in use.",
+            "default": false
+          }
+        ]
+      }
+    }
+  }
+}

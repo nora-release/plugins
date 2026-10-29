@@ -58,12 +58,12 @@ impl Host {
             next: 1,
         };
         let manifest: Value = serde_json::from_str(match app {
-            "gemini-cli" => include_str!("../../gemini-cli/nora-provider.json"),
-            "antigravity" => include_str!("../../antigravity/nora-provider.json"),
+            "gemini-cli" => include_str!("../../gemini-cli/nora-plugin.json"),
+            "antigravity" => include_str!("../../antigravity/nora-plugin.json"),
             _ => panic!("unexpected provider"),
         })
         .unwrap();
-        let initialized = host.call("initialize", json!({"apiVersion":1,"pluginID":app,"pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":host.directory.join("plugin-data"),"manifest":manifest,"subscriptionAccountsEnabled":true})).await;
+        let initialized = host.call("initialize", json!({"apiVersion":2,"pluginID":app,"pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":host.directory.join("plugin-data"),"manifest":manifest,"subscriptionAccountsEnabled":true})).await;
         assert!(initialized.get("error").is_none(), "{initialized}");
         host
     }

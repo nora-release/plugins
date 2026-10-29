@@ -380,14 +380,14 @@ async fn max_inflight_can_lower_the_limit_but_never_exceed_three_sessions() {
         let client = Client::new(vec![(200, pending); expected + 1]);
         let provider = configured(client.clone());
         let mut manifest: Value =
-            serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-        manifest["config"]["maxInflight"] = json!(configured_limit);
+            serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+        manifest["contributes"]["provider"]["config"]["maxInflight"] = json!(configured_limit);
         provider
             .initialize(nora_provider_plugin_sdk::InitializeParams {
                 subscription_accounts_enabled: true,
                 installed_manifest: None,
                 runtime_config: serde_json::Value::Null,
-                api_version: 1,
+                api_version: 2,
                 plugin_id: "codearts".into(),
                 plugin_directory: std::env::temp_dir(),
                 data_directory: std::env::temp_dir(),

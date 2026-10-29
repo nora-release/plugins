@@ -4,7 +4,7 @@ fn definition(id: &str) -> Definition {
     let mut definition = Definition::parse(
         serde_json::from_slice(
             &std::fs::read(format!(
-                "{}/{id}/nora-provider.json",
+                "{}/{id}/nora-plugin.json",
                 env!("CARGO_MANIFEST_DIR").trim_end_matches("/runtime")
             ))
             .unwrap(),
@@ -23,7 +23,7 @@ fn native_packages_keep_their_own_schema_and_generic_packages_have_models_or_dis
     let mut ids = std::collections::BTreeSet::new();
     for entry in std::fs::read_dir(root).unwrap() {
         let directory = entry.unwrap().path();
-        let manifest = directory.join("nora-provider.json");
+        let manifest = directory.join("nora-plugin.json");
         if !manifest.exists() {
             continue;
         }
@@ -106,7 +106,7 @@ fn prepared_api_models_do_not_change_the_oauth_model_catalog() {
 
 #[test]
 fn custom_packages_without_a_catalog_use_their_own_protocol_and_identity() {
-    let custom=Definition::parse(json!({"id":"personal","name":"Personal","api":"anthropic-messages","baseURL":"https://personal.invalid","models":[],"config":{"keyProvider":"personal","nativeAPI":"anthropic-messages"}})).unwrap();
+    let custom=Definition::from_fields(json!({"id":"personal","name":"Personal","api":"anthropic-messages","baseURL":"https://personal.invalid","models":[],"config":{"keyProvider":"personal","nativeAPI":"anthropic-messages"}})).unwrap();
     let models = catalog_models(&custom, None).unwrap();
     assert!(
         models.is_empty(),
@@ -195,7 +195,7 @@ fn manually_added_api_models_cannot_enable_grok_subscription_models() {
 
 #[test]
 fn selected_ids_do_not_become_models_reported_by_the_provider() {
-    let parsed = Definition::parse(json!({
+    let parsed = Definition::from_fields(json!({
         "id":"personal","name":"Personal","api":"openai-responses",
         "baseURL":"https://personal.invalid",
         "config":{"keyProvider":"personal","modelIDs":["future-chat-model"]}

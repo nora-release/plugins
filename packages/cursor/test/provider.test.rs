@@ -9,7 +9,7 @@ fn initialize() -> InitializeParams {
         plugin_id: "cursor".into(),
         plugin_directory: std::env::temp_dir(),
         data_directory: std::env::temp_dir(),
-        manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     }
 }
 async fn plugin(client: Arc<Client>) -> Cursor {

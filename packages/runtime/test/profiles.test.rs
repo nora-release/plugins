@@ -5,7 +5,7 @@ use nora_provider_plugin_sdk::{InitializeParams, ProviderPlugin};
 use serde_json::json;
 
 fn definition() -> Definition {
-    Definition::parse(json!({"id":"profiles","name":"Profiles","api":"openai-completions","baseURL":"https://plan.invalid/v1","authMethods":[{"id":"apiKey","type":"api","label":"Plan"},{"id":"profile-api","type":"api","label":"API"}],"config":{"keyProvider":"profiles","profiles":[{"id":"plan","name":"Token Plan","catalog":"plan-prices,api-prices","noList":true,"models":[{"id":"claude-current"}],"bases":[{"api":"openai-completions","baseURL":"https://plan.invalid/v1"},{"api":"anthropic-messages","baseURL":"https://plan.invalid/anthropic"}],"modelRoutes":[{"pattern":"*claude*","api":"anthropic-messages"}]},{"id":"api","name":"Pay as you go","catalog":"api-prices","bases":[{"api":"openai-completions","baseURL":"https://api.invalid/v1"}]}]}})).unwrap()
+    Definition::from_fields(json!({"id":"profiles","name":"Profiles","api":"openai-completions","baseURL":"https://plan.invalid/v1","authMethods":[{"id":"apiKey","type":"api","label":"Plan"},{"id":"profile-api","type":"api","label":"API"}],"config":{"keyProvider":"profiles","profiles":[{"id":"plan","name":"Token Plan","catalog":"plan-prices,api-prices","noList":true,"models":[{"id":"claude-current"}],"bases":[{"api":"openai-completions","baseURL":"https://plan.invalid/v1"},{"api":"anthropic-messages","baseURL":"https://plan.invalid/anthropic"}],"modelRoutes":[{"pattern":"*claude*","api":"anthropic-messages"}]},{"id":"api","name":"Pay as you go","catalog":"api-prices","bases":[{"api":"openai-completions","baseURL":"https://api.invalid/v1"}]}]}})).unwrap()
 }
 fn manifest() -> Value {
     json!({"id":"profiles","name":"Profiles","api":"openai-completions","baseURL":"https://plan.invalid/v1","authMethods":[{"id":"apiKey","type":"api","label":"Plan"},{"id":"profile-api","type":"api","label":"API"}],"config":{"keyProvider":"profiles","profiles":[{"id":"plan","name":"Token Plan","models":[{"id":"claude-current"}],"noList":true,"bases":[{"api":"openai-completions","baseURL":"https://plan.invalid/v1"}]},{"id":"api","name":"API","bases":[{"api":"openai-completions","baseURL":"https://api.invalid/v1"}]}]}})
@@ -72,7 +72,7 @@ fn local_definition(id: &str) -> Definition {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join(id)
-        .join("nora-provider.json");
+        .join("nora-plugin.json");
     Definition::parse(serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()).unwrap()
 }
 
@@ -187,11 +187,11 @@ async fn explicit_api_profile_authorization_persists_the_choice_and_optional_key
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "profiles".into(),
             plugin_directory: "/tmp/profiles".into(),
             data_directory: "/tmp/profiles".into(),
-            manifest: manifest(),
+            manifest: crate::fixtures::package(manifest()),
         })
         .await
         .unwrap();
@@ -211,11 +211,11 @@ async fn explicit_api_profile_authorization_persists_the_choice_and_optional_key
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "profiles".into(),
             plugin_directory: "/tmp/profiles".into(),
             data_directory: "/tmp/profiles".into(),
-            manifest: optional,
+            manifest: crate::fixtures::package(optional),
         })
         .await
         .unwrap();
@@ -275,7 +275,7 @@ fn api_profiles_match_the_upstream_provider_regions_and_plans() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../")
             .join(id)
-            .join("nora-provider.json");
+            .join("nora-plugin.json");
         if !path.exists() {
             continue;
         }

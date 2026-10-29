@@ -1,0 +1,26 @@
+{
+  "apiVersion": 2,
+  "id": "mimo-app",
+  "name": "MiMo App",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://mimo-server-sgp.xiaomimimo.com/api/route",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Xiaomi account"
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "authTimeoutMs": 720000
+      }
+    }
+  }
+}

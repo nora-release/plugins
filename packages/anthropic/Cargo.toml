@@ -7,7 +7,7 @@ rust-version.workspace = true
 
 [dependencies]
 nora-provider-auth = { path = "../auth" }
-nora-provider-network.workspace = true
+nora-network.workspace = true
 nora-provider = { path = "../runtime" }
 nora-provider-plugin-sdk.workspace = true
 nora-ai.workspace = true

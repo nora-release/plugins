@@ -48,7 +48,7 @@ impl JoyCode {
         }
         let config = self.config()?;
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_network::http_client(
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
                 proxy.or(config.proxy.as_ref()),
             )?)
             .with_observer_fn(|| async {
@@ -113,7 +113,7 @@ impl ProviderPlugin for JoyCode {
         let proxy = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -125,10 +125,12 @@ impl ProviderPlugin for JoyCode {
             manifest: params.manifest,
             proxy,
         });
-        Ok(json!({"apiVersion":1,"capabilities":{"persistent":true}}))
+        Ok(
+            json!({"apiVersion":nora_provider_plugin_sdk::API_VERSION,"capabilities":{"persistent":true}}),
+        )
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.config()?.manifest["authMethods"].clone())
+        Ok(self.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         login::authorize(self, params).await
@@ -178,7 +180,12 @@ impl ProviderPlugin for JoyCode {
         if !body.is_object() || text(&body, "model").is_empty() || !body["messages"].is_array() {
             return Err(invalid("JoyCode needs a model and messages."));
         }
-        if self.config()?.manifest.pointer("/config/flatten") == Some(&json!(true)) {
+        if self
+            .config()?
+            .manifest
+            .pointer("/contributes/provider/config/flatten")
+            == Some(&json!(true))
+        {
             body = models::flatten(&body);
         }
         let identity = self

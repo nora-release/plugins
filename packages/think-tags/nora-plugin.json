@@ -1,0 +1,20 @@
+{
+  "apiVersion": 2,
+  "id": "think-tags",
+  "name": "Think Tags",
+  "version": "1.2.0",
+  "summary": "Remove think tags from reply text or turn Chat reasoning into visible text.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "middleware": {
+      "version": 1,
+      "event": true,
+      "response": true,
+      "options": {
+        "mode": "strip"
+      }
+    }
+  }
+}

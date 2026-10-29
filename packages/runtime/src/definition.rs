@@ -10,7 +10,7 @@ pub struct Definition {
     pub id: String,
     pub name: String,
     pub api: String,
-    #[serde(rename = "baseURL")]
+    #[serde(default, rename = "baseURL")]
     pub base_url: String,
     #[serde(default)]
     pub models: Vec<Value>,
@@ -113,13 +113,29 @@ pub struct ModelDiscovery {
 #[serde(rename_all = "camelCase")]
 pub struct ModelBase {
     pub api: String,
-    #[serde(rename = "baseURL")]
+    #[serde(default, rename = "baseURL")]
     pub base_url: String,
 }
 
 impl Definition {
+    /// The generic HTTP adapter's view of a package manifest: its identity
+    /// and its `contributes.provider`.
     pub fn parse(value: Value) -> PluginResult<Self> {
-        let definition: Self = serde_json::from_value(value)
+        let mut provider = value
+            .pointer("/contributes/provider")
+            .cloned()
+            .ok_or_else(|| PluginError::invalid("The plugin manifest contributes no provider."))?;
+        if let Some(provider) = provider.as_object_mut() {
+            provider.insert("id".into(), value["id"].clone());
+            provider.insert("name".into(), value["name"].clone());
+        }
+        Self::from_fields(provider)
+    }
+
+    /// A definition from its own fields: the provider declaration with the
+    /// package's `id` and `name`.
+    pub fn from_fields(provider: Value) -> PluginResult<Self> {
+        let definition: Self = serde_json::from_value(provider)
             .map_err(|_| PluginError::invalid("The provider manifest configuration is invalid."))?;
         if definition.id.is_empty()
             || definition.name.trim().is_empty()
@@ -136,8 +152,8 @@ impl Definition {
     }
 }
 
-pub fn validate_package(value: &Value) -> Result<&str, String> {
-    Ok(crate::package_manifest::PackageManifest::parse(value)?.id)
+pub fn validate_package(value: &Value) -> Result<String, String> {
+    Ok(crate::package_manifest::parse(value)?.id)
 }
 
 pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
@@ -150,7 +166,7 @@ pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
             let path = entry
                 .map_err(|error| error.to_string())?
                 .path()
-                .join("nora-provider.json");
+                .join(nora_plugin_manifest::package::MANIFEST_FILE);
             if path.is_file() {
                 definitions.push(path);
             }
@@ -164,12 +180,12 @@ pub fn prepare(source: &Path, output: &Path) -> Result<(), String> {
         let mut value: Value =
             serde_json::from_slice(&std::fs::read(path).map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())?;
-        let id = validate_package(&value)?.to_owned();
+        let id = validate_package(&value)?;
         crate::build_capabilities::declare(&mut value);
         let directory = output.join(id);
         std::fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
         std::fs::write(
-            directory.join("nora-provider.json"),
+            directory.join(nora_plugin_manifest::package::MANIFEST_FILE),
             serde_json::to_vec_pretty(&value).map_err(|error| error.to_string())?,
         )
         .map_err(|error| error.to_string())?;

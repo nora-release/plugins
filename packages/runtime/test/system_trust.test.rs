@@ -7,9 +7,9 @@ async fn pinned_sdk_checks_certificates_for_both_target_and_https_proxy() {
         let policy = proxy
             .map(|url| NetworkProxy::Proxy { url: url.into() })
             .unwrap_or(NetworkProxy::Direct);
-        nora_provider_network::http_client_builder(Some(&policy))
+        nora_provider_plugin_sdk::http_client_builder(Some(&policy))
             .unwrap()
-            .use_preconfigured_tls(nora_provider_network::tls::http_client_config(roots).unwrap())
+            .use_preconfigured_tls(nora_network::tls::http_client_config(roots).unwrap())
     })
     .await;
 }

@@ -26,7 +26,7 @@ impl Configuration {
         let network_proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )

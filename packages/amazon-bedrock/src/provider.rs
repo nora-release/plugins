@@ -169,7 +169,10 @@ impl Bedrock {
                     .map(|model| json!({"id":model.id}))
                     .collect()
             } else {
-                manifest["models"].as_array().cloned().unwrap_or_default()
+                manifest["contributes"]["provider"]["models"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default()
             };
             for entry in ids {
                 if let Some(id) = entry
@@ -323,7 +326,7 @@ impl ProviderPlugin for Bedrock {
         self.core.initialize(params)
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.core.config()?.manifest["authMethods"].clone())
+        Ok(self.core.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         Ok(

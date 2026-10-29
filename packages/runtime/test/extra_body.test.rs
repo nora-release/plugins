@@ -2,7 +2,7 @@ use super::*;
 use serde_json::json;
 
 fn definition() -> Definition {
-    Definition::parse(json!({"id":"compatible","name":"Custom","api":"openai-completions","baseURL":"https://custom.invalid/v1","config":{"keyProvider":"custom","extraBody":{"temperature":0.5,"!service_tier":"flex","model":"wrong","!stream":false,"metadata":{"who":"agent-${sessionId}"}}}})).unwrap()
+    Definition::from_fields(json!({"id":"compatible","name":"Custom","api":"openai-completions","baseURL":"https://custom.invalid/v1","config":{"keyProvider":"custom","extraBody":{"temperature":0.5,"!service_tier":"flex","model":"wrong","!stream":false,"metadata":{"who":"agent-${sessionId}"}}}})).unwrap()
 }
 
 #[test]

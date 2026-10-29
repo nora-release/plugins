@@ -37,7 +37,7 @@ impl Factory {
         if let Some(client) = &self.client {
             return Ok(client.clone());
         }
-        let client = nora_provider_network::http_client_builder(proxy)?
+        let client = nora_provider_plugin_sdk::http_client_builder(proxy)?
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|_| {
@@ -236,8 +236,8 @@ impl Factory {
 #[async_trait]
 impl ProviderPlugin for Factory {
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
-        if params.manifest["baseURL"] != network::BASE
-            || params.manifest["api"] != "anthropic-messages"
+        if params.manifest["contributes"]["provider"]["baseURL"] != network::BASE
+            || params.manifest["contributes"]["provider"]["api"] != "anthropic-messages"
         {
             return Err(PluginError::invalid(
                 "Factory requires its declared native endpoint.",
@@ -246,7 +246,7 @@ impl ProviderPlugin for Factory {
         self.core.initialize(params)
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.core.config()?.manifest["authMethods"].clone())
+        Ok(self.core.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn accounts(&self, context: CallContext) -> PluginResult<Value> {
         let Some(value) = context.credentials else {
@@ -352,7 +352,8 @@ impl ProviderPlugin for Factory {
                 &value,
                 &account,
                 &context.account,
-                self.core.config()?.manifest["config"]["standard_only"] == true,
+                self.core.config()?.manifest["contributes"]["provider"]["config"]["standard_only"]
+                    == true,
             );
         }
     }

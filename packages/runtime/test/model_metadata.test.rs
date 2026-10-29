@@ -349,8 +349,7 @@ async fn bundled_plugin_declares_and_serves_private_cached_metadata_without_acco
             plugin_id: "openai".into(),
             plugin_directory: Default::default(),
             data_directory: directory.0.clone(),
-            manifest: serde_json::from_str(include_str!("../../openai/nora-provider.json"))
-                .unwrap(),
+            manifest: serde_json::from_str(include_str!("../../openai/nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: Value::Null,
             subscription_accounts_enabled: false,

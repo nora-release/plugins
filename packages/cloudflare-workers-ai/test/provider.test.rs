@@ -68,7 +68,7 @@ async fn fixture(replies: Vec<Reply>) -> (CloudflareWorkersAi, Arc<Client>) {
             plugin_id: ID.into(),
             plugin_directory: Default::default(),
             data_directory: Default::default(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: Value::Null,
         })
@@ -107,7 +107,7 @@ async fn initialization_is_lazy_and_disconnected_catalog_does_not_make_requests(
         "preset"
     );
     assert_eq!(
-        provider.config().unwrap().manifest["config"]["maxConcurrency"],
+        provider.config().unwrap().manifest["contributes"]["provider"]["config"]["maxConcurrency"],
         3
     );
     assert!(client.requests.lock().unwrap().is_empty());

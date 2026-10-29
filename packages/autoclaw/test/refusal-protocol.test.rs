@@ -84,12 +84,12 @@ impl Process {
             next: 1,
         };
         let manifest: Value = serde_json::from_str(if site == Site::China {
-            include_str!("../../autoclaw-cn/nora-provider.json")
+            include_str!("../../autoclaw-cn/nora-plugin.json")
         } else {
-            include_str!("../nora-provider.json")
+            include_str!("../nora-plugin.json")
         })
         .unwrap();
-        let result = process.call("initialize",json!({"apiVersion":1,"pluginID":site.id(),"pluginDirectory":process.directory,"dataDirectory":process.directory.join("data"),"manifest":manifest,"subscriptionAccountsEnabled":true}));
+        let result = process.call("initialize",json!({"apiVersion":2,"pluginID":site.id(),"pluginDirectory":process.directory,"dataDirectory":process.directory.join("data"),"manifest":manifest,"subscriptionAccountsEnabled":true}));
         assert!(result[0].get("error").is_none(), "{result:?}");
         process
     }

@@ -57,7 +57,7 @@ impl KimiWork {
         if let Some(client) = &self.client {
             return Ok(Arc::clone(client));
         }
-        let client = nora_provider_network::http_client(proxy)?;
+        let client = nora_provider_plugin_sdk::http_client(proxy)?;
         Ok(Arc::new(
             ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
                 nora_provider_plugin_sdk::before_http_request()
@@ -216,7 +216,7 @@ impl ProviderPlugin for KimiWork {
         }
         let base = params
             .manifest
-            .get("baseURL")
+            .pointer("/contributes/provider/baseURL")
             .and_then(Value::as_str)
             .and_then(|base| url::Url::parse(base).ok());
         if base
@@ -230,7 +230,7 @@ impl ProviderPlugin for KimiWork {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -246,12 +246,12 @@ impl ProviderPlugin for KimiWork {
                 proxy,
                 auth_methods: params
                     .manifest
-                    .get("authMethods")
+                    .pointer("/contributes/provider/authMethods")
                     .cloned()
                     .unwrap_or_else(|| json!([])),
                 preset_models: params
                     .manifest
-                    .get("models")
+                    .pointer("/contributes/provider/models")
                     .cloned()
                     .unwrap_or_else(|| json!([])),
             });

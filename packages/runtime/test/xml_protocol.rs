@@ -28,7 +28,7 @@ pub async fn fetch(
     let mut reader = BufReader::new(reader);
     let run = async {
         let init = json!({"id":1,"method":"initialize","params":{
-            "apiVersion":1,"pluginID":manifest["id"],"manifest":manifest,
+            "apiVersion":2,"pluginID":manifest["id"],"manifest":manifest,
             "pluginDirectory":directory.0,"dataDirectory":directory.0,
             "subscriptionAccountsEnabled":true
         }});

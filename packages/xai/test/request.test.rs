@@ -16,9 +16,9 @@ async fn outgoing_with(
     path: &str,
     x_search: Option<Value>,
 ) -> PluginResult<nora_ai::HttpRequest> {
-    let mut manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let mut manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     if let Some(value) = x_search {
-        manifest["config"]["x_search"] = value;
+        manifest["contributes"]["provider"]["config"]["x_search"] = value;
     }
     let mut definition = Definition::parse(manifest).unwrap();
     definition.adapter = Arc::new(Xai::default());

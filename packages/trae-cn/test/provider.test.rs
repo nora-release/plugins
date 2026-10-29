@@ -77,18 +77,21 @@ async fn both_sites_initialize_without_scanning_or_importing_desktop_accounts() 
         let mut provider = Trae::new(site);
         provider.client = Some(client.clone());
         let manifest: Value = serde_json::from_str(if site == Site::China {
-            include_str!("../nora-provider.json")
+            include_str!("../nora-plugin.json")
         } else {
-            include_str!("../../trae-global/nora-provider.json")
+            include_str!("../../trae-global/nora-plugin.json")
         })
         .unwrap();
-        assert_eq!(manifest["config"]["authTimeoutMs"], 600000);
+        assert_eq!(
+            manifest["contributes"]["provider"]["config"]["authTimeoutMs"],
+            600000
+        );
         provider
             .initialize(InitializeParams {
                 subscription_accounts_enabled: true,
                 installed_manifest: None,
                 runtime_config: serde_json::Value::Null,
-                api_version: 1,
+                api_version: 2,
                 plugin_id: site.id().into(),
                 plugin_directory: "/test/plugin".into(),
                 data_directory: "/test/data".into(),

@@ -13,7 +13,7 @@ fn endpoint_scope_matches_host_and_port_without_extending_to_model_or_balance_ur
 }
 
 fn definition(base: &str) -> Definition {
-    Definition::parse(serde_json::json!({"id":"fixture","name":"Fixture","api":"openai-completions","baseURL":base,"config":{"keyProvider":"fixture-key","customTemplate":true,"insecureTLS":true}})).unwrap()
+    Definition::from_fields(serde_json::json!({"id":"fixture","name":"Fixture","api":"openai-completions","baseURL":base,"config":{"keyProvider":"fixture-key","customTemplate":true,"insecureTLS":true}})).unwrap()
 }
 #[tokio::test]
 async fn self_signed_override_only_applies_to_custom_api_host_port_and_each_instance() {

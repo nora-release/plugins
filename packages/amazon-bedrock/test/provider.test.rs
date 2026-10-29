@@ -49,14 +49,14 @@ async fn configured(mantle: bool, client: Arc<Client>) -> Bedrock {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: provider.core.id.into(),
             plugin_directory: PathBuf::from("/tmp/bedrock"),
             data_directory: PathBuf::from("/tmp/bedrock"),
             manifest: serde_json::from_str(if mantle {
-                include_str!("../../amazon-bedrock-mantle/nora-provider.json")
+                include_str!("../../amazon-bedrock-mantle/nora-plugin.json")
             } else {
-                include_str!("../nora-provider.json")
+                include_str!("../nora-plugin.json")
             })
             .unwrap(),
         })

@@ -128,7 +128,7 @@ fn package_root() -> PathBuf {
     )
 }
 fn manifest(package: &Path) -> Value {
-    serde_json::from_slice(&std::fs::read(package.join("nora-provider.json")).unwrap()).unwrap()
+    serde_json::from_slice(&std::fs::read(package.join("nora-plugin.json")).unwrap()).unwrap()
 }
 fn initialize(
     process: &mut Process,
@@ -139,8 +139,9 @@ fn initialize(
 ) -> Value {
     // A regression can only reach a closed local proxy, never a vendor or a
     // real user account. Home, caches and data directories are isolated too.
-    manifest["config"]["networkProxy"] = json!({"mode":"proxy","url":"http://127.0.0.1:1"});
-    process.call(1,"initialize",json!({"apiVersion":1,"pluginID":manifest["id"],"subscriptionAccountsEnabled":subscriptions,"pluginDirectory":package,"dataDirectory":data,"manifest":manifest,"config":{}}))
+    manifest["contributes"]["provider"]["config"]["networkProxy"] =
+        json!({"mode":"proxy","url":"http://127.0.0.1:1"});
+    process.call(1,"initialize",json!({"apiVersion":2,"pluginID":manifest["id"],"subscriptionAccountsEnabled":subscriptions,"pluginDirectory":package,"dataDirectory":data,"manifest":manifest,"config":{}}))
 }
 
 #[test]
@@ -151,7 +152,7 @@ fn every_prepared_package_independently_confirms_the_sdk_features_it_declares() 
     let mut packages: Vec<_> = std::fs::read_dir(&root)
         .unwrap()
         .map(|entry| entry.unwrap().path())
-        .filter(|path| path.join("nora-provider.json").is_file())
+        .filter(|path| path.join("nora-plugin.json").is_file())
         .collect();
     packages.sort();
     assert!(packages.len() >= 93);
@@ -167,12 +168,14 @@ fn every_prepared_package_independently_confirms_the_sdk_features_it_declares() 
             false,
         );
         assert_eq!(
-            initialized["result"]["apiVersion"], 1,
+            initialized["result"]["apiVersion"], 2,
             "{id}: {initialized}"
         );
-        if manifest["api"] == "gateway-middleware" {
+        if manifest["contributes"]["provider"]["api"] == "gateway-middleware" {
             assert!(
-                manifest.pointer("/config/sdkCapabilities").is_none(),
+                manifest
+                    .pointer("/contributes/provider/config/sdkCapabilities")
+                    .is_none(),
                 "{id}"
             );
             assert_eq!(
@@ -190,7 +193,7 @@ fn every_prepared_package_independently_confirms_the_sdk_features_it_declares() 
             continue;
         }
         let declared = manifest
-            .pointer("/config/sdkCapabilities")
+            .pointer("/contributes/provider/config/sdkCapabilities")
             .and_then(Value::as_object)
             .expect("Build-time SDK declaration");
         let actual = &initialized["result"]["capabilities"]["sdkFeatures"];
@@ -213,7 +216,7 @@ fn every_prepared_package_independently_confirms_the_sdk_features_it_declares() 
         forged.clone(),
         false,
     );
-    assert_eq!(initialized["result"]["apiVersion"], 1);
+    assert_eq!(initialized["result"]["apiVersion"], 2);
     assert!(
         initialized["result"]["capabilities"]["sdkFeatures"]
             .get("accountAutomation")
@@ -256,12 +259,12 @@ fn compiled_vendor_models_advertise_fast_for_the_correct_authentication_and_prot
         let data = temporary.0.join(id).join("data");
         seed_catalog(&data);
         let mut raw = manifest(&package);
-        raw["config"]["modelDiscovery"]["noList"] = json!(true);
+        raw["contributes"]["provider"]["config"]["modelDiscovery"]["noList"] = json!(true);
         let mut process = Process::new(&package, &home, true);
         std::fs::write(home.join(".codex/models_cache.json"),serde_json::to_vec(&json!({"client_version":"0.159.2","models":[{"slug":"gpt-6-sol","visibility":"list","service_tiers":[{"id":"ultrafast"}]},{"slug":"gpt-6-luna","visibility":"list"}]})).unwrap()).unwrap();
         assert_eq!(
             initialize(&mut process, &package, &data, raw, true)["result"]["apiVersion"],
-            1
+            2
         );
         let api=process.call(2,"models",json!({"subscriptionAccountsEnabled":true,"credentials":{"type":"apiKey","access":"private-fixture-api-key"}}));
         let good = if id == "openai" {

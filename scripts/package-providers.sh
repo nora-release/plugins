@@ -48,7 +48,7 @@ CONFIGURATION=Release BUILD_CONFIGURATION=Release CARGO_BUILD_TARGET="${HOST_TAR
   bash "${SCRIPT_DIR}/build-providers.sh" build "${STAGING_ROOT}/providers"
 mkdir -p "${STAGING_ROOT}/archives"
 PACKAGE_COUNT=0
-for manifest in "${STAGING_ROOT}/providers"/*/nora-provider.json; do
+for manifest in "${STAGING_ROOT}/providers"/*/nora-plugin.json; do
   [[ -f "${manifest}" ]] || continue
   package_dir="$(dirname "${manifest}")"
   provider_id="$(basename "${package_dir}")"

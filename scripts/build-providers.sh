@@ -10,23 +10,27 @@ MODE="${1:-build}"
 OUTPUT="${2:-${REPO_ROOT}/.build/providers}"
 CARGO_COMMAND=("${CARGO_BIN}")
 WORKSPACE_ARGS=(--manifest-path "${MANIFEST_PATH}" --workspace)
+# Builds against local checkouts instead of the pinned git revisions:
+# NORA_PROVIDER_NORA_SOURCE for nora-ai, NORA_PLUGIN_KIT_SOURCE for the SDK.
+patch_local() {
+  local repository="$1" source="$2" package_name="$3" package_path="$4"
+  if [[ ! -f "${source}/${package_path}/Cargo.toml" ]]; then
+    echo "The local source ${source} must contain ${package_path}." >&2
+    exit 1
+  fi
+  CARGO_COMMAND+=(--config "$(python3 -c 'import json,sys; print("patch." + json.dumps(sys.argv[1]) + "." + sys.argv[2] + ".path=" + json.dumps(sys.argv[3]))' "${repository}" "${package_name}" "${source}/${package_path}")")
+}
 if [[ -n "${NORA_PROVIDER_NORA_SOURCE:-}" ]]; then
   LOCAL_NORA_SOURCE="$(cd "${NORA_PROVIDER_NORA_SOURCE}" && pwd)"
-  for package_path in packages/agents/ai packages/router/plugin-sdk; do
-    if [[ ! -f "${LOCAL_NORA_SOURCE}/${package_path}/Cargo.toml" ]]; then
-      echo "The local Nora source must contain the AI and provider SDK packages." >&2
-      exit 1
-    fi
+  patch_local https://github.com/nora-release/nora.git "${LOCAL_NORA_SOURCE}" nora-ai packages/agents/ai
+fi
+if [[ -n "${NORA_PLUGIN_KIT_SOURCE:-}" ]]; then
+  LOCAL_PLUGIN_KIT_SOURCE="$(cd "${NORA_PLUGIN_KIT_SOURCE}" && pwd)"
+  for package_name in nora-provider-plugin-sdk nora-network nora-plugin-manifest; do
+    patch_local https://github.com/nora-release/plugin-kit "${LOCAL_PLUGIN_KIT_SOURCE}" "${package_name}" "crates/${package_name}"
   done
-  for package_name in nora-ai nora-provider-plugin-sdk; do
-    case "${package_name}" in
-      nora-ai) package_path="packages/agents/ai" ;;
-      *) package_path="packages/router/plugin-sdk" ;;
-    esac
-    patch_config="$(python3 -c 'import json,sys; print("patch.\"https://github.com/nora-release/nora.git\"." + sys.argv[1] + ".path=" + json.dumps(sys.argv[2]))' "${package_name}" "${LOCAL_NORA_SOURCE}/${package_path}")"
-    CARGO_COMMAND+=(--config "${patch_config}")
-  done
-else
+fi
+if [[ -z "${NORA_PROVIDER_NORA_SOURCE:-}${NORA_PLUGIN_KIT_SOURCE:-}" ]]; then
   WORKSPACE_ARGS+=(--locked)
 fi
 
@@ -131,7 +135,7 @@ stage_provider nora-provider
 "${STAGING_ROOT}/runtime/nora-provider" --prepare "${PROVIDERS_ROOT}" "${STAGING_ROOT}/providers"
 
 PACKAGE_COUNT=0
-for manifest in "${STAGING_ROOT}/providers"/*/nora-provider.json; do
+for manifest in "${STAGING_ROOT}/providers"/*/nora-plugin.json; do
   [[ -f "${manifest}" ]] || continue
   package_dir="$(dirname "${manifest}")"
   provider_id="$(basename "${package_dir}")"

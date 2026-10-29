@@ -35,8 +35,8 @@ impl Client {
             next: 1,
             directory,
         };
-        let result=client.call("initialize",json!({"apiVersion":1,"pluginDirectory":client.directory,"dataDirectory":client.directory,"manifest":{}}));
-        assert_eq!(result["result"]["apiVersion"], 1, "{result}");
+        let result=client.call("initialize",json!({"apiVersion":2,"pluginDirectory":client.directory,"dataDirectory":client.directory,"manifest":{}}));
+        assert_eq!(result["result"]["apiVersion"], 2, "{result}");
         assert_eq!(
             result["result"]["capabilities"]["gatewayMiddleware"]["version"], 1,
             "{result}"

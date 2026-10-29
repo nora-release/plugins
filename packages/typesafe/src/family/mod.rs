@@ -329,10 +329,10 @@ async fn credits(base: &str, credentials: &Value, client: &dyn HttpClient) -> Pl
 #[async_trait]
 impl ProviderPlugin for DecisionProvider {
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
-        if params.manifest["api"] != "systemone"
+        if params.manifest["contributes"]["provider"]["api"] != "systemone"
             || params
                 .manifest
-                .pointer("/config/operations")
+                .pointer("/contributes/provider/config/operations")
                 .and_then(Value::as_array)
                 .is_none_or(|operations| !operations.contains(&json!("decision")))
         {
@@ -343,7 +343,7 @@ impl ProviderPlugin for DecisionProvider {
         self.core.initialize(params)
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.core.config()?.manifest["authMethods"].clone())
+        Ok(self.core.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let method = params

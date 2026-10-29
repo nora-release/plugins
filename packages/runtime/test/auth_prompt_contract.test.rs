@@ -7,7 +7,7 @@ fn manifest(id: &str) -> Value {
                 .parent()
                 .unwrap()
                 .join(id)
-                .join("nora-provider.json"),
+                .join("nora-plugin.json"),
         )
         .unwrap(),
     )
@@ -25,7 +25,7 @@ fn required_login_prompts_are_declared_where_authorization_requires_an_answer() 
         ("qwenwork-enterprise", "oauth", "domain", "text"),
     ] {
         let manifest = manifest(id);
-        let method = manifest["authMethods"]
+        let method = manifest["contributes"]["provider"]["authMethods"]
             .as_array()
             .unwrap()
             .iter()
@@ -47,7 +47,7 @@ fn required_login_prompts_are_declared_where_authorization_requires_an_answer() 
         }
     }
     let optional = manifest("trae-cn");
-    let method = optional["authMethods"]
+    let method = optional["contributes"]["provider"]["authMethods"]
         .as_array()
         .unwrap()
         .iter()
@@ -76,10 +76,14 @@ fn preparing_native_packages_preserves_prompt_schema_and_does_not_add_defaults()
         std::fs::write(&source, serde_json::to_vec(&original).unwrap()).unwrap();
         prepare(&source, &root.join("output")).unwrap();
         let prepared: Value = serde_json::from_slice(
-            &std::fs::read(root.join("output").join(id).join("nora-provider.json")).unwrap(),
+            &std::fs::read(root.join("output").join(id).join("nora-plugin.json")).unwrap(),
         )
         .unwrap();
-        assert_eq!(prepared["authMethods"], original["authMethods"], "{id}");
+        assert_eq!(
+            prepared["contributes"]["provider"]["authMethods"],
+            original["contributes"]["provider"]["authMethods"],
+            "{id}"
+        );
     }
     std::fs::remove_dir_all(root).unwrap();
 }

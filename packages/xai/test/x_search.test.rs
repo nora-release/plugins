@@ -22,8 +22,8 @@ async fn enabled(value: Value) -> Value {
 
 #[test]
 fn native_x_search_is_an_opt_in_plugin_setting() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    let option = manifest["config"]["options"]
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    let option = manifest["contributes"]["provider"]["config"]["options"]
         .as_array()
         .unwrap()
         .iter()

@@ -1,0 +1,50 @@
+{
+  "apiVersion": 2,
+  "id": "cline",
+  "name": "Cline",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.cline.bot/api/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Cline account"
+        },
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "Cline API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "label": "API key",
+              "type": "password",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "options": [
+          {
+            "id": "pinUpstream",
+            "type": "boolean",
+            "label": "DeepSeek and GLM models only from their makers' own APIs",
+            "description": "A DeepSeek request goes only to DeepSeek and a GLM request only to Z.ai, preserving their prompt cache. The request fails when that API cannot serve it.",
+            "default": false,
+            "preserveUnset": true
+          }
+        ],
+        "authTimeoutMs": 600000
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "apiVersion": 2,
+  "id": "tavily",
+  "name": "Tavily",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.tavily.com",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "connectionOptions": true,
+        "searchAPI": {
+          "version": 1,
+          "order": 0,
+          "keyOptional": false,
+          "requiresBaseURL": false
+        },
+        "sdkCapabilities": {
+          "webSearch": 1
+        },
+        "keyOptional": false,
+        "options": [
+          {
+            "id": "searchKeysInOrder",
+            "type": "boolean",
+            "label": "Use API keys in order",
+            "description": "Use the first available API key; otherwise searches take turns between keys.",
+            "default": false
+          }
+        ]
+      }
+    }
+  }
+}

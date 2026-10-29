@@ -90,11 +90,11 @@ fn setup(replies: Vec<(u16, Value)>) -> (Cline, Arc<Client>, Arc<Store>) {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: serde_json::Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: "cline".into(),
         plugin_directory: PathBuf::new(),
         data_directory: PathBuf::new(),
-        manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     })
     .unwrap();
     (Cline::with_core(core), client, store)
@@ -117,7 +117,7 @@ async fn clinepass_rejects_oauth_before_any_network_request() {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: serde_json::Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: "clinepass".into(),
         plugin_directory: PathBuf::new(),
         data_directory: PathBuf::new(),

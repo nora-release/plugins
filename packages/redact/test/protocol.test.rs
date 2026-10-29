@@ -20,7 +20,7 @@ impl Directory {
     }
     async fn plugin(&self) -> Plugin {
         let p = Plugin::default();
-        let result=p.initialize(serde_json::from_value(json!({"apiVersion":1,"pluginID":"privacy","pluginDirectory":self.0,"dataDirectory":self.0,"manifest":{}})).unwrap()).await.unwrap();
+        let result=p.initialize(serde_json::from_value(json!({"apiVersion":2,"pluginID":"privacy","pluginDirectory":self.0,"dataDirectory":self.0,"manifest":{}})).unwrap()).await.unwrap();
         assert_eq!(result["capabilities"]["gatewayMasker"]["version"], 1);
         p
     }

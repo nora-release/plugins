@@ -12,12 +12,12 @@ async fn configured(client: Arc<dyn HttpClient>) -> (Directory, NousPortal) {
     provider.client = Some(client);
     provider
         .initialize(InitializeParams {
-            api_version: 1,
+            api_version: 2,
             subscription_accounts_enabled: true,
             plugin_id: "nous-portal".into(),
             plugin_directory: "/test/package".into(),
             data_directory: directory.0.clone(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: Value::Null,
         })

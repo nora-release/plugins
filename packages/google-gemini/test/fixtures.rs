@@ -55,7 +55,7 @@ impl HttpClient for Client {
 }
 pub fn definition() -> Definition {
     let mut definition =
-        Definition::parse(serde_json::from_str(include_str!("../nora-provider.json")).unwrap())
+        Definition::parse(serde_json::from_str(include_str!("../nora-plugin.json")).unwrap())
             .unwrap();
     definition.adapter = Arc::new(crate::provider::GoogleGemini);
     definition

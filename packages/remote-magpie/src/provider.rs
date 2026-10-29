@@ -37,7 +37,7 @@ impl Remote {
             return Ok(client.clone());
         }
         let config = self.config()?;
-        let client = nora_provider_network::http_client(proxy.or(config.proxy.as_ref()))?;
+        let client = nora_provider_plugin_sdk::http_client(proxy.or(config.proxy.as_ref()))?;
         Ok(Arc::new(
             ReqwestHttpClient::with_client(client).with_observer_fn(|| async {
                 nora_provider_plugin_sdk::before_http_request()
@@ -70,7 +70,7 @@ impl ProviderPlugin for Remote {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -91,7 +91,7 @@ impl ProviderPlugin for Remote {
         Ok(self
             .config()?
             .manifest
-            .get("authMethods")
+            .pointer("/contributes/provider/authMethods")
             .cloned()
             .unwrap_or(json!([])))
     }

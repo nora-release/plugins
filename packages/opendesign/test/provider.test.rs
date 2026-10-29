@@ -50,11 +50,11 @@ fn setup(replies: Vec<(u16, Value)>) -> (OpenDesign, Arc<Client>) {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: serde_json::Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: "opendesign".into(),
         plugin_directory: PathBuf::new(),
         data_directory: PathBuf::new(),
-        manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     })
     .unwrap();
     (OpenDesign { core }, client)

@@ -103,7 +103,7 @@ fn build(
     proxy: Option<&NetworkProxy>,
     hosts: &BTreeSet<(String, u16)>,
 ) -> PluginResult<reqwest::Client> {
-    let mut builder = nora_provider_network::http_client_builder(proxy)?;
+    let mut builder = nora_provider_plugin_sdk::http_client_builder(proxy)?;
     if !hosts.is_empty() {
         builder = builder.use_preconfigured_tls(crate::tls_verifier::configuration(
             hosts.iter().map(|(host, _)| host.clone()).collect(),

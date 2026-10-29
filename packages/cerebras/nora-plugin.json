@@ -1,0 +1,43 @@
+{
+  "apiVersion": 2,
+  "id": "cerebras",
+  "name": "Cerebras",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.cerebras.ai/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "cerebras",
+        "keyProvider": "cerebras",
+        "legacy": {
+          "providerID": "cerebras",
+          "keyProvider": "cerebras",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        }
+      }
+    }
+  }
+}

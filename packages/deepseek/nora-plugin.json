@@ -1,0 +1,102 @@
+{
+  "apiVersion": 2,
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.deepseek.com/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "upstreamStatus": {
+          "vendor": "deepseek",
+          "name": "DeepSeek",
+          "page": "https://status.deepseek.com",
+          "hosts": [
+            "api.deepseek.com"
+          ]
+        },
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "deepseek",
+        "keyProvider": "deepseek",
+        "legacy": {
+          "providerID": "deepseek",
+          "keyProvider": "deepseek",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.deepseek.com/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.deepseek.com/v1"
+            },
+            {
+              "api": "openai-responses",
+              "baseURL": "https://api.deepseek.com/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.deepseek.com/anthropic"
+            }
+          ],
+          "noList": false
+        },
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.deepseek.com/v1"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://api.deepseek.com/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://api.deepseek.com/anthropic"
+              }
+            ],
+            "models": [],
+            "catalog": "deepseek",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer"
+      }
+    }
+  }
+}

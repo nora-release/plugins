@@ -65,7 +65,7 @@ async fn provider(client: Arc<Client>) -> JoyCode {
         client: Some(client),
         ..Default::default()
     };
-    provider.initialize(serde_json::from_value(json!({"apiVersion":1,"pluginID":"joycode","pluginDirectory":"/tmp/joycode-fixture","dataDirectory":"/tmp/joycode-fixture-data","manifest":serde_json::from_str::<Value>(include_str!("../nora-provider.json")).unwrap()})).unwrap()).await.unwrap();
+    provider.initialize(serde_json::from_value(json!({"apiVersion":2,"pluginID":"joycode","pluginDirectory":"/tmp/joycode-fixture","dataDirectory":"/tmp/joycode-fixture-data","manifest":serde_json::from_str::<Value>(include_str!("../nora-plugin.json")).unwrap()})).unwrap()).await.unwrap();
     provider
 }
 fn context(credentials: Value) -> CallContext {

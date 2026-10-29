@@ -69,8 +69,8 @@ async fn sdk_outputs_original_tool_names_for_json_and_sse_and_keeps_stream_failu
     ));
     let (input, mut output) = tokio::io::split(host);
     let mut input = BufReader::new(input);
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    let init=call(&mut input,&mut output,1,"initialize",json!({"apiVersion":1,"pluginID":"zcode","manifest":manifest,"pluginDirectory":dir.0,"dataDirectory":dir.0.join("data"),"subscriptionAccountsEnabled":true})).await;
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    let init=call(&mut input,&mut output,1,"initialize",json!({"apiVersion":2,"pluginID":"zcode","manifest":manifest,"pluginDirectory":dir.0,"dataDirectory":dir.0.join("data"),"subscriptionAccountsEnabled":true})).await;
     assert!(init[0].get("result").is_some());
     for id in 2..=4 {
         let frames=call(&mut input,&mut output,id,"fetch",json!({"account":"fixture","credentials":credentials("fixture.key",""),"subscriptionAccountsEnabled":true,"method":"POST","url":format!("{}/v1/messages",Site::Zai.base()),"body":base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&claude_code()).unwrap())})).await;

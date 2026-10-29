@@ -6,11 +6,11 @@ fn initialize() -> InitializeParams {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: serde_json::Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: "devin".into(),
         plugin_directory: std::env::temp_dir(),
         data_directory: std::env::temp_dir(),
-        manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     }
 }
 async fn plugin(client: Arc<Client>) -> Devin {
@@ -42,7 +42,7 @@ async fn initialization_does_not_install_execute_or_import_any_cli_account() {
     );
     assert!(client.requests.lock().unwrap().is_empty());
     let mut wrong = initialize();
-    wrong.manifest["baseURL"] = json!("https://custom.test/v1");
+    wrong.manifest["contributes"]["provider"]["baseURL"] = json!("https://custom.test/v1");
     assert!(p.initialize(wrong).await.is_err());
 }
 #[tokio::test]
@@ -259,7 +259,8 @@ async fn bad_proxy_never_falls_back_to_direct_before_private_requests() {
     let client = Client::new(vec![]);
     let p = plugin(client.clone()).await;
     let mut init = initialize();
-    init.manifest["config"]["networkProxy"] = json!({"mode":"proxy","url":"file:///private/proxy"});
+    init.manifest["contributes"]["provider"]["config"]["networkProxy"] =
+        json!({"mode":"proxy","url":"file:///private/proxy"});
     assert!(p.initialize(init).await.is_err());
     assert!(p
         .params_client(&json!({"networkProxy":{"mode":"proxy","url":"http://proxy.test/private"}}))

@@ -1,4 +1,4 @@
-use crate::package_manifest::{filename_component, PackageManifest};
+use crate::package_manifest::filename_component;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -15,31 +15,30 @@ pub fn write_catalog(
         let path = entry
             .map_err(|error| error.to_string())?
             .path()
-            .join("nora-provider.json");
+            .join(nora_plugin_manifest::package::MANIFEST_FILE);
         if !path.is_file() {
             continue;
         }
         let value: Value =
             serde_json::from_slice(&std::fs::read(&path).map_err(|error| error.to_string())?)
                 .map_err(|error| error.to_string())?;
-        let manifest = PackageManifest::parse(&value)
+        let manifest = crate::package_manifest::parse(&value)
             .map_err(|error| format!("Invalid provider manifest {}: {error}", path.display()))?;
-        let version = manifest.version;
-        let description = manifest
-            .config
-            .and_then(|config| config.get("description"))
-            .and_then(Value::as_str)
-            .unwrap_or_else(|| {
-                if manifest
-                    .auth_methods
-                    .iter()
-                    .any(|method| method.get("type").and_then(Value::as_str) == Some("oauth"))
-                {
-                    "Connect your subscription or API key."
-                } else {
-                    "Connect with your API key."
-                }
-            });
+        let version = manifest.version.as_str();
+        let provider = manifest.contributes.provider.as_ref();
+        let auth_methods = provider
+            .map(|provider| provider.auth_methods.as_slice())
+            .unwrap_or_default();
+        let description = manifest.summary.as_deref().unwrap_or_else(|| {
+            if auth_methods
+                .iter()
+                .any(|method| method.get("type").and_then(Value::as_str) == Some("oauth"))
+            {
+                "Connect your subscription or API key."
+            } else {
+                "Connect with your API key."
+            }
+        });
         if description.len() > 4096 || description.chars().any(char::is_control) {
             return Err(format!(
                 "The provider description is invalid: {}",
@@ -85,20 +84,18 @@ pub fn write_catalog(
                 json!({"url":url.as_str(),"sha256":format!("{:x}",digest.finalize())}),
             );
         }
-        let mut provider = json!({
-            "apiVersion":manifest.api_version,
-            "id":manifest.id,"name":manifest.name,"description":description,"version":version,
-            "repository":format!("https://github.com/nora-release/plugins/tree/agent/router/packages/{}",manifest.id),
-            "packages":packages
-        });
-        if let Some(minimum) = manifest.minimum_host_version {
-            provider["minimumHostVersion"] = json!(minimum);
+        let mut entry = json!({"apiVersion":2,"id":manifest.id,"name":manifest.name,"description":description,"version":version,"repository":format!("https://github.com/nora-release/plugins/tree/agent/router/packages/{}",manifest.id),"contributes":contributions(&manifest),"packages":packages});
+        if let Some(minimum) = &manifest.minimum_host_version {
+            entry["minimumHostVersion"] = json!(minimum);
         }
         // Nora finds these sign-ins on a Mac before the provider is installed.
-        if !manifest.local_sign_ins.is_empty() {
-            provider["localSignIns"] = json!(manifest.local_sign_ins);
+        if let Some(sign_ins) = provider
+            .map(|provider| &provider.local_sign_ins)
+            .filter(|sign_ins| !sign_ins.is_empty())
+        {
+            entry["localSignIns"] = json!(sign_ins);
         }
-        if providers.insert(manifest.id.to_owned(), provider).is_some() {
+        if providers.insert(manifest.id.clone(), entry).is_some() {
             return Err("The provider catalog contains duplicate IDs".into());
         }
     }
@@ -106,12 +103,29 @@ pub fn write_catalog(
         return Err("No providers were found".into());
     }
     let catalog =
-        json!({"schemaVersion":1,"providers":providers.into_values().collect::<Vec<_>>()});
+        json!({"schemaVersion":2,"providers":providers.into_values().collect::<Vec<_>>()});
     std::fs::write(
         output,
         serde_json::to_vec_pretty(&catalog).map_err(|error| error.to_string())?,
     )
     .map_err(|error| error.to_string())
+}
+
+/// What the package adds, named as Nora's catalog lists it.
+fn contributions(manifest: &nora_plugin_manifest::PluginManifest) -> Vec<&'static str> {
+    let contributes = &manifest.contributes;
+    [
+        (contributes.provider.is_some(), "provider"),
+        (contributes.hooks.is_some(), "hooks"),
+        (contributes.middleware.is_some(), "middleware"),
+        (contributes.masker.is_some(), "masker"),
+        (!contributes.panels.is_empty(), "panels"),
+        (contributes.page.is_some(), "page"),
+        (!contributes.actions.is_empty(), "actions"),
+    ]
+    .into_iter()
+    .filter_map(|(present, name)| present.then_some(name))
+    .collect()
 }
 
 #[cfg(test)]

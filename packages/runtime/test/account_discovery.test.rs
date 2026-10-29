@@ -52,7 +52,7 @@ async fn fixture(adapter: impl ProviderAdapter) -> BundledProvider {
         plugin_id: "fixture".into(),
         plugin_directory: PathBuf::new(),
         data_directory: PathBuf::new(),
-        manifest: json!({"id":"fixture","name":"Fixture","api":"openai-responses","baseURL":"https://api.example.test","config":{"keyProvider":"fixture-key","oauthProvider":"fixture"}}),
+        manifest: json!({"id":"fixture","name":"Fixture","contributes":{"provider":{"api":"openai-responses","baseURL":"https://api.example.test","config":{"keyProvider":"fixture-key","oauthProvider":"fixture"}}}}),
     }).await.unwrap();
     plugin
 }

@@ -25,7 +25,7 @@ impl Drop for File {
 }
 
 fn definition(base: &str) -> Definition {
-    Definition::parse(json!({"id":"example","name":"Example","api":"openai-completions","baseURL":base,"config":{"keyProvider":"openai"}})).unwrap()
+    Definition::from_fields(json!({"id":"example","name":"Example","api":"openai-completions","baseURL":base,"config":{"keyProvider":"openai"}})).unwrap()
 }
 fn request(base: &str, file: &File) -> FetchRequest {
     FetchRequest {

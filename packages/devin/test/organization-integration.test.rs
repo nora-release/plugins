@@ -40,12 +40,12 @@ impl Host {
             output,
             next: 1,
         };
-        let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+        let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
         let initialized = host
             .call(
                 "initialize",
                 json!({
-                    "apiVersion":1,"pluginID":"devin","pluginDirectory":env!("CARGO_MANIFEST_DIR"),
+                    "apiVersion":2,"pluginID":"devin","pluginDirectory":env!("CARGO_MANIFEST_DIR"),
                     "dataDirectory":host.directory.join("plugin-data"),"manifest":manifest,
                     "subscriptionAccountsEnabled":true
                 }),

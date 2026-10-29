@@ -1,0 +1,58 @@
+{
+  "apiVersion": 2,
+  "id": "opencode",
+  "name": "OpenCode",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "anthropic-messages",
+      "baseURL": "https://opencode.ai/zen",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "ownClient": true,
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "opencode",
+        "keyProvider": "opencode",
+        "legacy": {
+          "providerID": "opencode",
+          "keyProvider": "opencode",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://opencode.ai/zen",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://opencode.ai/zen/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://opencode.ai/zen"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

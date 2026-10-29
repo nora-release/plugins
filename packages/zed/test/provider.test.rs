@@ -9,7 +9,7 @@ fn initialize() -> InitializeParams {
         plugin_id: "zed".into(),
         plugin_directory: std::env::temp_dir(),
         data_directory: std::env::temp_dir(),
-        manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     }
 }
 async fn plugin(client: Arc<Client>, save: Arc<dyn Persistence>) -> Zed {
@@ -61,7 +61,7 @@ async fn initialization_has_no_account_reads_or_network_calls() {
     );
     assert!(client.requests.lock().unwrap().is_empty());
     let mut wrong = initialize();
-    wrong.manifest["baseURL"] = json!("https://other.test/v1");
+    wrong.manifest["contributes"]["provider"]["baseURL"] = json!("https://other.test/v1");
     assert!(plugin.initialize(wrong).await.is_err());
 }
 #[tokio::test]

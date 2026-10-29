@@ -40,8 +40,8 @@ impl Host {
             output,
             next: 1,
         };
-        let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-        let initialized = host.call("initialize", json!({"apiVersion":1,"pluginID":"openai","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":host.directory.join("plugin-data"),"manifest":manifest,"subscriptionAccountsEnabled":true})).await;
+        let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+        let initialized = host.call("initialize", json!({"apiVersion":2,"pluginID":"openai","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":host.directory.join("plugin-data"),"manifest":manifest,"subscriptionAccountsEnabled":true})).await;
         assert!(initialized.get("error").is_none(), "{initialized}");
         host
     }

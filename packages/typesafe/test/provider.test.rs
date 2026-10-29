@@ -50,7 +50,7 @@ impl HttpClient for Client {
     }
 }
 fn definition() -> Definition {
-    Definition::parse(serde_json::from_str(include_str!("../nora-provider.json")).unwrap()).unwrap()
+    Definition::parse(serde_json::from_str(include_str!("../nora-plugin.json")).unwrap()).unwrap()
 }
 fn credentials() -> Value {
     json!({"type":"apiKey","access":"private-typesafe-key"})
@@ -118,19 +118,40 @@ impl Drop for Directory {
 
 #[test]
 fn manifest_declares_only_decisions_and_api_key_authentication() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    assert_eq!(manifest["api"], "systemone");
-    assert_eq!(manifest["config"]["operations"], json!(["decision"]));
-    assert_eq!(manifest["models"][0]["info"]["decision"], true);
-    assert_eq!(manifest["models"][0]["info"]["chat"], false);
-    assert_eq!(manifest["authMethods"].as_array().unwrap().len(), 1);
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    assert_eq!(manifest["contributes"]["provider"]["api"], "systemone");
+    assert_eq!(
+        manifest["contributes"]["provider"]["config"]["operations"],
+        json!(["decision"])
+    );
+    assert_eq!(
+        manifest["contributes"]["provider"]["models"][0]["info"]["decision"],
+        true
+    );
+    assert_eq!(
+        manifest["contributes"]["provider"]["models"][0]["info"]["chat"],
+        false
+    );
+    assert_eq!(
+        manifest["contributes"]["provider"]["authMethods"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
 }
 
 #[test]
 fn jev_manifest_publishes_its_known_context_and_input_without_initialization() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    assert_eq!(manifest["models"][0]["contextWindow"], 32000);
-    assert_eq!(manifest["models"][0]["input"], json!(["text"]));
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    assert_eq!(
+        manifest["contributes"]["provider"]["models"][0]["contextWindow"],
+        32000
+    );
+    assert_eq!(
+        manifest["contributes"]["provider"]["models"][0]["input"],
+        json!(["text"])
+    );
 }
 
 #[tokio::test]
@@ -426,7 +447,7 @@ async fn host_owned_body_files_are_verified_and_obey_the_decision_limit() {
 async fn initialization_authorization_and_unavailable_quota_use_the_sdk_contract() {
     let directory = Directory::new();
     let provider = Typesafe::default();
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     provider
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,

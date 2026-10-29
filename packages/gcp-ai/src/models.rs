@@ -259,8 +259,8 @@ pub fn model_rows(
     )
 }
 pub fn seeds() -> Value {
-    serde_json::from_str::<Value>(include_str!("../nora-provider.json"))
-        .expect("bundled GCP manifest")["models"]
+    serde_json::from_str::<Value>(include_str!("../nora-plugin.json"))
+        .expect("bundled GCP manifest")["contributes"]["provider"]["models"]
         .clone()
 }
 

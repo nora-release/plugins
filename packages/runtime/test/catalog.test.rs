@@ -2,7 +2,7 @@ use super::*;
 use std::path::PathBuf;
 
 fn native_manifest() -> Value {
-    json!({"apiVersion":1,"id":"example","name":"Example","version":"1.0.0","runtime":{"type":"native","entry":"provider"},"api":"openai-completions","baseURL":"https://example.test/v1","models":[],"authMethods":[],"config":{}})
+    json!({"apiVersion":2,"id":"example","name":"Example","version":"1.0.0","runtime":{"entry":"provider"},"contributes":{"provider":{"api":"openai-completions","baseURL":"https://example.test/v1","authMethods":[],"models":[]}}})
 }
 
 struct Fixture(PathBuf);
@@ -17,7 +17,7 @@ impl Fixture {
         std::fs::create_dir_all(root.join("definitions/example")).unwrap();
         std::fs::create_dir(root.join("archives")).unwrap();
         std::fs::write(
-            root.join("definitions/example/nora-provider.json"),
+            root.join("definitions/example/nora-plugin.json"),
             native_manifest().to_string(),
         )
         .unwrap();
@@ -47,10 +47,11 @@ fn catalog_carries_the_local_sign_ins_a_provider_declares() {
     let sign_ins =
         json!([{"method":"desktop","label":"Example app","paths":["~/.example/auth.json"]}]);
     let mut manifest = native_manifest();
-    manifest["authMethods"] = json!([{"id":"desktop","type":"oauth","label":"Example app"}]);
-    manifest["localSignIns"] = sign_ins.clone();
+    manifest["contributes"]["provider"]["authMethods"] =
+        json!([{"id":"desktop","type":"oauth","label":"Example app"}]);
+    manifest["contributes"]["provider"]["localSignIns"] = sign_ins.clone();
     std::fs::write(
-        fixture.0.join("definitions/example/nora-provider.json"),
+        fixture.0.join("definitions/example/nora-plugin.json"),
         manifest.to_string(),
     )
     .unwrap();
@@ -115,10 +116,12 @@ fn native_private_configuration_is_opaque_to_preparation_and_catalog_generation(
     let fixture = Fixture::new();
     let mut manifest = native_manifest();
     manifest["minimumHostVersion"] = json!("0.2.0");
-    manifest["authMethods"] = json!([{"id":"browser","type":"oauth","label":"Sign in"}]);
-    manifest["config"] = json!({"keyProvider":{"nativeOnly":true},"description":"Native account","privateOptions":{"credential":"must-not-be-published"}});
+    manifest["contributes"]["provider"]["authMethods"] =
+        json!([{"id":"browser","type":"oauth","label":"Sign in"}]);
+    manifest["summary"] = json!("Native account");
+    manifest["contributes"]["provider"]["config"] = json!({"keyProvider":{"nativeOnly":true},"privateOptions":{"credential":"must-not-be-published"}});
     assert!(crate::definition::Definition::parse(manifest.clone()).is_err());
-    let source = fixture.0.join("definitions/example/nora-provider.json");
+    let source = fixture.0.join("definitions/example/nora-plugin.json");
     std::fs::write(&source, manifest.to_string()).unwrap();
     let output = fixture.0.join("providers.json");
     write_catalog(&fixture.0.join("definitions"), &output, None).unwrap();
@@ -126,7 +129,7 @@ fn native_private_configuration_is_opaque_to_preparation_and_catalog_generation(
     let catalog: Value = serde_json::from_slice(&bytes).unwrap();
     let provider = &catalog["providers"][0];
     assert_eq!(provider["description"], "Native account");
-    assert_eq!(provider["apiVersion"], 1);
+    assert_eq!(provider["apiVersion"], 2);
     assert_eq!(provider["minimumHostVersion"], "0.2.0");
     assert!(!String::from_utf8(bytes)
         .unwrap()
@@ -134,17 +137,16 @@ fn native_private_configuration_is_opaque_to_preparation_and_catalog_generation(
     assert!(provider.get("config").is_none());
     let prepared = fixture.0.join("prepared");
     crate::definition::prepare(&source, &prepared).unwrap();
-    let package: Value = serde_json::from_slice(
-        &std::fs::read(prepared.join("example/nora-provider.json")).unwrap(),
-    )
-    .unwrap();
+    let package: Value =
+        serde_json::from_slice(&std::fs::read(prepared.join("example/nora-plugin.json")).unwrap())
+            .unwrap();
     assert_eq!(
-        package["config"]["keyProvider"],
-        manifest["config"]["keyProvider"]
+        package["contributes"]["provider"]["config"]["keyProvider"],
+        manifest["contributes"]["provider"]["config"]["keyProvider"]
     );
     assert_eq!(
-        package["config"]["privateOptions"],
-        manifest["config"]["privateOptions"]
+        package["contributes"]["provider"]["config"]["privateOptions"],
+        manifest["contributes"]["provider"]["config"]["privateOptions"]
     );
 }
 
@@ -155,15 +157,14 @@ fn all_packages() -> (PathBuf, BTreeMap<String, Value>) {
         .to_path_buf();
     let mut manifests = BTreeMap::new();
     for entry in std::fs::read_dir(&root).unwrap() {
-        let path = entry.unwrap().path().join("nora-provider.json");
+        let path = entry.unwrap().path().join("nora-plugin.json");
         if !path.is_file() {
             continue;
         }
         let value: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-        let id = PackageManifest::parse(&value)
+        let id = crate::package_manifest::parse(&value)
             .unwrap_or_else(|error| panic!("{}: {error}", path.display()))
-            .id
-            .to_owned();
+            .id;
         assert!(manifests.insert(id, value).is_none());
     }
     assert!(
@@ -193,11 +194,14 @@ fn source_catalog_includes_every_native_and_generic_package_without_adapter_fiel
         assert_eq!(provider["version"], manifest["version"]);
         assert_eq!(provider["apiVersion"], manifest["apiVersion"]);
         assert_eq!(provider["packages"], json!({}));
-        if manifest["localSignIns"]
+        if manifest["contributes"]["provider"]["localSignIns"]
             .as_array()
             .is_some_and(|sign_ins| !sign_ins.is_empty())
         {
-            assert_eq!(provider["localSignIns"], manifest["localSignIns"]);
+            assert_eq!(
+                provider["localSignIns"],
+                manifest["contributes"]["provider"]["localSignIns"]
+            );
         }
     }
     for native in [
@@ -265,27 +269,28 @@ fn release_catalog_covers_all_packages_and_hashes_each_exact_archive() {
 #[test]
 fn invalid_package_envelopes_are_rejected_by_preparation_and_catalog_together() {
     let fixture = Fixture::new();
-    let source = fixture.0.join("definitions/example/nora-provider.json");
+    let source = fixture.0.join("definitions/example/nora-plugin.json");
     let output = fixture.0.join("providers.json");
     let mutations = [
-        ("/apiVersion", json!(2)),
+        ("/apiVersion", json!(1)),
         ("/apiVersion", json!("1")),
         ("/id", json!("../escape")),
         ("/id", json!("")),
         ("/name", json!(" ")),
         ("/version", json!("../1.0")),
-        ("/api", json!(false)),
-        ("/runtime/type", json!("node")),
+        ("/contributes/provider/api", json!(false)),
         ("/runtime/entry", json!("../outside")),
         ("/runtime/entry", json!("/absolute")),
         ("/runtime/entry", json!("./")),
         ("/runtime/entry", json!("index.mjs")),
-        ("/models", json!({})),
-        ("/models", json!(vec![Value::Null; 4097])),
-        ("/authMethods", json!({})),
-        ("/authMethods", json!(["invalid"])),
-        ("/config", json!([])),
-        ("/baseURL", json!(32)),
+        ("/contributes/provider/models", json!({})),
+        (
+            "/contributes/provider/models",
+            json!(vec![Value::Null; 4097]),
+        ),
+        ("/contributes/provider/authMethods", json!({})),
+        ("/contributes/provider/authMethods", json!(["invalid"])),
+        ("/contributes/provider/baseURL", json!(32)),
     ];
     for (pointer, value) in mutations {
         let mut manifest = native_manifest();
@@ -301,7 +306,7 @@ fn invalid_package_envelopes_are_rejected_by_preparation_and_catalog_together() 
             "{pointer}"
         );
         let error = write_catalog(&fixture.0.join("definitions"), &output, None).unwrap_err();
-        assert!(error.contains("nora-provider.json"), "{error}");
+        assert!(error.contains("nora-plugin.json"), "{error}");
         assert_eq!(std::fs::read(&output).unwrap(), b"previous-catalog");
     }
 }
@@ -309,7 +314,7 @@ fn invalid_package_envelopes_are_rejected_by_preparation_and_catalog_together() 
 #[test]
 fn invalid_local_sign_in_metadata_is_never_published() {
     let fixture = Fixture::new();
-    let source = fixture.0.join("definitions/example/nora-provider.json");
+    let source = fixture.0.join("definitions/example/nora-plugin.json");
     let output = fixture.0.join("providers.json");
     for sign_ins in [
         json!({}),
@@ -319,8 +324,9 @@ fn invalid_local_sign_in_metadata_is_never_published() {
         json!([{"method":"desktop","label":"App","inputs":{"path":false}}]),
     ] {
         let mut manifest = native_manifest();
-        manifest["authMethods"] = json!([{"id":"desktop","type":"oauth"}]);
-        manifest["localSignIns"] = sign_ins;
+        manifest["contributes"]["provider"]["authMethods"] =
+            json!([{"id":"desktop","type":"oauth"}]);
+        manifest["contributes"]["provider"]["localSignIns"] = sign_ins;
         std::fs::write(&source, manifest.to_string()).unwrap();
         assert!(write_catalog(&fixture.0.join("definitions"), &output, None).is_err());
         assert!(!output.exists());
@@ -330,7 +336,7 @@ fn invalid_local_sign_in_metadata_is_never_published() {
 #[test]
 fn malformed_json_duplicates_and_empty_sources_leave_the_previous_catalog_untouched() {
     let fixture = Fixture::new();
-    let source = fixture.0.join("definitions/example/nora-provider.json");
+    let source = fixture.0.join("definitions/example/nora-plugin.json");
     let output = fixture.0.join("providers.json");
     std::fs::write(&output, b"previous-catalog").unwrap();
     std::fs::write(&source, b"{broken").unwrap();
@@ -339,7 +345,7 @@ fn malformed_json_duplicates_and_empty_sources_leave_the_previous_catalog_untouc
     std::fs::write(&source, native_manifest().to_string()).unwrap();
     let duplicate = fixture.0.join("definitions/duplicate");
     std::fs::create_dir_all(&duplicate).unwrap();
-    std::fs::copy(&source, duplicate.join("nora-provider.json")).unwrap();
+    std::fs::copy(&source, duplicate.join("nora-plugin.json")).unwrap();
     assert!(write_catalog(&fixture.0.join("definitions"), &output, None)
         .unwrap_err()
         .contains("duplicate"));
@@ -411,24 +417,23 @@ fn native_request_extensions_prepare_and_publish_without_provider_accounts() {
         "word-guard",
     ] {
         let declared: Value = serde_json::from_slice(
-            &std::fs::read(source.join(id).join("nora-provider.json")).unwrap(),
+            &std::fs::read(source.join(id).join("nora-plugin.json")).unwrap(),
         )
         .unwrap();
         let actual: Value = serde_json::from_slice(
-            &std::fs::read(prepared.join(id).join("nora-provider.json")).unwrap(),
+            &std::fs::read(prepared.join(id).join("nora-plugin.json")).unwrap(),
         )
         .unwrap();
         assert_eq!(actual, declared, "{id}");
-        assert_eq!(actual["api"], "gateway-middleware");
-        assert_eq!(actual["models"], json!([]));
-        assert_eq!(actual["authMethods"], json!([]));
+        assert!(actual["contributes"]["middleware"].is_object(), "{id}");
+        assert!(actual["contributes"].get("provider").is_none(), "{id}");
         let entry = catalog["providers"]
             .as_array()
             .unwrap()
             .iter()
             .find(|entry| entry["id"] == id)
             .unwrap();
-        assert_eq!(entry["description"], declared["config"]["description"]);
+        assert_eq!(entry["description"], declared["summary"]);
         assert_ne!(entry["description"], "Connect with your API key.");
         assert!(entry.get("localSignIns").is_none());
     }

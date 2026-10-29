@@ -2,7 +2,7 @@ use super::*;
 use serde_json::json;
 
 fn definition() -> Definition {
-    Definition::parse(json!({
+    Definition::from_fields(json!({
         "id":"test","name":"Test","api":"openai-completions","baseURL":"https://example.invalid/v1",
         "config":{"keyProvider":"openai","oauthProvider":"openai","passUserAgent":true}
     }))

@@ -106,10 +106,10 @@ fn relay_unknown_models_and_count_tokens_are_not_promoted_to_fast() {
 #[tokio::test]
 async fn fast_is_applied_after_custom_headers_and_body_overrides() {
     use base64::Engine;
-    let mut raw: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    raw["config"]["headers"] =
+    let mut raw: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    raw["contributes"]["provider"]["config"]["headers"] =
         json!({"Anthropic-Beta":"custom-fixture-beta","x-workspace":"private-workspace"});
-    raw["config"]["extraBody"] = json!({"!service_tier":"priority"});
+    raw["contributes"]["provider"]["config"]["extraBody"] = json!({"!service_tier":"priority"});
     let mut definition = nora_provider::definition::Definition::parse(raw).unwrap();
     definition.adapter = std::sync::Arc::new(super::super::Anthropic);
     let request = nora_provider_plugin_sdk::FetchRequest {

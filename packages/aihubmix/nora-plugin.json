@@ -1,0 +1,63 @@
+{
+  "apiVersion": 2,
+  "id": "aihubmix",
+  "name": "AiHubMix",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://aihubmix.com/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            },
+            {
+              "id": "balanceToken",
+              "key": "balanceToken",
+              "type": "password",
+              "label": "Account system access token (optional, for balance)",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "models": [
+        {
+          "id": "claude-sonnet-5",
+          "name": "Claude Sonnet 5"
+        },
+        {
+          "id": "deepseek-v4-flash-vision-exp",
+          "name": "DeepSeek V4 Flash Vision Exp"
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "aihubmix",
+        "keyProvider": "aihubmix",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://aihubmix.com/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://aihubmix.com/v1"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -105,14 +105,14 @@ impl ProviderPlugin for SearchApiPlugin {
         true
     }
     async fn initialize(&self, params: InitializeParams) -> PluginResult<Value> {
-        if params.api_version != 1 {
+        if params.api_version != nora_provider_plugin_sdk::API_VERSION {
             return Err(PluginError::invalid("Unsupported provider API version."));
         }
         let auth_methods = params
             .installed_manifest
             .as_ref()
             .unwrap_or(&params.manifest)
-            .get("authMethods")
+            .pointer("/contributes/provider/authMethods")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
@@ -150,9 +150,14 @@ impl ProviderPlugin for SearchApiPlugin {
                     .runtime_config
                     .pointer("/pluginOptions/searchKeysInOrder")
                     == Some(&Value::Bool(true))
-                || params.manifest.pointer("/config/searchKeysInOrder") == Some(&Value::Bool(true)),
+                || params
+                    .manifest
+                    .pointer("/contributes/provider/config/searchKeysInOrder")
+                    == Some(&Value::Bool(true)),
         };
-        Ok(json!({"apiVersion":1,"capabilities":{"sdkFeatures":{"connectionOverrides":1}}}))
+        Ok(
+            json!({"apiVersion":nora_provider_plugin_sdk::API_VERSION,"capabilities":{"sdkFeatures":{"connectionOverrides":1}}}),
+        )
     }
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
         let settings = self
@@ -311,7 +316,7 @@ impl SearchApiPlugin {
             &settings.base
         };
         validate_base(base)?;
-        let client = nora_provider_network::http_client_builder(context.network_proxy.as_ref())?
+        let client = nora_provider_plugin_sdk::http_client_builder(context.network_proxy.as_ref())?
             .redirect(reqwest::redirect::Policy::none())
             .timeout(Duration::from_secs(30))
             .build()

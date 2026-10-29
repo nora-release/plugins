@@ -36,10 +36,10 @@ async fn enterprise_auth_methods_follow_an_isolated_valid_domain_preset() {
     for site in [Site::QwenWorkEnterprise, Site::QwenWork, Site::China] {
         let manifest: Value = serde_json::from_str(match site {
             Site::QwenWorkEnterprise => {
-                include_str!("../../qwenwork-enterprise/nora-provider.json")
+                include_str!("../../qwenwork-enterprise/nora-plugin.json")
             }
-            Site::QwenWork => include_str!("../../qwenwork/nora-provider.json"),
-            Site::China => include_str!("../../qoder-cn/nora-provider.json"),
+            Site::QwenWork => include_str!("../../qwenwork/nora-plugin.json"),
+            Site::China => include_str!("../../qoder-cn/nora-plugin.json"),
             Site::International => unreachable!(),
         })
         .unwrap();
@@ -51,7 +51,7 @@ async fn enterprise_auth_methods_follow_an_isolated_valid_domain_preset() {
                 subscription_accounts_enabled: true,
                 installed_manifest: None,
                 runtime_config: Value::Null,
-                api_version: 1,
+                api_version: 2,
                 plugin_id: site.id().into(),
                 plugin_directory: "/test/plugin".into(),
                 data_directory: "/test/data".into(),
@@ -61,7 +61,7 @@ async fn enterprise_auth_methods_follow_an_isolated_valid_domain_preset() {
             .unwrap();
         let methods = provider.auth_methods(CallContext::default()).await.unwrap();
         if site != Site::QwenWorkEnterprise {
-            assert_eq!(methods, manifest["authMethods"]);
+            assert_eq!(methods, manifest["contributes"]["provider"]["authMethods"]);
             continue;
         }
         if case == "valid" {
@@ -78,7 +78,7 @@ async fn enterprise_auth_methods_follow_an_isolated_valid_domain_preset() {
                 .unwrap();
             assert!(text(&flow, "url").starts_with("https://preset.example.com/"));
         } else {
-            assert_eq!(methods, manifest["authMethods"]);
+            assert_eq!(methods, manifest["contributes"]["provider"]["authMethods"]);
             assert_eq!(methods[0]["prompts"][0]["required"], true);
             assert!(provider
                 .authorize(json!({"authMethodID":"oauth","inputs":{}}))

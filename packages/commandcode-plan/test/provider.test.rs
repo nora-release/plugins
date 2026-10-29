@@ -95,11 +95,11 @@ fn setup(replies: Vec<Reply>) -> (CommandCode, Arc<Client>, Arc<Store>) {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: serde_json::Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: "commandcode-plan".into(),
         plugin_directory: PathBuf::new(),
         data_directory: PathBuf::new(),
-        manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     })
     .unwrap();
     (
@@ -426,15 +426,15 @@ fn zero_data_retention_is_opt_in_and_applies_to_both_protocols() {
         .headers(&credentials(), &request, true)
         .unwrap()
         .contains_key("x-cmd-zdr"));
-    let mut manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    manifest["config"]["zdr"] = json!(true);
+    let mut manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    manifest["contributes"]["provider"]["config"]["zdr"] = json!(true);
     plugin
         .core
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "commandcode-plan".into(),
             plugin_directory: PathBuf::new(),
             data_directory: PathBuf::new(),

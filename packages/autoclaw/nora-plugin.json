@@ -1,0 +1,60 @@
+{
+  "apiVersion": 2,
+  "id": "autoclaw",
+  "name": "AutoClaw",
+  "version": "1.2.0",
+  "summary": "Connect AutoClaw with Google or z.ai web sign-in, with account credits and optional daily check-in.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://autoglm-api.autoglm.ai/autoclaw-proxy/proxy/autoclaw/v1",
+      "authMethods": [
+        {
+          "id": "oauth",
+          "type": "oauth",
+          "label": "Sign in with Google or z.ai",
+          "prompts": [
+            {
+              "key": "vendor",
+              "type": "select",
+              "label": "Sign-in method",
+              "options": [
+                {
+                  "label": "Google",
+                  "value": "google"
+                },
+                {
+                  "label": "z.ai",
+                  "value": "zai"
+                }
+              ],
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "persistent": true,
+        "keyProvider": "autoclaw",
+        "authTimeoutMs": 660000,
+        "accountActions": [
+          "checkin"
+        ],
+        "accountAutomation": {
+          "version": 1,
+          "checkin": {
+            "method": "checkin",
+            "statusMethod": "checkinStatus",
+            "timeZone": "Asia/Shanghai",
+            "authMethods": [
+              "oauth"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

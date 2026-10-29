@@ -1,30 +1,32 @@
 use crate::*;
 use nora_ai::{InputModality, Model};
 pub(crate) fn fallback(provider: &JoyCode) -> PluginResult<Vec<Model>> {
-    Ok(provider.config()?.manifest["models"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .map(|entry| {
-            let mut model = Model::new(text(entry, "id"), "openai-completions", "joycode");
-            model.base_url = format!("{BASE}/v1");
-            model.name = text(entry, "name").into();
-            model.context_window = entry["contextWindow"].as_u64().unwrap_or(200000);
-            model.max_tokens = entry["maxTokens"].as_u64().unwrap_or(64000);
-            model.reasoning = entry["reasoning"] == true;
-            model.input = if entry["input"]
-                .as_array()
-                .is_some_and(|items| items.contains(&json!("image")))
-            {
-                vec![InputModality::Text, InputModality::Image]
-            } else {
-                vec![InputModality::Text]
-            };
-            model.info.chat = Some(true);
-            model.info.tool_calling = Some(true);
-            model
-        })
-        .collect())
+    Ok(
+        provider.config()?.manifest["contributes"]["provider"]["models"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|entry| {
+                let mut model = Model::new(text(entry, "id"), "openai-completions", "joycode");
+                model.base_url = format!("{BASE}/v1");
+                model.name = text(entry, "name").into();
+                model.context_window = entry["contextWindow"].as_u64().unwrap_or(200000);
+                model.max_tokens = entry["maxTokens"].as_u64().unwrap_or(64000);
+                model.reasoning = entry["reasoning"] == true;
+                model.input = if entry["input"]
+                    .as_array()
+                    .is_some_and(|items| items.contains(&json!("image")))
+                {
+                    vec![InputModality::Text, InputModality::Image]
+                } else {
+                    vec![InputModality::Text]
+                };
+                model.info.chat = Some(true);
+                model.info.tool_calling = Some(true);
+                model
+            })
+            .collect(),
+    )
 }
 pub(crate) async fn load(provider: &JoyCode, context: CallContext) -> PluginResult<Value> {
     let Some(credentials) = context.credentials else {

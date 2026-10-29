@@ -12,7 +12,7 @@ const REFUSAL: &str = r#"{"error":"x-api-key and Authorization cannot both be pr
 fn definition() -> Definition {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let id = format!("relay-{}", NEXT.fetch_add(1, Ordering::Relaxed));
-    let mut definition = Definition::parse(json!({"id":id,"name":"Relay","api":"anthropic-messages","baseURL":"https://relay.invalid/v1","config":{"keyProvider":"relay"}})).unwrap();
+    let mut definition = Definition::from_fields(json!({"id":id,"name":"Relay","api":"anthropic-messages","baseURL":"https://relay.invalid/v1","config":{"keyProvider":"relay"}})).unwrap();
     definition.request_account = Some("one".into());
     definition
 }

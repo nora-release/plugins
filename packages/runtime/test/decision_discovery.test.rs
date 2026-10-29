@@ -1,7 +1,7 @@
 use super::*;
 
 fn mixed_definition(kind: &str, base: &str) -> Definition {
-    Definition::parse(json!({
+    Definition::from_fields(json!({
         "id":"fixture-mixed", "name":"Mixed", "api":"openai-completions", "baseURL":base,
         "config":{"keyProvider":"fixture-mixed", "decisionDiscovery":kind, "apiKeyAuth":"bearer"}
     }))
@@ -315,16 +315,19 @@ fn mixed_decision_packages_declare_discovery_and_account_operation_support() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
             .join(package)
-            .join("nora-provider.json");
+            .join("nora-plugin.json");
         let manifest: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-        assert_eq!(manifest["config"]["decisionDiscovery"], kind, "{package}");
         assert_eq!(
-            manifest["config"]["operations"],
+            manifest["contributes"]["provider"]["config"]["decisionDiscovery"], kind,
+            "{package}"
+        );
+        assert_eq!(
+            manifest["contributes"]["provider"]["config"]["operations"],
             json!(["decision"]),
             "{package}"
         );
         assert_eq!(
-            manifest["config"]["operationsAuthMethods"]["decision"],
+            manifest["contributes"]["provider"]["config"]["operationsAuthMethods"]["decision"],
             json!(["api", "apiKey"]),
             "{package}"
         );

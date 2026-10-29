@@ -12,11 +12,11 @@ async fn fixture() -> (Directory, Arc<Client>, Remote) {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "remote-magpie".into(),
             plugin_directory: PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             data_directory: directory.0.clone(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
         })
         .await
         .unwrap();

@@ -67,7 +67,7 @@ fn uses_network<'a>(
             let name = dep["name"].as_str().unwrap();
             matches!(
                 name,
-                "reqwest" | "tokio-tungstenite" | "nora-provider-network"
+                "reqwest" | "tokio-tungstenite" | "nora-network" | "nora-provider-plugin-sdk"
             ) || uses_network(name, packages, visited)
         })
 }
@@ -99,6 +99,11 @@ fn system_tls<'a>(
             if name == "rustls-platform-verifier" {
                 return true;
             }
+            // plugin-kit's shared network crate, used directly or through the
+            // SDK, verifies with the platform only on macOS.
+            if matches!(name, "nora-network" | "nora-provider-plugin-sdk") {
+                return macos;
+            }
             system_tls(name, packages, macos, visited)
         })
 }
@@ -110,9 +115,6 @@ fn plugin_sources_cannot_bypass_the_shared_network_entrypoint() {
         .unwrap();
     for package in std::fs::read_dir(root).unwrap() {
         let package = package.unwrap().path();
-        if package.file_name().unwrap() == "network" {
-            continue;
-        }
         check_sources(&package.join("src"));
     }
 }
@@ -131,7 +133,6 @@ fn check_sources(path: &std::path::Path) {
         }
         let source = std::fs::read_to_string(&file).unwrap();
         for bypass in [
-            "nora_provider_plugin_sdk::http_client",
             "reqwest::Client::builder",
             "reqwest::Client::new",
             "ReqwestHttpClient::new()",

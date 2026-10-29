@@ -44,7 +44,7 @@ impl Net for Http {
         proxy: Option<&NetworkProxy>,
         timeout: Duration,
     ) -> PluginResult<Reply> {
-        let client = nora_provider_network::http_client_builder(proxy)?
+        let client = nora_provider_plugin_sdk::http_client_builder(proxy)?
             .connect_timeout(Duration::from_secs(20))
             .build()
             .map_err(|_| {

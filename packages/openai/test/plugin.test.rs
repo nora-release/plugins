@@ -43,7 +43,7 @@ async fn plugin(directory: &Directory) -> OpenAIPlugin {
             plugin_id: "openai".into(),
             plugin_directory: directory.0.clone(),
             data_directory: directory.0.join("data"),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
         })
         .await
         .unwrap();
@@ -209,9 +209,9 @@ async fn alpha_search_sdk_dispatch_negotiates_the_production_plugin_and_rejects_
         output,
     ));
     let mut reader = BufReader::new(reader);
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     let requests = [
-        json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":"openai","pluginDirectory":directory.0,"dataDirectory":directory.0.join("data"),"manifest":manifest,"hostCapabilities":{"httpRequestMeter":true}}}),
+        json!({"id":1,"method":"initialize","params":{"apiVersion":2,"pluginID":"openai","pluginDirectory":directory.0,"dataDirectory":directory.0.join("data"),"manifest":manifest,"hostCapabilities":{"httpRequestMeter":true}}}),
         json!({"id":2,"method":"alphaSearch","params":{"account":"saved-api","credentials":{"type":"apiKey","key":"private-api-key"},"request":{"model":"gpt-fixture","commands":{}},"headers":{}}}),
         json!({"id":3,"method":"alphaSearch","params":{"subscriptionAccountsEnabled":false,"account":"saved","credentials":oauth(),"request":{"model":"gpt-fixture","commands":{}},"headers":{}}}),
     ];

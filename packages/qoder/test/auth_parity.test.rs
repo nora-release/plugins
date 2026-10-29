@@ -22,12 +22,12 @@ async fn rpc(provider: Qoder, site: Site, method: &str, params: Value) -> (Value
     let mut input = BufReader::new(input);
     let mut line = String::new();
     let manifest: Value = serde_json::from_str(if site == Site::China {
-        include_str!("../../qoder-cn/nora-provider.json")
+        include_str!("../../qoder-cn/nora-plugin.json")
     } else {
-        include_str!("../nora-provider.json")
+        include_str!("../nora-plugin.json")
     })
     .unwrap();
-    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":site.id(),"pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
+    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":2,"pluginID":site.id(),"pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
     input.read_line(&mut line).await.unwrap();
     assert!(serde_json::from_str::<Value>(&line)
         .unwrap()

@@ -38,11 +38,11 @@ async fn plugin_with_persistence(
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "devin".into(),
             plugin_directory: Default::default(),
             data_directory: Default::default(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
         })
         .await
         .unwrap();

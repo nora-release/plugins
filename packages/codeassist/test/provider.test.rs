@@ -7,8 +7,8 @@ async fn provider(app: App, replies: Vec<fixture::Reply>) -> (CodeAssist, Arc<fi
     let mut provider = CodeAssist::new(app);
     provider.client = Some(client.clone());
     let manifest: Value = serde_json::from_str(match app {
-        App::GeminiCLI => include_str!("../../gemini-cli/nora-provider.json"),
-        App::Antigravity => include_str!("../../antigravity/nora-provider.json"),
+        App::GeminiCLI => include_str!("../../gemini-cli/nora-plugin.json"),
+        App::Antigravity => include_str!("../../antigravity/nora-plugin.json"),
     })
     .unwrap();
     provider

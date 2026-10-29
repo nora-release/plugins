@@ -180,8 +180,8 @@ async fn newly_rotated_tokens_are_not_acknowledged_before_the_host_saves_the_pai
     let (input, mut output) = tokio::io::split(host);
     let mut input = BufReader::new(input);
     let mut line = String::new();
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":"qoder","pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":2,"pluginID":"qoder","pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
     input.read_line(&mut line).await.unwrap();
     assert!(serde_json::from_str::<Value>(&line)
         .unwrap()

@@ -343,7 +343,7 @@ impl ProviderPlugin for Cline {
         self.core.initialize(params)
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.core.config()?.manifest["authMethods"].clone())
+        Ok(self.core.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let method = core::required(&params, "authMethodID")?;
@@ -582,7 +582,11 @@ impl ProviderPlugin for Cline {
             ));
         }
         let config = self.core.config()?;
-        let preference = pinning::preference(config.manifest.pointer("/config/pinUpstream"));
+        let preference = pinning::preference(
+            config
+                .manifest
+                .pointer("/contributes/provider/config/pinUpstream"),
+        );
         let images = self
             .images
             .read()

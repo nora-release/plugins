@@ -1,0 +1,76 @@
+{
+  "apiVersion": 2,
+  "id": "lmstudio",
+  "name": "LM Studio",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "http://localhost:1234/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "endpoint",
+              "key": "endpoint",
+              "type": "text",
+              "label": "Service address",
+              "required": false,
+              "placeholder": "http://localhost:1234/v1"
+            },
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "lmstudio",
+        "catalog": "lmstudio",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "http://localhost:1234/v1"
+              }
+            ],
+            "models": [],
+            "catalog": "lmstudio",
+            "noList": false,
+            "keyOptional": true,
+            "modelRoutes": [],
+            "only": [],
+            "customEndpoint": true
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "http://localhost:1234/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "http://localhost:1234/v1"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

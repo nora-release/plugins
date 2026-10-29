@@ -223,7 +223,7 @@ impl CommandCode {
                 }
             }
         }
-        if self.core.config()?.manifest["config"]["zdr"] == true {
+        if self.core.config()?.manifest["contributes"]["provider"]["config"]["zdr"] == true {
             headers.insert("x-cmd-zdr".into(), "1".into());
         }
         Ok(headers)
@@ -263,7 +263,7 @@ impl ProviderPlugin for CommandCode {
         self.core.initialize(params)
     }
     async fn auth_methods(&self, _: CallContext) -> PluginResult<Value> {
-        Ok(self.core.config()?.manifest["authMethods"].clone())
+        Ok(self.core.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let method = core::required(&params, "authMethodID")?;

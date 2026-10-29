@@ -3,20 +3,18 @@ use serde_json::{json, Value};
 /// The build declares what its package can expose. The host must still intersect
 /// this with the executable's independently returned SDK feature versions.
 pub(crate) fn declare(manifest: &mut Value) {
+    let id = manifest["id"].as_str().unwrap_or_default().to_owned();
     // Pure request processors do not run provider account or network services.
-    if matches!(
-        manifest["api"].as_str(),
-        Some("gateway-middleware" | "gateway-masker")
-    ) {
+    let Some(provider) = manifest
+        .pointer_mut("/contributes/provider")
+        .and_then(Value::as_object_mut)
+    else {
         return;
-    }
-    let alpha_search = manifest.get("id").and_then(Value::as_str) == Some("openai");
-    let learning_usage = manifest.get("id").and_then(Value::as_str) == Some("anthropic");
-    let account_revocation = manifest.get("id").and_then(Value::as_str) == Some("chatgpt-api");
-    if !manifest["config"].is_object() {
-        manifest["config"] = json!({});
-    }
-    let config = &mut manifest["config"];
+    };
+    let alpha_search = id == "openai";
+    let learning_usage = id == "anthropic";
+    let account_revocation = id == "chatgpt-api";
+    let config = provider.entry("config").or_insert_with(|| json!({}));
     let mut features = json!({"subscriptionPolicy":1,"automaticProxy":1});
     if account_revocation {
         features["accountRevocation"] = json!(1);

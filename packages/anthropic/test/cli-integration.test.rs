@@ -70,8 +70,8 @@ impl Host {
             updates: Vec::new(),
             accept: true,
         };
-        let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-        let id=host.send("initialize",json!({"apiVersion":1,"pluginID":"anthropic","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":root,"manifest":manifest,"hostCapabilities":{"credentialUpdates":true}})).await;
+        let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+        let id=host.send("initialize",json!({"apiVersion":2,"pluginID":"anthropic","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":root,"manifest":manifest,"hostCapabilities":{"credentialUpdates":true}})).await;
         assert!(host.frame(id).await["result"]["capabilities"]["persistent"] == true);
         host
     }
@@ -701,9 +701,9 @@ async fn api_keys_keep_the_original_http_transport_without_starting_claude() {
     });
     let directory = fixture::Directory::new();
     let mut host = Host::new(&directory.0).await;
-    let mut manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    manifest["baseURL"] = json!(base);
-    let id=host.send("initialize",json!({"apiVersion":1,"pluginID":"anthropic","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":directory.0,"manifest":manifest,"hostCapabilities":{"credentialUpdates":true}})).await;
+    let mut manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    manifest["contributes"]["provider"]["baseURL"] = json!(base);
+    let id=host.send("initialize",json!({"apiVersion":2,"pluginID":"anthropic","pluginDirectory":env!("CARGO_MANIFEST_DIR"),"dataDirectory":directory.0,"manifest":manifest,"hostCapabilities":{"credentialUpdates":true}})).await;
     assert!(host.frame(id).await.get("error").is_none());
     let original_body = json!({"model":"claude-test","max_tokens":10,"messages":[{"role":"user","content":"hello"}],"tools":[{"type":"web_search_20260318","name":"web_search","max_uses":1,"allowed_domains":["example.com"],"allowed_callers":["code_execution_20260120"],"response_inclusion":"excluded","cache_control":{"type":"ephemeral"},"strict":false}]});
     let id=host.send("fetch",json!({"credentials":{"type":"apiKey","provider":"apiKey","credentialProvider":"apiKey","access":"sk-private-api-key"},"networkProxy":{"mode":"direct"},"url":format!("{base}/v1/messages"),"method":"POST","headers":{"content-type":"application/json"},"body":STANDARD.encode(original_body.to_string())})).await;

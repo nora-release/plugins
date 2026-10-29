@@ -1,0 +1,224 @@
+{
+  "apiVersion": 2,
+  "id": "xiaomi",
+  "name": "Xiaomi MiMo",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://token-plan-cn.xiaomimimo.com/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "Plan · China",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "profile-plan-sgp",
+          "type": "api",
+          "label": "Plan · Singapore",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "profile-plan-ams",
+          "type": "api",
+          "label": "Plan · Europe",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "profile-api",
+          "type": "api",
+          "label": "Pay as you go",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "catalog": "xiaomi-token-plan-cn, xiaomi",
+        "keyProvider": "xiaomi",
+        "legacy": {
+          "providerID": "xiaomi",
+          "keyProvider": "xiaomi",
+          "oauthProvider": null,
+          "credentialProvider": "apiKey"
+        },
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://token-plan-cn.xiaomimimo.com/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://token-plan-cn.xiaomimimo.com/v1"
+            },
+            {
+              "api": "openai-responses",
+              "baseURL": "https://token-plan-cn.xiaomimimo.com/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://token-plan-cn.xiaomimimo.com/anthropic"
+            }
+          ],
+          "noList": false
+        },
+        "legacyProfile": "plan-ams",
+        "profiles": [
+          {
+            "id": "plan-cn",
+            "name": "Plan · China",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://token-plan-cn.xiaomimimo.com/v1"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://token-plan-cn.xiaomimimo.com/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://token-plan-cn.xiaomimimo.com/anthropic"
+              }
+            ],
+            "models": [],
+            "catalog": "xiaomi-token-plan-cn, xiaomi",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          },
+          {
+            "id": "plan-sgp",
+            "name": "Plan · Singapore",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://token-plan-sgp.xiaomimimo.com/v1"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://token-plan-sgp.xiaomimimo.com/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://token-plan-sgp.xiaomimimo.com/anthropic"
+              }
+            ],
+            "models": [],
+            "catalog": "xiaomi-token-plan-sgp, xiaomi",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          },
+          {
+            "id": "plan-ams",
+            "name": "Plan · Europe",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://token-plan-ams.xiaomimimo.com/v1"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://token-plan-ams.xiaomimimo.com/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://token-plan-ams.xiaomimimo.com/anthropic"
+              }
+            ],
+            "models": [],
+            "catalog": "xiaomi-token-plan-ams, xiaomi",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          },
+          {
+            "id": "api",
+            "name": "Pay as you go",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.xiaomimimo.com/v1"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://api.xiaomimimo.com/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://api.xiaomimimo.com/anthropic"
+              }
+            ],
+            "models": [],
+            "catalog": "xiaomi",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true
+      }
+    }
+  }
+}

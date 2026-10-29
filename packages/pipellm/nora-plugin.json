@@ -1,0 +1,100 @@
+{
+  "apiVersion": 2,
+  "id": "pipellm",
+  "name": "PipeLLM",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "baseURL": "https://api.pipellm.ai/openai/v1",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "keyProvider": "pipellm",
+        "catalog": "pipellm",
+        "profiles": [
+          {
+            "id": "default",
+            "name": "API key",
+            "bases": [
+              {
+                "api": "openai-completions",
+                "baseURL": "https://api.pipellm.ai/openai/v1"
+              },
+              {
+                "api": "openai-responses",
+                "baseURL": "https://api.pipellm.ai/v1"
+              },
+              {
+                "api": "anthropic-messages",
+                "baseURL": "https://api.pipellm.ai"
+              }
+            ],
+            "models": [],
+            "catalog": "pipellm",
+            "noList": false,
+            "keyOptional": false,
+            "modelRoutes": [
+              {
+                "pattern": "*claude*",
+                "api": "anthropic-messages"
+              },
+              {
+                "pattern": "gpt-*",
+                "api": "openai-responses"
+              },
+              {
+                "pattern": "chatgpt-*",
+                "api": "openai-responses"
+              },
+              {
+                "pattern": "o[13456789]*",
+                "api": "openai-responses"
+              }
+            ],
+            "only": []
+          }
+        ],
+        "connectionManaged": true,
+        "apiKeyAuth": "bearer",
+        "modelDiscovery": {
+          "defaultBaseURL": "https://api.pipellm.ai/openai/v1",
+          "bases": [
+            {
+              "api": "openai-completions",
+              "baseURL": "https://api.pipellm.ai/openai/v1"
+            },
+            {
+              "api": "openai-responses",
+              "baseURL": "https://api.pipellm.ai/v1"
+            },
+            {
+              "api": "anthropic-messages",
+              "baseURL": "https://api.pipellm.ai"
+            }
+          ],
+          "noList": false
+        }
+      }
+    }
+  }
+}

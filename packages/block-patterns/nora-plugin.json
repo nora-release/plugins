@@ -1,0 +1,24 @@
+{
+  "apiVersion": 2,
+  "id": "block-patterns",
+  "name": "Block Patterns",
+  "version": "1.2.0",
+  "summary": "Reject requests containing configured text or regular-expression patterns.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "middleware": {
+      "version": 1,
+      "request": true,
+      "options": {
+        "words": [
+          "project-codename"
+        ],
+        "patterns": [],
+        "system": true,
+        "message": ""
+      }
+    }
+  }
+}

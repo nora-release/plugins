@@ -279,7 +279,7 @@ async fn an_expired_deadline_without_any_success_returns_an_error() {
     assert!(client.requests.lock().unwrap().is_empty());
 }
 fn definition(api: &str, base: &str) -> Definition {
-    Definition::parse(json!({"id":"fixture","name":"Fixture","api":api,"baseURL":base,"config":{"keyProvider":"fixture-key"}})).unwrap()
+    Definition::from_fields(json!({"id":"fixture","name":"Fixture","api":api,"baseURL":base,"config":{"keyProvider":"fixture-key"}})).unwrap()
 }
 fn api_credentials() -> Value {
     json!({"type":"apiKey","access":"private-token"})

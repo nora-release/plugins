@@ -46,7 +46,7 @@ impl ChatGPTAPI {
             return Ok(client.clone());
         }
         Ok(Arc::new(ReqwestHttpClient::with_client(
-            nora_provider_network::http_client(proxy.or(config.proxy.as_ref()))?,
+            nora_provider_plugin_sdk::http_client(proxy.or(config.proxy.as_ref()))?,
         )))
     }
     fn params_client(&self, params: &Value) -> PluginResult<Arc<dyn HttpClient>> {
@@ -89,7 +89,7 @@ impl ProviderPlugin for ChatGPTAPI {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )

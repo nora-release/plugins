@@ -24,7 +24,7 @@ impl ProviderPlugin for Plugin {
             .engine
             .lock()
             .map_err(|_| PluginError::invalid("Masking is unavailable."))? = Some(Engine::new(key));
-        Ok(json!({"apiVersion":1,"capabilities":{"gatewayMasker":{"version":1,"bodyFile":true}}}))
+        Ok(json!({"apiVersion":2,"capabilities":{"gatewayMasker":{"version":1,"bodyFile":true}}}))
     }
     async fn call(&self, method: &str, params: Value) -> PluginResult<Value> {
         if method != "gatewayMasker" || params["version"] != 1 {

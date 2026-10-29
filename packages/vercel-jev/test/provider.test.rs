@@ -4,14 +4,14 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 
 fn manifest() -> Value {
-    serde_json::from_str(include_str!("../nora-provider.json")).unwrap()
+    serde_json::from_str(include_str!("../nora-plugin.json")).unwrap()
 }
 fn params(manifest: Value) -> InitializeParams {
     InitializeParams {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: serde_json::Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: "vercel-jev".into(),
         plugin_directory: PathBuf::new(),
         data_directory: PathBuf::new(),
@@ -22,15 +22,24 @@ fn params(manifest: Value) -> InitializeParams {
 fn manifest_declares_decision_only_and_explicit_authentication() {
     let value = manifest();
     assert_eq!(value["id"], DecisionFamily::Vercel.id());
-    assert_eq!(value["api"], "systemone");
-    assert_eq!(value["config"]["operations"], json!(["decision"]));
-    let allowed = value["config"]["operationsAuthMethods"]["decision"]
+    assert_eq!(value["contributes"]["provider"]["api"], "systemone");
+    assert_eq!(
+        value["contributes"]["provider"]["config"]["operations"],
+        json!(["decision"])
+    );
+    let allowed = value["contributes"]["provider"]["config"]["operationsAuthMethods"]["decision"]
         .as_array()
         .unwrap();
-    for method in value["authMethods"].as_array().unwrap() {
+    for method in value["contributes"]["provider"]["authMethods"]
+        .as_array()
+        .unwrap()
+    {
         assert!(allowed.contains(&method["id"]));
     }
-    for model in value["models"].as_array().unwrap() {
+    for model in value["contributes"]["provider"]["models"]
+        .as_array()
+        .unwrap()
+    {
         assert_eq!(model["info"]["decision"], true);
         assert_eq!(model["info"]["chat"], false);
         assert_eq!(model["info"]["catalogSource"], "preset");

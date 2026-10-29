@@ -53,12 +53,12 @@ async fn plugin_dispatch_worker() {
     let plugin = crate::plugin::OpenAIPlugin::default();
     plugin
         .initialize(InitializeParams {
-            api_version: 1,
+            api_version: 2,
             subscription_accounts_enabled: true,
             plugin_id: "openai".into(),
             plugin_directory: directory.clone(),
             data_directory: directory.clone(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
         })
@@ -108,7 +108,7 @@ async fn plugin_dispatch_worker() {
         );
         let mut auth = nora_ai::ResolvedProviderAuth::default();
         let definition = nora_provider::definition::Definition::parse(
-            serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
         )
         .unwrap();
         crate::provider::OpenAI

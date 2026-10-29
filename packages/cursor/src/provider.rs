@@ -91,7 +91,7 @@ impl Cursor {
         }
         Ok(Arc::new(
             ReqwestHttpClient::with_client(
-                nora_provider_network::http_client_builder(proxy.as_ref())?
+                nora_provider_plugin_sdk::http_client_builder(proxy.as_ref())?
                     .redirect(reqwest::redirect::Policy::none())
                     .build()
                     .map_err(|_| {
@@ -250,7 +250,7 @@ impl Cursor {
             None
         } else {
             Some(
-                nora_provider_network::http_client_builder(proxy.as_ref())?
+                nora_provider_plugin_sdk::http_client_builder(proxy.as_ref())?
                     .http2_prior_knowledge()
                     .redirect(reqwest::redirect::Policy::none())
                     .read_timeout(Duration::from_secs(125))
@@ -304,7 +304,7 @@ impl ProviderPlugin for Cursor {
         if params.api_version != API_VERSION
             || params.plugin_id != "cursor"
             || params.manifest["id"] != "cursor"
-            || params.manifest["baseURL"] != network::BASE
+            || params.manifest["contributes"]["provider"]["baseURL"] != network::BASE
         {
             return Err(PluginError::invalid(
                 "The Cursor executable does not match its manifest.",
@@ -313,7 +313,7 @@ impl ProviderPlugin for Cursor {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -323,7 +323,7 @@ impl ProviderPlugin for Cursor {
         }
         let version = params
             .manifest
-            .pointer("/config/clientVersion")
+            .pointer("/contributes/provider/config/clientVersion")
             .and_then(Value::as_str)
             .unwrap_or(network::FALLBACK_VERSION);
         if version.len() > 128
@@ -342,7 +342,7 @@ impl ProviderPlugin for Cursor {
             .map_err(|_| PluginError::invalid("Cursor configuration is unavailable."))? =
             Some(Config {
                 proxy,
-                methods: params.manifest["authMethods"].clone(),
+                methods: params.manifest["contributes"]["provider"]["authMethods"].clone(),
                 version: version.into(),
             });
         Ok(json!({"apiVersion":API_VERSION}))

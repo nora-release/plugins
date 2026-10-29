@@ -11,12 +11,12 @@ async fn configured(client: Arc<dyn HttpClient>) -> (Directory, ChatGPTAPI) {
     provider.client = Some(client);
     provider
         .initialize(InitializeParams {
-            api_version: 1,
+            api_version: 2,
             subscription_accounts_enabled: true,
             plugin_id: "chatgpt-api".into(),
             plugin_directory: "/test/package".into(),
             data_directory: directory.0.clone(),
-            manifest: serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+            manifest: serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
             installed_manifest: None,
             runtime_config: Value::Null,
         })
@@ -292,9 +292,9 @@ async fn an_openai_api_key_catalog_is_not_a_codex_supplement_when_no_subscriptio
         .unwrap()
         .iter()
         .any(|model| model["id"] == api_only));
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     assert_eq!(
-        manifest["config"]["supplementalCatalogs"],
+        manifest["contributes"]["provider"]["config"]["supplementalCatalogs"],
         json!([{"provider":"openai","api":"chatgpt-codex","as":"codex"}])
     );
 }

@@ -544,15 +544,18 @@ fn manifest_account_import_declarations_match_the_implemented_formats() {
     for (kind, manifest) in [
         (
             LoginKind::Codex,
-            include_str!("../../openai/nora-provider.json"),
+            include_str!("../../openai/nora-plugin.json"),
         ),
         (
             LoginKind::Claude,
-            include_str!("../../anthropic/nora-provider.json"),
+            include_str!("../../anthropic/nora-plugin.json"),
         ),
     ] {
         let manifest: Value = serde_json::from_str(manifest).unwrap();
-        assert_eq!(manifest["config"]["accountImport"], declaration(kind));
+        assert_eq!(
+            manifest["contributes"]["provider"]["config"]["accountImport"],
+            declaration(kind)
+        );
     }
 }
 #[test]

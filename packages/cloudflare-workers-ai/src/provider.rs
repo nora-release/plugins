@@ -94,7 +94,7 @@ impl CloudflareWorkersAi {
             return Ok(client.clone());
         }
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_network::http_client(selected)?)
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(selected)?)
                 .with_observer_fn(|| async {
                     nora_provider_plugin_sdk::before_http_request()
                         .await
@@ -195,7 +195,7 @@ impl CloudflareWorkersAi {
     async fn models_with(&self, context: &CallContext) -> PluginResult<Value> {
         if context.credentials.is_none() {
             return Ok(
-                json!({"models":self.config()?.manifest["models"],"source":"preset","allowUnknownModels":true}),
+                json!({"models":self.config()?.manifest["contributes"]["provider"]["models"],"source":"preset","allowUnknownModels":true}),
             );
         }
         let (account, _) = self.credentials(context.credentials.as_ref())?;
@@ -407,7 +407,7 @@ impl ProviderPlugin for CloudflareWorkersAi {
         {
             return Err(invalid("The Cloudflare provider identity is invalid."));
         }
-        let config = &params.manifest["config"];
+        let config = &params.manifest["contributes"]["provider"]["config"];
         let template = config
             .get("baseTemplate")
             .and_then(Value::as_str)
@@ -416,7 +416,7 @@ impl ProviderPlugin for CloudflareWorkersAi {
         checked_base(&template)?;
         let proxy = params
             .manifest
-            .pointer("/config/networkProxy")
+            .pointer("/contributes/provider/config/networkProxy")
             .cloned()
             .filter(|value| !value.is_null())
             .map(serde_json::from_value)
@@ -438,7 +438,7 @@ impl ProviderPlugin for CloudflareWorkersAi {
         Ok(json!({"apiVersion":API_VERSION,"capabilities":{"persistent":true,"maxConcurrency":3}}))
     }
     async fn auth_methods(&self, _context: CallContext) -> PluginResult<Value> {
-        Ok(self.config()?.manifest["authMethods"].clone())
+        Ok(self.config()?.manifest["contributes"]["provider"]["authMethods"].clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {
         let method = params

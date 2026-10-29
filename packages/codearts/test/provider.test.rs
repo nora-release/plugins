@@ -74,15 +74,21 @@ async fn initialize_never_imports_or_authenticates_an_account() {
     let client = Client::new(vec![]);
     let mut provider = CodeArts::default();
     provider.client = Some(client.clone());
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    assert_eq!(manifest["config"]["initialResponseTimeoutMs"], 480000);
-    assert_eq!(manifest["config"]["accountActions"], json!(["checkin"]));
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    assert_eq!(
+        manifest["contributes"]["provider"]["config"]["initialResponseTimeoutMs"],
+        480000
+    );
+    assert_eq!(
+        manifest["contributes"]["provider"]["config"]["accountActions"],
+        json!(["checkin"])
+    );
     provider
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "codearts".into(),
             plugin_directory: "/test/provider".into(),
             data_directory: "/test/data".into(),

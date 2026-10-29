@@ -1,0 +1,43 @@
+{
+  "apiVersion": 2,
+  "id": "compatible",
+  "name": "Custom Provider",
+  "version": "1.2.0",
+  "summary": "Connect any OpenAI, Anthropic, or Gemini compatible service.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "config": {
+        "modelMetadata": true,
+        "connectionOptions": true,
+        "customTemplate": true,
+        "configurationTemplateOnly": true,
+        "keyProvider": "openai-compatible",
+        "modelDiscovery": {
+          "defaultBaseURL": "",
+          "bases": [],
+          "noList": false
+        },
+        "keyOptional": true
+      }
+    }
+  }
+}

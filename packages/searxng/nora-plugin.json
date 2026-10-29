@@ -1,0 +1,51 @@
+{
+  "apiVersion": 2,
+  "id": "searxng",
+  "name": "SearXNG",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "API key",
+          "fields": [
+            {
+              "key": "apiKey",
+              "type": "password",
+              "label": "API key",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "config": {
+        "connectionOptions": true,
+        "searchAPI": {
+          "version": 1,
+          "order": 6,
+          "keyOptional": true,
+          "requiresBaseURL": true
+        },
+        "sdkCapabilities": {
+          "webSearch": 1
+        },
+        "keyOptional": true,
+        "options": [
+          {
+            "id": "searchKeysInOrder",
+            "type": "boolean",
+            "label": "Use API keys in order",
+            "description": "Use the first available API key; otherwise searches take turns between keys.",
+            "default": false
+          }
+        ]
+      }
+    }
+  }
+}

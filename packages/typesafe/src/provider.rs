@@ -81,7 +81,7 @@ impl ProviderPlugin for Typesafe {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -118,7 +118,7 @@ impl ProviderPlugin for Typesafe {
     async fn models(&self, mut context: CallContext) -> PluginResult<Value> {
         let definition = self.definition()?;
         context.network_proxy = self.effective_proxy(context.network_proxy)?;
-        let client = ReqwestHttpClient::with_client(nora_provider_network::http_client(
+        let client = ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
             context.network_proxy.as_ref(),
         )?)
         .with_observer_fn(|| async {
@@ -131,7 +131,7 @@ impl ProviderPlugin for Typesafe {
     async fn fetch(&self, mut request: FetchRequest) -> PluginResult<FetchResponse> {
         let definition = self.definition()?;
         request.network_proxy = self.effective_proxy(request.network_proxy)?;
-        let client = ReqwestHttpClient::with_client(nora_provider_network::http_client(
+        let client = ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
             request.network_proxy.as_ref(),
         )?)
         .with_observer_fn(|| async {
@@ -193,9 +193,9 @@ fn fill_jev_facts(model: &mut Value) {
     // Share the published preset's facts with live lists that omit them.
     static PRESET: OnceLock<Value> = OnceLock::new();
     let preset = &PRESET.get_or_init(|| {
-        serde_json::from_str(include_str!("../nora-provider.json"))
+        serde_json::from_str(include_str!("../nora-plugin.json"))
             .expect("the bundled TypeSafe manifest is valid")
-    })["models"][0];
+    })["contributes"]["provider"]["models"][0];
     if !model["contextWindow"]
         .as_u64()
         .is_some_and(|value| value > 0)

@@ -128,12 +128,13 @@ impl Pending {
             };
         }
         if let Some(target) = target {
-            let client = nora_provider_network::http_client_builder(Some(&NetworkProxy::Direct))?
-                .no_proxy()
-                .connect_timeout(Duration::from_secs(5))
-                .timeout(Duration::from_secs(30))
-                .build()
-                .map_err(|_| callback_failed())?;
+            let client =
+                nora_provider_plugin_sdk::http_client_builder(Some(&NetworkProxy::Direct))?
+                    .no_proxy()
+                    .connect_timeout(Duration::from_secs(5))
+                    .timeout(Duration::from_secs(30))
+                    .build()
+                    .map_err(|_| callback_failed())?;
             let response = client
                 .get(target)
                 .send()

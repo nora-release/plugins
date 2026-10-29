@@ -155,14 +155,13 @@ fn unsafe_context_rejects_and_only_explicit_encrypted_parts_are_removed() {
 }
 #[test]
 fn package_exposes_request_only_and_has_no_provider_or_network_logic() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    let declaration = &manifest["config"]["gatewayMiddleware"];
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    let declaration = &manifest["contributes"]["middleware"];
     assert_eq!(declaration["request"], true);
     for key in ["provider", "event", "response"] {
         assert!(declaration.get(key).is_none());
     }
-    assert_eq!(manifest["authMethods"], json!([]));
-    assert_eq!(manifest["models"], json!([]));
+    assert!(manifest["contributes"].get("provider").is_none());
     let source = include_str!("../src/lib.rs");
     assert!(!source.contains("reqwest"));
     assert!(!source.contains("HttpRequest"));

@@ -401,14 +401,17 @@ async fn same_google_identity_is_stable_across_different_refresh_tokens() {
 #[test]
 fn account_import_manifests_advertise_only_the_implemented_contract() {
     for manifest in [
-        include_str!("../../antigravity/nora-provider.json"),
-        include_str!("../../gemini-cli/nora-provider.json"),
+        include_str!("../../antigravity/nora-plugin.json"),
+        include_str!("../../gemini-cli/nora-plugin.json"),
     ] {
         let manifest: Value = serde_json::from_str(manifest).unwrap();
         assert_eq!(
-            manifest["config"]["accountImport"]["formats"],
+            manifest["contributes"]["provider"]["config"]["accountImport"]["formats"],
             json!(FORMATS)
         );
-        assert_eq!(manifest["config"]["accountImport"]["refreshesTokens"], true);
+        assert_eq!(
+            manifest["contributes"]["provider"]["config"]["accountImport"]["refreshesTokens"],
+            true
+        );
     }
 }

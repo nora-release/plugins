@@ -211,13 +211,13 @@ async fn foreign_projects_hosts_and_operations_are_rejected_before_minting() {
 async fn initialization_does_not_discover_or_import_an_adc_account() {
     let plugin = Vertex::default();
     let dir = support::Directory::new();
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     plugin
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "google-vertex".into(),
             plugin_directory: dir.0.clone(),
             data_directory: dir.0.clone(),
@@ -227,7 +227,7 @@ async fn initialization_does_not_discover_or_import_an_adc_account() {
         .unwrap();
     assert_eq!(
         plugin.auth_methods(CallContext::default()).await.unwrap(),
-        manifest["authMethods"]
+        manifest["contributes"]["provider"]["authMethods"]
     );
     assert_eq!(
         plugin.accounts(CallContext::default()).await.unwrap(),

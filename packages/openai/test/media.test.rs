@@ -39,7 +39,7 @@ impl HttpClient for EditClient {
 #[tokio::test]
 async fn subscription_edits_convert_real_multipart_files_to_the_codex_json_contract() {
     let mut definition =
-        Definition::parse(serde_json::from_str(include_str!("../nora-provider.json")).unwrap())
+        Definition::parse(serde_json::from_str(include_str!("../nora-plugin.json")).unwrap())
             .unwrap();
     definition.adapter = std::sync::Arc::new(super::super::OpenAI);
     let bytes=b"--edit\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-image-2\r\n--edit\r\nContent-Disposition: form-data; name=\"n\"\r\n\r\n2\r\n--edit\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\nb64_json\r\n--edit\r\nContent-Disposition: form-data; name=\"image[]\"; filename=\"a.png\"\r\nContent-Type: image/png\r\n\r\n\x00\xff\r\n--edit\r\nContent-Disposition: form-data; name=\"mask\"; filename=\"mask.png\"\r\nContent-Type: image/png\r\n\r\n\x01\r\n--edit--\r\n";

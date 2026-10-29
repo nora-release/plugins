@@ -93,7 +93,7 @@ fn codex_accepts_only_priority_and_explicit_ultrafast() {
 async fn api_priority_is_kept_after_the_entire_request_builder() {
     use base64::Engine;
     let mut definition = nora_provider::definition::Definition::parse(
-        serde_json::from_str(include_str!("../nora-provider.json")).unwrap(),
+        serde_json::from_str(include_str!("../nora-plugin.json")).unwrap(),
     )
     .unwrap();
     definition.adapter = std::sync::Arc::new(super::super::OpenAI);

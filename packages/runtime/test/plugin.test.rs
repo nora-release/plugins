@@ -21,7 +21,7 @@ async fn provider_at(directory: PathBuf) -> BundledProvider {
                     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
                         .parent()
                         .unwrap()
-                        .join("openai/nora-provider.json"),
+                        .join("openai/nora-plugin.json"),
                 )
                 .unwrap(),
             )
@@ -44,8 +44,7 @@ async fn native_provider_rejects_a_different_providers_manifest() {
             plugin_id: "openai".into(),
             plugin_directory: PathBuf::new(),
             data_directory: PathBuf::new(),
-            manifest: serde_json::from_str(include_str!("../../openai/nora-provider.json"))
-                .unwrap(),
+            manifest: serde_json::from_str(include_str!("../../openai/nora-plugin.json")).unwrap(),
         })
         .await;
     assert!(result.is_err());
@@ -61,7 +60,7 @@ async fn rejected_reinitialization_keeps_the_current_connection_and_proxy_togeth
         .account_definition(Some(&credentials))
         .unwrap();
     let mut invalid: Value =
-        serde_json::from_str(include_str!("../../xai/nora-provider.json")).unwrap();
+        serde_json::from_str(include_str!("../../xai/nora-plugin.json")).unwrap();
     invalid["config"]["networkProxy"] =
         json!({"mode":"proxy","url":"http://replacement.invalid:8080"});
     let result = provider

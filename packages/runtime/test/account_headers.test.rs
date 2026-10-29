@@ -2,7 +2,7 @@ use super::*;
 use nora_ai::OAuthProviderId;
 
 fn definition() -> Definition {
-    Definition::parse(json!({"id":"relay-headers","name":"Relay","api":"anthropic-messages","baseURL":"https://relay.invalid/v1","authMethods":[{"id":"apiKey","type":"api","fields":[{"id":"apiKey","key":"apiKey","type":"password"}]},{"id":"oauth","type":"oauth"}],"config":{"keyProvider":"relay","headerHints":["anthropic-workspace-id","HTTP-Referer"]}})).unwrap()
+    Definition::from_fields(json!({"id":"relay-headers","name":"Relay","api":"anthropic-messages","baseURL":"https://relay.invalid/v1","authMethods":[{"id":"apiKey","type":"api","fields":[{"id":"apiKey","key":"apiKey","type":"password"}]},{"id":"oauth","type":"oauth"}],"config":{"keyProvider":"relay","headerHints":["anthropic-workspace-id","HTTP-Referer"]}})).unwrap()
 }
 
 #[test]
@@ -96,13 +96,13 @@ async fn account_headers_are_applied_privately_after_auth_and_never_added_to_mod
 async fn declared_native_authentication_fields_persist_headers_in_only_the_authorized_account() {
     use nora_provider_plugin_sdk::{CallContext, InitializeParams, ProviderPlugin};
     let plugin = crate::BundledProvider::new(crate::GenericProvider);
-    let manifest = json!({"id":"header-lifecycle","name":"Headers","api":"anthropic-messages","baseURL":"https://relay.invalid/v1","authMethods":[{"id":"apiKey","type":"api","fields":[{"id":"apiKey","key":"apiKey","type":"password"}]}],"config":{"keyProvider":"headers","headerHints":["anthropic-workspace-id"]}});
+    let manifest = json!({"id":"header-lifecycle","name":"Headers","contributes":{"provider":{"api":"anthropic-messages","baseURL":"https://relay.invalid/v1","authMethods":[{"id":"apiKey","type":"api","fields":[{"id":"apiKey","key":"apiKey","type":"password"}]}],"config":{"keyProvider":"headers","headerHints":["anthropic-workspace-id"]}}}});
     plugin
         .initialize(InitializeParams {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: "header-lifecycle".into(),
             plugin_directory: "/tmp/header-lifecycle".into(),
             data_directory: "/tmp/header-lifecycle".into(),

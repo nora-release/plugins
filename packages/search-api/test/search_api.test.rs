@@ -198,12 +198,12 @@ async fn server(
 }
 fn initialize(base: &str, ordered: bool) -> InitializeParams {
     InitializeParams {
-        api_version: 1,
+        api_version: 2,
         subscription_accounts_enabled: true,
         plugin_id: "tavily".into(),
         plugin_directory: Default::default(),
         data_directory: Default::default(),
-        manifest: json!({"authMethods":[{"id":"apiKey","type":"api","label":"API key","fields":[{"key":"apiKey","type":"password","label":"API key","required":true}]}]}),
+        manifest: json!({"contributes":{"provider":{"authMethods":[{"id":"apiKey","type":"api","label":"API key","fields":[{"key":"apiKey","type":"password","label":"API key","required":true}]}]}}}),
         installed_manifest: None,
         runtime_config: json!({"baseURL":base,"searchKeysInOrder":ordered}),
     }
@@ -295,38 +295,38 @@ async fn all_search_packages_expose_their_declared_auth_form_and_only_accept_api
     for (vendor, raw_manifest) in [
         (
             Vendor::Tavily,
-            include_str!("../../tavily/nora-provider.json"),
+            include_str!("../../tavily/nora-plugin.json"),
         ),
         (
             Vendor::Brave,
-            include_str!("../../brave-search/nora-provider.json"),
+            include_str!("../../brave-search/nora-plugin.json"),
         ),
         (
             Vendor::Exa,
-            include_str!("../../exa-search/nora-provider.json"),
+            include_str!("../../exa-search/nora-plugin.json"),
         ),
         (
             Vendor::Firecrawl,
-            include_str!("../../firecrawl/nora-provider.json"),
+            include_str!("../../firecrawl/nora-plugin.json"),
         ),
         (
             Vendor::You,
-            include_str!("../../you-search/nora-provider.json"),
+            include_str!("../../you-search/nora-plugin.json"),
         ),
         (
             Vendor::DeepSeek,
-            include_str!("../../deepseek-search/nora-provider.json"),
+            include_str!("../../deepseek-search/nora-plugin.json"),
         ),
         (
             Vendor::SearXNG,
-            include_str!("../../searxng/nora-provider.json"),
+            include_str!("../../searxng/nora-plugin.json"),
         ),
     ] {
         let manifest: Value = serde_json::from_str(raw_manifest).unwrap();
         let plugin = SearchApiPlugin::new(vendor);
         let initialized = plugin
             .initialize(InitializeParams {
-                api_version: 1,
+                api_version: 2,
                 plugin_id: manifest["id"].as_str().unwrap().into(),
                 manifest: manifest.clone(),
                 runtime_config: json!({}),
@@ -337,13 +337,16 @@ async fn all_search_packages_expose_their_declared_auth_form_and_only_accept_api
             })
             .await
             .unwrap();
-        assert_eq!(initialized["apiVersion"], 1);
+        assert_eq!(initialized["apiVersion"], 2);
         assert_eq!(
             plugin.auth_methods(CallContext::default()).await.unwrap(),
-            manifest["authMethods"],
+            manifest["contributes"]["provider"]["authMethods"],
             "{vendor:?}: the UI form must match the installed package"
         );
-        assert_eq!(manifest["config"]["keyOptional"], vendor.optional_key());
+        assert_eq!(
+            manifest["contributes"]["provider"]["config"]["keyOptional"],
+            vendor.optional_key()
+        );
         let saved = plugin
             .authorize(json!({"method":"apiKey","inputs":{"apiKey":"  offline-private-key  "}}))
             .await

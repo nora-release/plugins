@@ -58,22 +58,22 @@ async fn both_regions_initialize_without_discovering_or_importing_any_account() 
         let mut provider = WorkBuddy::new(site);
         provider.client = Some(client.clone());
         let manifest: Value = serde_json::from_str(if site == Site::China {
-            include_str!("../nora-provider.json")
+            include_str!("../nora-plugin.json")
         } else {
-            include_str!("../../workbuddy-ai/nora-provider.json")
+            include_str!("../../workbuddy-ai/nora-plugin.json")
         })
         .unwrap();
         let params = InitializeParams {
             subscription_accounts_enabled: true,
             installed_manifest: None,
             runtime_config: serde_json::Value::Null,
-            api_version: 1,
+            api_version: 2,
             plugin_id: site.id().into(),
             plugin_directory: "/test/provider".into(),
             data_directory: "/test/provider-data".into(),
             manifest,
         };
-        assert_eq!(provider.initialize(params).await.unwrap()["apiVersion"], 1);
+        assert_eq!(provider.initialize(params).await.unwrap()["apiVersion"], 2);
         assert_eq!(
             provider
                 .auth_methods(CallContext::default())
@@ -138,8 +138,8 @@ async fn refresh_uses_the_refresh_token_once_and_waits_for_the_host_save_acknowl
     let (input, mut output) = tokio::io::split(host);
     let mut input = BufReader::new(input);
     let mut line = String::new();
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":"workbuddy","pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":2,"pluginID":"workbuddy","pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
     input.read_line(&mut line).await.unwrap();
     assert!(serde_json::from_str::<Value>(&line)
         .unwrap()

@@ -41,7 +41,7 @@ impl Vertex {
         }
         let default = self.proxy.read().map_err(|_| reconnect())?;
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_network::http_client(
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(
                 supplied.or(default.as_ref()),
             )?)
             .with_observer_fn(|| async {
@@ -353,7 +353,7 @@ impl ProviderPlugin for Vertex {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -373,7 +373,7 @@ impl ProviderPlugin for Vertex {
             .read()
             .map_err(|_| reconnect())?
             .as_ref()
-            .ok_or_else(reconnect)?["authMethods"]
+            .ok_or_else(reconnect)?["contributes"]["provider"]["authMethods"]
             .clone())
     }
     async fn authorize(&self, params: Value) -> PluginResult<Value> {

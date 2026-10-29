@@ -108,15 +108,15 @@ impl Process {
             id: 0,
         };
         let mut manifest: Value = serde_json::from_str(if id == "cline" {
-            include_str!("../nora-provider.json")
+            include_str!("../nora-plugin.json")
         } else {
-            include_str!("../../clinepass/nora-provider.json")
+            include_str!("../../clinepass/nora-plugin.json")
         })
         .unwrap();
         if let Some(preference) = preference {
-            manifest["config"]["pinUpstream"] = preference;
+            manifest["contributes"]["provider"]["config"]["pinUpstream"] = preference;
         }
-        let initialized = process.call("initialize", json!({"apiVersion":1,"pluginID":id,"pluginDirectory":process.directory,"dataDirectory":process.directory.join("data"),"manifest":manifest,"subscriptionAccountsEnabled":true}));
+        let initialized = process.call("initialize", json!({"apiVersion":2,"pluginID":id,"pluginDirectory":process.directory,"dataDirectory":process.directory.join("data"),"manifest":manifest,"subscriptionAccountsEnabled":true}));
         assert!(initialized[0].get("result").is_some(), "{initialized:?}");
         process
     }

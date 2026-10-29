@@ -59,7 +59,7 @@ fn mock(reply: Value) -> Mock {
     }
 }
 fn definition() -> Definition {
-    Definition::parse(json!({"id":"fixture","name":"Fixture","api":"openai-completions","baseURL":"https://relay.invalid/v1","config":{"keyProvider":"fixture-key","customTemplate":true}})).unwrap()
+    Definition::from_fields(json!({"id":"fixture","name":"Fixture","api":"openai-completions","baseURL":"https://relay.invalid/v1","config":{"keyProvider":"fixture-key","customTemplate":true}})).unwrap()
 }
 fn credentials() -> Value {
     json!({"type":"apiKey","access":"api-private&+"})

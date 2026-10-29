@@ -5,7 +5,7 @@ use serde_json::json;
 mod auth_prompt_contract_tests;
 
 fn package() -> Value {
-    json!({"apiVersion":1,"id":"native-test","name":"Native Test","version":"1.0.0","api":"openai-completions","runtime":{"type":"native","entry":"provider"},"models":[],"config":{"keyProvider":{"private":"native schema"},"options":[{"id":"flag","type":"boolean"}]}})
+    json!({"apiVersion":2,"id":"native-test","name":"Native Test","version":"1.0.0","runtime":{"entry":"provider"},"contributes":{"provider":{"api":"openai-completions","models":[],"config":{"keyProvider":{"private":"native schema"},"options":[{"id":"flag","type":"boolean"}]}}}})
 }
 
 #[test]
@@ -19,7 +19,7 @@ fn native_preparation_preserves_private_configuration_without_using_generic_sche
     assert!(Definition::parse(original.clone()).is_err());
     prepare(&source, &output).unwrap();
     let prepared: Value = serde_json::from_slice(
-        &std::fs::read(output.join("native-test/nora-provider.json")).unwrap(),
+        &std::fs::read(output.join("native-test/nora-plugin.json")).unwrap(),
     )
     .unwrap();
     let mut declared = original;
@@ -39,14 +39,14 @@ fn preparation_rejects_unsafe_identities_and_non_native_entrypoints() {
     value["runtime"]["type"] = json!("node");
     assert!(validate_package(&value).is_err());
     value = package();
-    value["config"] = json!([]);
+    value["contributes"]["provider"]["config"] = json!([]);
     assert!(validate_package(&value).is_err());
 }
 
 #[tokio::test]
 async fn provider_owned_options_remain_readable_without_becoming_http_fields() {
     use base64::Engine;
-    let definition = Definition::parse(json!({"id":"native-options","name":"Native Options","api":"openai-completions","baseURL":"https://api.example.invalid/v1","config":{"keyProvider":"openai","options":[{"id":"native_feature","type":"boolean","default":false}],"native_feature":true,"privateFeature":{"mode":"active"}}})).unwrap();
+    let definition = Definition::from_fields(json!({"id":"native-options","name":"Native Options","api":"openai-completions","baseURL":"https://api.example.invalid/v1","config":{"keyProvider":"openai","options":[{"id":"native_feature","type":"boolean","default":false}],"native_feature":true,"privateFeature":{"mode":"active"}}})).unwrap();
     assert_eq!(definition.config.extra["native_feature"], true);
     assert_eq!(
         definition.config.extra["privateFeature"],
@@ -100,13 +100,13 @@ fn preparation_preserves_each_packages_explicit_connection_capability() {
     for package in std::fs::read_dir(&path).unwrap() {
         let package = package.unwrap().path();
         let prepared: Value =
-            serde_json::from_slice(&std::fs::read(package.join("nora-provider.json")).unwrap())
+            serde_json::from_slice(&std::fs::read(package.join("nora-plugin.json")).unwrap())
                 .unwrap();
         let original: Value = serde_json::from_slice(
             &std::fs::read(
                 source
                     .join(package.file_name().unwrap())
-                    .join("nora-provider.json"),
+                    .join("nora-plugin.json"),
             )
             .unwrap(),
         )
@@ -120,7 +120,7 @@ fn preparation_preserves_each_packages_explicit_connection_capability() {
             .is_file()
         {
             assert_eq!(
-                prepared["config"]["connectionOptions"], true,
+                prepared["contributes"]["provider"]["config"]["connectionOptions"], true,
                 "Generic packages run through the shared runtime: {}",
                 prepared["id"]
             );
@@ -130,10 +130,13 @@ fn preparation_preserves_each_packages_explicit_connection_capability() {
     assert!(count >= 91);
     for id in ["compatible", "openai", "anthropic", "xai", "google-gemini"] {
         let value: Value = serde_json::from_slice(
-            &std::fs::read(source.join(id).join("nora-provider.json")).unwrap(),
+            &std::fs::read(source.join(id).join("nora-plugin.json")).unwrap(),
         )
         .unwrap();
-        assert_eq!(value["config"]["connectionOptions"], true, "{id}");
+        assert_eq!(
+            value["contributes"]["provider"]["config"]["connectionOptions"], true,
+            "{id}"
+        );
     }
     for id in [
         "remote-magpie",
@@ -147,11 +150,11 @@ fn preparation_preserves_each_packages_explicit_connection_capability() {
         "kiro",
     ] {
         let value: Value = serde_json::from_slice(
-            &std::fs::read(source.join(id).join("nora-provider.json")).unwrap(),
+            &std::fs::read(source.join(id).join("nora-plugin.json")).unwrap(),
         )
         .unwrap();
         assert_ne!(
-            value["config"]["connectionOptions"], true,
+            value["contributes"]["provider"]["config"]["connectionOptions"], true,
             "A partial implementation cannot advertise the complete connection feature: {id}"
         );
     }
@@ -166,7 +169,6 @@ fn preparation_keeps_missing_null_false_and_true_capabilities_unchanged() {
     std::fs::create_dir_all(&path).unwrap();
     for (index, config) in [
         None,
-        Some(Value::Null),
         Some(json!({"connectionOptions":false})),
         Some(json!({"connectionOptions":true})),
         Some(json!({"connectionOptions":null})),
@@ -176,9 +178,12 @@ fn preparation_keeps_missing_null_false_and_true_capabilities_unchanged() {
     {
         let mut original = package();
         match config {
-            Some(config) => original["config"] = config,
+            Some(config) => original["contributes"]["provider"]["config"] = config,
             None => {
-                original.as_object_mut().unwrap().remove("config");
+                original["contributes"]["provider"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("config");
             }
         }
         let source = path.join(format!("source-{index}.json"));
@@ -186,7 +191,7 @@ fn preparation_keeps_missing_null_false_and_true_capabilities_unchanged() {
         std::fs::write(&source, serde_json::to_vec(&original).unwrap()).unwrap();
         prepare(&source, &output).unwrap();
         let result: Value = serde_json::from_slice(
-            &std::fs::read(output.join("native-test/nora-provider.json")).unwrap(),
+            &std::fs::read(output.join("native-test/nora-plugin.json")).unwrap(),
         )
         .unwrap();
         crate::build_capabilities::declare(&mut original);
@@ -200,14 +205,14 @@ fn cached_model_metadata_is_declared_only_by_packages_that_serve_the_common_rpc(
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     for entry in std::fs::read_dir(source).unwrap() {
         let path = entry.unwrap().path();
-        let manifest = path.join("nora-provider.json");
+        let manifest = path.join("nora-plugin.json");
         if !manifest.is_file() {
             continue;
         }
         let manifest: Value = serde_json::from_slice(&std::fs::read(manifest).unwrap()).unwrap();
         if !path.join("Cargo.toml").is_file() {
             assert_eq!(
-                manifest["config"]["modelMetadata"], true,
+                manifest["contributes"]["provider"]["config"]["modelMetadata"], true,
                 "Generic package {}",
                 manifest["id"]
             );
@@ -222,10 +227,13 @@ fn cached_model_metadata_is_declared_only_by_packages_that_serve_the_common_rpc(
         "github-copilot",
     ] {
         let value: Value = serde_json::from_slice(
-            &std::fs::read(source.join(id).join("nora-provider.json")).unwrap(),
+            &std::fs::read(source.join(id).join("nora-plugin.json")).unwrap(),
         )
         .unwrap();
-        assert_eq!(value["config"]["modelMetadata"], true, "{id}");
+        assert_eq!(
+            value["contributes"]["provider"]["config"]["modelMetadata"], true,
+            "{id}"
+        );
     }
     for id in [
         "remote-magpie",
@@ -236,11 +244,11 @@ fn cached_model_metadata_is_declared_only_by_packages_that_serve_the_common_rpc(
         "vercel-jev",
     ] {
         let value: Value = serde_json::from_slice(
-            &std::fs::read(source.join(id).join("nora-provider.json")).unwrap(),
+            &std::fs::read(source.join(id).join("nora-plugin.json")).unwrap(),
         )
         .unwrap();
         assert_ne!(
-            value["config"]["modelMetadata"], true,
+            value["contributes"]["provider"]["config"]["modelMetadata"], true,
             "A direct provider needs its own explicit implementation: {id}"
         );
     }

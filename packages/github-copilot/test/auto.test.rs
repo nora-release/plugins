@@ -39,7 +39,7 @@ fn client(replies: Vec<(u16, Value)>) -> Client {
 }
 
 fn definition() -> Definition {
-    let mut definition = Definition::parse(json!({
+    let mut definition = Definition::from_fields(json!({
         "id":"github-copilot", "name":"GitHub Copilot", "api":"openai-completions",
         "baseURL":"https://api.githubcopilot.com",
         "config":{"keyProvider":"github-copilot", "oauthProvider":"github-copilot"}

@@ -8,17 +8,17 @@ fn preparation_declares_exact_current_versions_without_assuming_legacy_actions_a
         json!({"accountActions":["checkin","consumeReset"]}),
         json!({"accountAutomation":{"version":2}}),
     ] {
-        let mut manifest = json!({"config":config});
+        let mut manifest = json!({"contributes":{"provider":{"config":config}}});
         declare(&mut manifest);
         assert_eq!(
-            manifest["config"]["sdkCapabilities"],
+            manifest["contributes"]["provider"]["config"]["sdkCapabilities"],
             json!({"subscriptionPolicy":1,"automaticProxy":1})
         );
     }
-    let mut manifest = json!({"config":{"connectionOptions":true,"accountImport":{"formats":["codex-auth"]},"accountAutomation":{"version":1},"sdkCapabilities":{"accountAutomation":99,"oldUnsupported":1}}});
+    let mut manifest = json!({"contributes":{"provider":{"config":{"connectionOptions":true,"accountImport":{"formats":["codex-auth"]},"accountAutomation":{"version":1},"sdkCapabilities":{"accountAutomation":99,"oldUnsupported":1}}}}});
     declare(&mut manifest);
     assert_eq!(
-        manifest["config"]["sdkCapabilities"],
+        manifest["contributes"]["provider"]["config"]["sdkCapabilities"],
         json!({"subscriptionPolicy":1,"automaticProxy":1,"connectionOverrides":1,"accountImport":1,"accountAutomation":1})
     );
     let original = manifest.clone();
@@ -29,10 +29,12 @@ fn preparation_declares_exact_current_versions_without_assuming_legacy_actions_a
 #[test]
 fn dynamic_model_resolution_is_declared_only_when_the_package_names_its_dynamic_models() {
     for models in [Value::Null, json!([]), json!(["auto"])] {
-        let mut manifest = json!({"config":{"modelResolutionModels":models}});
+        let mut manifest =
+            json!({"contributes":{"provider":{"config":{"modelResolutionModels":models}}}});
         declare(&mut manifest);
         assert_eq!(
-            manifest["config"]["sdkCapabilities"]["modelResolution"] == 1,
+            manifest["contributes"]["provider"]["config"]["sdkCapabilities"]["modelResolution"]
+                == 1,
             models == json!(["auto"])
         );
     }
@@ -41,7 +43,7 @@ fn dynamic_model_resolution_is_declared_only_when_the_package_names_its_dynamic_
 #[tokio::test]
 async fn the_common_binary_only_claims_its_own_implemented_features() {
     use nora_provider_plugin_sdk::{InitializeParams, ProviderPlugin, API_VERSION};
-    let manifest = json!({"id":"fixture","name":"Fixture","api":"openai-completions","baseURL":"https://fixture.invalid/v1","config":{"keyProvider":"fixture","accountImport":{"formats":["invented"]},"accountAutomation":{"version":1},"sdkCapabilities":{"accountImport":1,"accountAutomation":1}}});
+    let manifest = json!({"id":"fixture","name":"Fixture","contributes":{"provider":{"api":"openai-completions","baseURL":"https://fixture.invalid/v1","config":{"keyProvider":"fixture","accountImport":{"formats":["invented"]},"accountAutomation":{"version":1},"sdkCapabilities":{"accountImport":1,"accountAutomation":1}}}}});
     let provider = crate::BundledProvider::default();
     let initialized = provider
         .initialize(InitializeParams {
@@ -69,22 +71,29 @@ fn only_dedicated_packages_declare_their_account_and_client_hooks() {
         ("anthropic", "sessionActivity"),
         ("openai", "clientObservation"),
     ] {
-        let mut manifest = json!({"id":id,"config":{}});
+        let mut manifest = json!({"id":id,"contributes":{"provider":{"config":{}}}});
         declare(&mut manifest);
-        assert_eq!(manifest["config"]["sdkCapabilities"][key], 1);
-        let mut unrelated = json!({"id":"unrelated","config":{}});
+        assert_eq!(
+            manifest["contributes"]["provider"]["config"]["sdkCapabilities"][key],
+            1
+        );
+        let mut unrelated = json!({"id":"unrelated","contributes":{"provider":{"config":{}}}});
         declare(&mut unrelated);
-        assert!(unrelated["config"]["sdkCapabilities"].get(key).is_none());
+        assert!(
+            unrelated["contributes"]["provider"]["config"]["sdkCapabilities"]
+                .get(key)
+                .is_none()
+        );
     }
 }
 
 #[test]
 fn masking_extension_is_packaged_without_provider_capabilities() {
     let mut manifest: serde_json::Value =
-        serde_json::from_str(include_str!("../../redact/nora-provider.json")).unwrap();
+        serde_json::from_str(include_str!("../../redact/nora-plugin.json")).unwrap();
     super::declare(&mut manifest);
-    assert!(manifest["config"].get("sdkCapabilities").is_none());
-    assert_eq!(manifest["config"]["gatewayMasker"]["version"], 1);
+    assert!(manifest["contributes"].get("provider").is_none());
+    assert_eq!(manifest["contributes"]["masker"]["version"], 1);
 }
 
 #[test]
@@ -99,16 +108,15 @@ fn masking_extension_is_available_to_manual_catalog_and_package_builds() {
     ));
     std::fs::create_dir_all(&root).unwrap();
     let source =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../redact/nora-provider.json");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../redact/nora-plugin.json");
     let packages = root.join("packages");
     crate::definition::prepare(&source, &packages).unwrap();
     crate::catalog::write_catalog(&packages, &root.join("catalog.json"), None).unwrap();
     let package: Value =
-        serde_json::from_slice(&std::fs::read(packages.join("redact/nora-provider.json")).unwrap())
+        serde_json::from_slice(&std::fs::read(packages.join("redact/nora-plugin.json")).unwrap())
             .unwrap();
-    assert_eq!(package["api"], "gateway-masker");
-    assert_eq!(package["config"]["gatewayMasker"]["version"], 1);
-    assert!(package["config"].get("sdkCapabilities").is_none());
+    assert!(package["contributes"].get("provider").is_none());
+    assert_eq!(package["contributes"]["masker"]["version"], 1);
     let catalog: Value =
         serde_json::from_slice(&std::fs::read(root.join("catalog.json")).unwrap()).unwrap();
     assert_eq!(catalog["providers"][0]["id"], "redact");

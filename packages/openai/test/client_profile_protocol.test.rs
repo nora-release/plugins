@@ -80,9 +80,9 @@ async fn sdk_dispatches_public_profiles_without_an_account_and_preserves_model_m
     let catalog_path = host.directory.join("plugin-data/models.json");
     std::fs::write(&catalog_path, &catalog).unwrap();
     let initialized = host.call("initialize", json!({
-        "apiVersion":1,"pluginID":"openai","pluginDirectory":env!("CARGO_MANIFEST_DIR"),
+        "apiVersion":2,"pluginID":"openai","pluginDirectory":env!("CARGO_MANIFEST_DIR"),
         "dataDirectory":host.directory.join("plugin-data"),
-        "manifest":serde_json::from_str::<Value>(include_str!("../nora-provider.json")).unwrap(),
+        "manifest":serde_json::from_str::<Value>(include_str!("../nora-plugin.json")).unwrap(),
         "subscriptionAccountsEnabled":false
     })).await;
     assert_eq!(

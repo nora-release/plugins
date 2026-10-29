@@ -92,7 +92,7 @@ impl Kiro {
             return Ok(client.clone());
         }
         Ok(Arc::new(
-            ReqwestHttpClient::with_client(nora_provider_network::http_client(proxy)?)
+            ReqwestHttpClient::with_client(nora_provider_plugin_sdk::http_client(proxy)?)
                 .with_observer_fn(|| async {
                     nora_provider_plugin_sdk::before_http_request()
                         .await
@@ -285,7 +285,7 @@ impl ProviderPlugin for Kiro {
         if params.api_version != API_VERSION
             || params.plugin_id != "kiro"
             || params.manifest["id"] != "kiro"
-            || params.manifest["baseURL"] != session::BASE
+            || params.manifest["contributes"]["provider"]["baseURL"] != session::BASE
         {
             return Err(PluginError::invalid(
                 "The Kiro executable does not match its manifest.",
@@ -294,7 +294,7 @@ impl ProviderPlugin for Kiro {
         let proxy: Option<NetworkProxy> = serde_json::from_value(
             params
                 .manifest
-                .pointer("/config/networkProxy")
+                .pointer("/contributes/provider/config/networkProxy")
                 .cloned()
                 .unwrap_or(Value::Null),
         )
@@ -304,7 +304,7 @@ impl ProviderPlugin for Kiro {
         }
         *self.config.write().map_err(|_| session::expired())? = Some(Config {
             proxy,
-            methods: params.manifest["authMethods"].clone(),
+            methods: params.manifest["contributes"]["provider"]["authMethods"].clone(),
             installation: params.data_directory.to_string_lossy().into(),
         });
         Ok(

@@ -7,20 +7,20 @@ fn configured(
 ) -> (Cline, Arc<Client>) {
     let (_, client, store) = setup(replies);
     let mut manifest: Value = serde_json::from_str(if id == "cline" {
-        include_str!("../nora-provider.json")
+        include_str!("../nora-plugin.json")
     } else {
-        include_str!("../../clinepass/nora-provider.json")
+        include_str!("../../clinepass/nora-plugin.json")
     })
     .unwrap();
     if let Some(option) = option {
-        manifest["config"]["pinUpstream"] = option;
+        manifest["contributes"]["provider"]["config"]["pinUpstream"] = option;
     }
     let core = Core::with_dependencies(id, client.clone(), store);
     core.initialize(InitializeParams {
         subscription_accounts_enabled: true,
         installed_manifest: None,
         runtime_config: Value::Null,
-        api_version: 1,
+        api_version: 2,
         plugin_id: id.into(),
         plugin_directory: PathBuf::new(),
         data_directory: PathBuf::new(),
@@ -61,22 +61,24 @@ fn sent(client: &Client) -> Vec<Value> {
 #[test]
 fn shipped_manifests_preserve_an_unspecified_pin_preference() {
     for text in [
-        include_str!("../nora-provider.json"),
-        include_str!("../../clinepass/nora-provider.json"),
+        include_str!("../nora-plugin.json"),
+        include_str!("../../clinepass/nora-plugin.json"),
     ] {
         let manifest: Value = serde_json::from_str(text).unwrap();
-        assert!(manifest["config"].get("pinUpstream").is_none());
+        assert!(manifest["contributes"]["provider"]["config"]
+            .get("pinUpstream")
+            .is_none());
     }
 }
 
 #[test]
 fn both_manifests_offer_the_upstream_switch_without_forcing_its_default() {
     for text in [
-        include_str!("../nora-provider.json"),
-        include_str!("../../clinepass/nora-provider.json"),
+        include_str!("../nora-plugin.json"),
+        include_str!("../../clinepass/nora-plugin.json"),
     ] {
         let manifest: Value = serde_json::from_str(text).unwrap();
-        let option = manifest["config"]["options"]
+        let option = manifest["contributes"]["provider"]["config"]["options"]
             .as_array()
             .unwrap()
             .iter()
@@ -87,7 +89,9 @@ fn both_manifests_offer_the_upstream_switch_without_forcing_its_default() {
         assert_eq!(option["preserveUnset"], true);
         assert!(option["label"].as_str().unwrap().contains("DeepSeek"));
         assert!(option["description"].as_str().unwrap().contains("fails"));
-        assert!(manifest["config"].get("pinUpstream").is_none());
+        assert!(manifest["contributes"]["provider"]["config"]
+            .get("pinUpstream")
+            .is_none());
     }
 }
 

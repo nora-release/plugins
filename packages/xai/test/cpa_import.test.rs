@@ -47,23 +47,25 @@ fn kind() -> LoginKind {
 
 #[test]
 fn cpa_import_is_declared_with_the_rotation_notice_and_separate_from_cli_discovery() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     assert_eq!(
-        manifest["config"]["accountImport"],
+        manifest["contributes"]["provider"]["config"]["accountImport"],
         account_import::declaration(kind())
     );
     assert_eq!(
-        manifest["config"]["accountImport"]["formats"],
+        manifest["contributes"]["provider"]["config"]["accountImport"]["formats"],
         json!(["auto", "cli-proxy"])
     );
     assert_eq!(
-        manifest["config"]["accountImport"]["refreshesTokens"],
+        manifest["contributes"]["provider"]["config"]["accountImport"]["refreshesTokens"],
         false
     );
-    assert!(manifest["config"]["accountImport"]["notice"]
-        .as_str()
-        .unwrap()
-        .contains("Stop using"));
+    assert!(
+        manifest["contributes"]["provider"]["config"]["accountImport"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("Stop using")
+    );
     assert!(
         account_import::inspect(kind(), &params(&source())).unwrap()["entries"][0]["error"]
             .is_null()

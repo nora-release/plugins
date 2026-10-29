@@ -44,7 +44,7 @@ fn credentials(user: &str, organization: &str) -> Value {
 }
 fn auth(provider: &Xai, credentials: &Value) -> ResolvedProviderAuth {
     let definition =
-        Definition::parse(serde_json::from_str(include_str!("../nora-provider.json")).unwrap())
+        Definition::parse(serde_json::from_str(include_str!("../nora-plugin.json")).unwrap())
             .unwrap();
     let credentials = nora_provider::auth::decode(&definition, Some(credentials)).unwrap();
     let mut auth = nora_provider::auth::base_auth("xai", &credentials);

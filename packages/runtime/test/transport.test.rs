@@ -175,7 +175,7 @@ fn definition(id: &str) -> Definition {
                     .parent()
                     .unwrap()
                     .join(id)
-                    .join("nora-provider.json"),
+                    .join("nora-plugin.json"),
             )
             .unwrap(),
         )
@@ -359,7 +359,7 @@ async fn anthropic_relays_send_both_key_headers_unless_the_account_chooses_one()
 
 #[tokio::test]
 async fn anthropic_uses_one_key_header_and_custom_relays_default_to_both() {
-    let custom = Definition::parse(json!({
+    let custom = Definition::from_fields(json!({
         "id":"custom-anthropic","name":"Custom Anthropic","api":"anthropic-messages",
         "baseURL":"https://custom.invalid","config":{"keyProvider":"custom"}
     }))

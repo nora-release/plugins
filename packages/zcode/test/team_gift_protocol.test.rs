@@ -80,8 +80,8 @@ async fn sdk_lists_and_spends_personal_trials_while_the_team_window_is_exhausted
         ));
         let (input, mut output) = tokio::io::split(host);
         let mut input = BufReader::new(input);
-        let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
-        let initialized=call(&mut input,&mut output,1,"initialize",json!({"apiVersion":1,"pluginID":"zcode","manifest":manifest,"pluginDirectory":directory.0,"dataDirectory":directory.0.join("data"),"subscriptionAccountsEnabled":true})).await;
+        let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
+        let initialized=call(&mut input,&mut output,1,"initialize",json!({"apiVersion":2,"pluginID":"zcode","manifest":manifest,"pluginDirectory":directory.0,"dataDirectory":directory.0.join("data"),"subscriptionAccountsEnabled":true})).await;
         assert!(initialized[0].get("result").is_some(), "{initialized:?}");
         let params = json!({"account":"team-account","credentials":credentials,"subscriptionAccountsEnabled":true});
         let models = call(&mut input, &mut output, 2, "models", params.clone()).await;

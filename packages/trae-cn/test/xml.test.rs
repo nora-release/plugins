@@ -64,9 +64,9 @@ mod protocol;
 async fn xml_both_trae_sites_dispatch_calls_and_errors_through_the_locked_sdk() {
     for site in [Site::China, Site::Global] {
         let manifest: Value = serde_json::from_str(if site == Site::China {
-            include_str!("../nora-provider.json")
+            include_str!("../nora-plugin.json")
         } else {
-            include_str!("../../trae-global/nora-provider.json")
+            include_str!("../../trae-global/nora-plugin.json")
         })
         .unwrap();
         for error in [false, true] {

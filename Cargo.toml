@@ -12,7 +12,6 @@ members = [
     "packages/think-tags",
     "packages/word-guard",
 
-    "packages/network",
     "packages/cloudflare-workers-ai",
     "packages/chatgpt-api",
     "packages/nous-portal",
@@ -105,9 +104,10 @@ license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
-nora-provider-network = { path = "packages/network", features = ["ipv4-fallback"] }
+nora-network = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe", features = ["ipv4-fallback"] }
+nora-plugin-manifest = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe" }
 nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }
-nora-provider-plugin-sdk = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe", features = ["ipv4-fallback"] }
 
 [patch.crates-io]
-reqwest = { path = "packages/network/vendor/reqwest" }
+reqwest = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe" }

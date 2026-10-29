@@ -1,0 +1,15 @@
+{
+  "apiVersion": 2,
+  "id": "redact",
+  "name": "Privacy masking",
+  "version": "1.2.0",
+  "summary": "Mask secrets, personal data and selected words before sending requests, and restore them in replies.",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "masker": {
+      "version": 1
+    }
+  }
+}

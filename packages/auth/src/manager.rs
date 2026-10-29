@@ -43,7 +43,9 @@ impl OAuthManager {
             OAuthStore::at_default_path(),
             Arc::new(
                 ReqwestHttpClient::with_client(
-                    nora_provider_network::default_http_client()
+                    nora_network::http_client_builder()
+                        .ok()
+                        .and_then(|builder| builder.build().ok())
                         .expect("OAuth HTTP client could not be initialized"),
                 )
                 .with_observer_fn(|| async {

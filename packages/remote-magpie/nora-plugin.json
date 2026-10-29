@@ -1,0 +1,76 @@
+{
+  "apiVersion": 2,
+  "id": "remote-magpie",
+  "name": "Remote Magpie",
+  "version": "1.2.0",
+  "runtime": {
+    "entry": "provider"
+  },
+  "contributes": {
+    "provider": {
+      "api": "openai-completions",
+      "authMethods": [
+        {
+          "id": "apiKey",
+          "type": "api",
+          "label": "Connect a gateway",
+          "fields": [
+            {
+              "id": "endpoint",
+              "key": "endpoint",
+              "type": "text",
+              "label": "Gateway address",
+              "required": true
+            },
+            {
+              "id": "apiKey",
+              "key": "apiKey",
+              "type": "password",
+              "label": "Gateway API key",
+              "required": true
+            },
+            {
+              "id": "name",
+              "key": "name",
+              "type": "text",
+              "label": "Name",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "config": {
+        "connectionManaged": true,
+        "initialResponseTimeoutMs": 600000,
+        "operations": [
+          "images.generations",
+          "images.edits",
+          "videos.create",
+          "videos.get",
+          "videos.content",
+          "embeddings",
+          "rerank",
+          "decision",
+          "audio.transcriptions",
+          "audio.translations",
+          "messages.count_tokens"
+        ],
+        "forwardedHeaders": [
+          "user-agent",
+          "originator",
+          "x-app",
+          "x-magpie-*",
+          "session-id",
+          "thread-id",
+          "session_id",
+          "conversation_id",
+          "x-conversation-id",
+          "x-client-request-id",
+          "version",
+          "x-openai-*",
+          "x-codex-*"
+        ]
+      }
+    }
+  }
+}

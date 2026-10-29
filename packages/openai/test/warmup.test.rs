@@ -11,13 +11,14 @@ async fn warmup_requires_explicit_confirmation_before_any_account_or_network_acc
 }
 #[test]
 fn warmup_declaration_is_subscription_only() {
-    let manifest: Value = serde_json::from_str(include_str!("../nora-provider.json")).unwrap();
+    let manifest: Value = serde_json::from_str(include_str!("../nora-plugin.json")).unwrap();
     assert_eq!(
-        manifest["config"]["accountAutomation"]["warmup"]["method"],
+        manifest["contributes"]["provider"]["config"]["accountAutomation"]["warmup"]["method"],
         "warmup"
     );
     assert_eq!(
-        manifest["config"]["accountAutomation"]["warmup"]["accountDailyTime"],
+        manifest["contributes"]["provider"]["config"]["accountAutomation"]["warmup"]
+            ["accountDailyTime"],
         true
     );
 }

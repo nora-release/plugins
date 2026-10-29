@@ -147,8 +147,8 @@ async fn refresh_returns_only_after_the_host_saves_rotated_credentials() {
     let mut input = BufReader::new(input);
     let mut line = String::new();
     let manifest: Value =
-        serde_json::from_str(include_str!("../../trae-global/nora-provider.json")).unwrap();
-    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":1,"pluginID":"trae-global","pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
+        serde_json::from_str(include_str!("../../trae-global/nora-plugin.json")).unwrap();
+    output.write_all(format!("{}\n",json!({"id":1,"method":"initialize","params":{"apiVersion":2,"pluginID":"trae-global","pluginDirectory":"/test/plugin","dataDirectory":"/test/data","manifest":manifest,"hostCapabilities":{"credentialUpdates":true}}})).as_bytes()).await.unwrap();
     input.read_line(&mut line).await.unwrap();
     line.clear();
     output

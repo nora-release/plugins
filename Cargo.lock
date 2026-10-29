@@ -1355,7 +1355,7 @@ dependencies = [
 [[package]]
 name = "nora-network"
 version = "0.24.0"
-source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
+source = "git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779#def945a909fd7c89e452d1a415ada353ee252779"
 dependencies = [
  "reqwest",
  "rustls",
@@ -1366,7 +1366,7 @@ dependencies = [
 [[package]]
 name = "nora-plugin-manifest"
 version = "0.24.0"
-source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
+source = "git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779#def945a909fd7c89e452d1a415ada353ee252779"
 dependencies = [
  "flate2",
  "regex",
@@ -2246,7 +2246,7 @@ dependencies = [
 [[package]]
 name = "nora-provider-plugin-sdk"
 version = "0.24.0"
-source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
+source = "git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779#def945a909fd7c89e452d1a415ada353ee252779"
 dependencies = [
  "async-trait",
  "base64",
@@ -3195,7 +3195,7 @@ dependencies = [
 [[package]]
 name = "reqwest"
 version = "0.12.28"
-source = "git+https://github.com/nora-release/plugin-kit?rev=224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe#224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe"
+source = "git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779#def945a909fd7c89e452d1a415ada353ee252779"
 dependencies = [
  "base64",
  "bytes",

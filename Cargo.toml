@@ -104,10 +104,10 @@ license = "MIT"
 rust-version = "1.88"
 
 [workspace.dependencies]
-nora-network = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe", features = ["ipv4-fallback"] }
-nora-plugin-manifest = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe" }
+nora-network = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779", features = ["ipv4-fallback"] }
+nora-plugin-manifest = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779" }
 nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "8bfa6e374208b38687ba6ce14c9e6b73a3aee0a7" }
-nora-provider-plugin-sdk = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe", features = ["ipv4-fallback"] }
+nora-provider-plugin-sdk = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779", features = ["ipv4-fallback"] }
 
 [patch.crates-io]
-reqwest = { git = "https://github.com/nora-release/plugin-kit", rev = "224e5d6c7f9a4245cdc47fdbcf755057d29bc0fe" }
+reqwest = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779" }

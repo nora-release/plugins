@@ -84,7 +84,7 @@ pub fn write_catalog(
                 json!({"url":url.as_str(),"sha256":format!("{:x}",digest.finalize())}),
             );
         }
-        let mut entry = json!({"apiVersion":2,"id":manifest.id,"name":manifest.name,"description":description,"version":version,"repository":format!("https://github.com/nora-release/plugins/tree/agent/router/packages/{}",manifest.id),"contributes":contributions(&manifest),"packages":packages});
+        let mut entry = json!({"apiVersion":2,"id":manifest.id,"name":manifest.name,"description":description,"version":version,"repository":format!("https://github.com/nora-release/plugins/tree/main/packages/{}",manifest.id),"contributes":contributions(&manifest),"packages":packages});
         if let Some(minimum) = &manifest.minimum_host_version {
             entry["minimumHostVersion"] = json!(minimum);
         }

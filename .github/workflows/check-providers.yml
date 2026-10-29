@@ -4,7 +4,7 @@ on:
   pull_request:
     paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/*.sh', '.github/workflows/check-providers.yml']
   push:
-    branches: [main, agent/router]
+    branches: [main]
     paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/*.sh', '.github/workflows/check-providers.yml']
   workflow_dispatch:
 

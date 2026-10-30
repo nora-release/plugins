@@ -4,16 +4,34 @@ use nora_ai::{
     AuthScheme, AwsSigV4, AwsSigV4Credentials, HttpClient, HttpMethod, HttpRequest,
     HttpStreamingResponse,
 };
-use nora_provider_plugin_sdk::{FetchRequest, FetchResponse, PluginError, PluginResult};
+use nora_provider_plugin_sdk::{
+    FetchRequest, FetchResponse, NetworkProxy, PluginError, PluginResult,
+};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub fn http1_client(proxy: Option<&NetworkProxy>) -> PluginResult<reqwest::Client> {
+    crate::network_client::http1_client(proxy)
+}
+
+#[cfg(test)]
 pub(crate) async fn send(
     client: &dyn HttpClient,
     definition: &Definition,
     credentials: &Value,
     api: &str,
     request: HttpRequest,
+) -> PluginResult<HttpStreamingResponse> {
+    send_with_proxy(client, definition, credentials, api, request, None).await
+}
+
+pub(crate) async fn send_with_proxy(
+    client: &dyn HttpClient,
+    definition: &Definition,
+    credentials: &Value,
+    api: &str,
+    request: HttpRequest,
+    proxy: Option<&NetworkProxy>,
 ) -> PluginResult<HttpStreamingResponse> {
     #[derive(serde::Deserialize)]
     struct ModelName {
@@ -34,8 +52,19 @@ pub(crate) async fn send(
         .adapter
         .before_send(definition, credentials, &request, client)
         .await?;
-    let mut response =
-        crate::auth_headers::send(client, definition, credentials, api, request).await?;
+    let mut response = crate::auth_headers::send_with(
+        definition,
+        credentials,
+        api,
+        request,
+        &mut None,
+        |request| {
+            definition
+                .adapter
+                .send_fetch(definition, credentials, request, client, proxy)
+        },
+    )
+    .await?;
     definition
         .adapter
         .observe_response(credentials, response.status, &response.headers);

@@ -10,7 +10,7 @@ use tokio::io::AsyncReadExt;
 #[path = "seen_clients.rs"]
 mod seen_clients;
 
-pub(crate) const MINIMUM: &str = "0.159.2";
+pub(crate) const MINIMUM: &str = "0.159.0";
 const CHECK_EVERY: Duration = Duration::from_secs(10 * 60);
 const MAX_CACHE_BYTES: u64 = 8 * 1024 * 1024;
 
@@ -91,15 +91,98 @@ pub(crate) fn headers(version: &str) -> std::collections::BTreeMap<String, Strin
     std::collections::BTreeMap::from([
         ("originator".into(), "codex_cli_rs".into()),
         ("version".into(), version.into()),
-        (
-            "user-agent".into(),
-            format!(
-                "codex_cli_rs/{version} ({}; {}) Nora",
-                std::env::consts::OS,
-                std::env::consts::ARCH
-            ),
-        ),
+        ("user-agent".into(), user_agent(version)),
     ])
+}
+
+fn user_agent(version: &str) -> String {
+    static SYSTEM: OnceLock<String> = OnceLock::new();
+    let platform = std::env::consts::OS;
+    let system = SYSTEM.get_or_init(|| {
+        let release = match platform {
+            "macos" => system_release("/usr/bin/sw_vers", &["-productVersion"]),
+            "windows" => system_release("cmd", &["/c", "ver"]),
+            _ => system_release("/usr/bin/uname", &["-r"]),
+        };
+        system_name(platform, release.as_deref())
+    });
+    user_agent_for(version, platform, std::env::consts::ARCH, system)
+}
+
+fn user_agent_for(version: &str, platform: &str, architecture: &str, system: &str) -> String {
+    let architecture = match architecture {
+        "aarch64" => "arm64",
+        "x86" => "386",
+        architecture => architecture,
+    };
+    let terminal = match platform {
+        "macos" => "Apple_Terminal/455",
+        "windows" => "WindowsTerminal",
+        _ => "xterm-256color",
+    };
+    format!("codex_cli_rs/{version} ({system}; {architecture}) {terminal}")
+}
+
+fn system_name(platform: &str, output: Option<&str>) -> String {
+    let name = match platform {
+        "macos" => "Mac OS",
+        "windows" => "Windows",
+        _ => "Linux",
+    };
+    let version = output.and_then(|output| {
+        output
+            .split(|character: char| !character.is_ascii_digit() && character != '.')
+            .find(|candidate| {
+                let parts = candidate.split('.').collect::<Vec<_>>();
+                parts.len() >= 2 && parts.iter().all(|part| !part.is_empty())
+            })
+    });
+    let Some(version) = version else {
+        return name.into();
+    };
+    let mut parts = version.split('.').collect::<Vec<_>>();
+    if platform == "windows" {
+        parts.truncate(3);
+    } else {
+        while parts.len() < 3 {
+            parts.push("0");
+        }
+    }
+    format!("{name} {}", parts.join("."))
+}
+
+fn system_release(program: &str, arguments: &[&str]) -> Option<String> {
+    let mut child = std::process::Command::new(program)
+        .args(arguments)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => {
+                let mut output = String::new();
+                child
+                    .stdout
+                    .take()?
+                    .take(4096)
+                    .read_to_string(&mut output)
+                    .ok()?;
+                return Some(output);
+            }
+            Ok(Some(_)) => return None,
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    }
 }
 
 fn home() -> Option<PathBuf> {

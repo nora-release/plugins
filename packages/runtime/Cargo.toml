@@ -30,6 +30,7 @@ tokio-util = { version = "0.7", features = ["io"] }
 url = "2"
 
 [dev-dependencies]
+tokio-tungstenite = "0.24"
 time = "0.3"
 fs2 = "0.4"
 rcgen = "0.13"

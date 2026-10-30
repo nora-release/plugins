@@ -24,7 +24,7 @@ fn codex_final_fetch_is_zstd_after_fast_mode_normalization_and_decodes_to_the_fi
     assert!(!headers.contains_key("content-length"));
     let decoded = zstd::stream::decode_all(body.as_deref().unwrap()).unwrap();
     let value: Value = serde_json::from_slice(&decoded).unwrap();
-    assert_eq!(value["input"], "hello");
+    assert_eq!(value["input"][0]["content"][0]["text"], "hello");
     assert!(value.get("service_tier").is_none());
 }
 #[test]

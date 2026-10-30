@@ -16,6 +16,9 @@ use url::Url;
 /// only coordinates the plugin protocol, safe HTTP transport, and model caching.
 #[async_trait]
 pub trait ProviderAdapter: Debug + Send + Sync + 'static {
+    fn http1_hosts(&self) -> &'static [&'static str] {
+        &[]
+    }
     fn supports_web_search(&self) -> bool {
         false
     }
@@ -229,6 +232,21 @@ pub trait ProviderAdapter: Debug + Send + Sync + 'static {
         _client: &dyn HttpClient,
     ) -> PluginResult<()> {
         Ok(())
+    }
+    /// Sends the final authenticated request while preserving the runtime's
+    /// account selection, body adaptations and response observers.
+    async fn send_fetch(
+        &self,
+        _definition: &Definition,
+        _credentials: &Value,
+        request: nora_ai::HttpRequest,
+        client: &dyn HttpClient,
+        _proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<nora_ai::HttpStreamingResponse> {
+        client
+            .stream(request)
+            .await
+            .map_err(|_| PluginError::transport("The provider endpoint could not be reached."))
     }
     fn observed_error_statuses(&self, _credentials: &Value) -> &'static [u16] {
         &[]

@@ -84,7 +84,12 @@ fn codex_accepts_only_priority_and_explicit_ultrafast() {
     ] {
         let original = br#"{"service_tier":"flex","input":"keep"}"#.to_vec();
         let mut body = Some(original.clone());
-        super::super::responses_body::finalize(subscription, &target, &mut body);
+        super::super::responses_body::finalize(
+            subscription,
+            &target,
+            &mut Default::default(),
+            &mut body,
+        );
         assert_eq!(body, Some(original));
     }
 }

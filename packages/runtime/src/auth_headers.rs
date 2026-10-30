@@ -1,6 +1,10 @@
 use crate::{auth, definition::Definition};
-use nora_ai::{HttpClient, HttpRequest, HttpStreamingResponse};
-use nora_provider_plugin_sdk::{PluginError, PluginResult};
+#[cfg(test)]
+use nora_ai::HttpClient;
+use nora_ai::{HttpRequest, HttpStreamingResponse};
+#[cfg(test)]
+use nora_provider_plugin_sdk::PluginError;
+use nora_provider_plugin_sdk::PluginResult;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
@@ -227,6 +231,7 @@ async fn remember(definition: &Definition, credentials: &Value, target: &str, on
     let _ = nora_provider_plugin_sdk::save_credentials(updated).await;
 }
 
+#[cfg(test)]
 pub(crate) async fn send(
     client: &dyn HttpClient,
     definition: &Definition,

@@ -1,8 +1,11 @@
 #[path = "compression.rs"]
 mod compression;
 
+#[path = "codex_transport.rs"]
+mod codex_transport;
+
 #[path = "responses_body.rs"]
-mod responses_body;
+pub(crate) mod responses_body;
 
 #[path = "fast.rs"]
 pub(crate) mod fast;
@@ -37,11 +40,15 @@ pub struct OpenAI;
 
 #[async_trait]
 impl ProviderAdapter for OpenAI {
+    fn http1_hosts(&self) -> &'static [&'static str] {
+        &["chatgpt.com"]
+    }
     fn id(&self) -> Option<&'static str> {
         Some("openai")
     }
     fn initialize_data_directory(&self, directory: &std::path::Path) -> PluginResult<()> {
         codex_version::initialize(directory);
+        responses_body::initialize(directory);
         Ok(())
     }
     fn account_import_kind(&self) -> Option<nora_provider::account_import::LoginKind> {
@@ -52,7 +59,7 @@ impl ProviderAdapter for OpenAI {
         callbacks: OAuthLoginCallbacks,
         client: &dyn HttpClient,
     ) -> Result<OAuthCredentials, OAuthError> {
-        OAuthLogin::login_openai_codex_with_originator(callbacks, client, "nora").await
+        OAuthLogin::login_openai_codex_with_originator(callbacks, client, "codex_cli_rs").await
     }
     async fn refresh(
         &self,
@@ -169,7 +176,10 @@ impl ProviderAdapter for OpenAI {
         auth.base_url = Some("https://chatgpt.com".into());
         auth.headers
             .insert("openai-beta".into(), "responses=experimental".into());
-        auth.headers.insert("originator".into(), "nora".into());
+        merge_headers(
+            &mut auth.headers,
+            [("originator".into(), "codex_cli_rs".into())],
+        );
         if let Some(account) = credentials
             .extras
             .get("accountId")
@@ -218,9 +228,7 @@ impl ProviderAdapter for OpenAI {
         auth: &ResolvedProviderAuth,
         headers: &mut BTreeMap<String, String>,
     ) {
-        if auth.credential_provider_id.as_deref() != Some("openai-codex")
-            && !url.query_pairs().any(|(key, _)| key == "client_version")
-        {
+        if auth.credential_provider_id.as_deref() != Some("openai-codex") {
             return;
         }
         let version = url
@@ -251,6 +259,7 @@ impl ProviderAdapter for OpenAI {
         if !is_oauth(Some(credentials)) {
             return;
         }
+        responses_body::remember_model(entry);
         let ultrafast = entry
             .get("service_tiers")
             .and_then(Value::as_array)
@@ -327,8 +336,24 @@ impl ProviderAdapter for OpenAI {
         headers: &mut BTreeMap<String, String>,
         body: &mut Option<Vec<u8>>,
     ) -> PluginResult<()> {
-        responses_body::finalize(is_oauth(Some(credentials)), target, body);
+        responses_body::finalize(is_oauth(Some(credentials)), target, headers, body);
         compression::finish(target, headers, body)
+    }
+    async fn send_fetch(
+        &self,
+        _definition: &Definition,
+        credentials: &Value,
+        request: nora_ai::HttpRequest,
+        client: &dyn HttpClient,
+        proxy: Option<&NetworkProxy>,
+    ) -> PluginResult<nora_ai::HttpStreamingResponse> {
+        if is_oauth(Some(credentials)) {
+            return codex_transport::send(request, client, proxy).await;
+        }
+        client
+            .stream(request)
+            .await
+            .map_err(|_| PluginError::transport("The provider endpoint could not be reached."))
     }
     async fn usage(
         &self,
@@ -412,3 +437,7 @@ mod responses_body_tests;
 #[cfg(test)]
 #[path = "../test/mcp_selection.test.rs"]
 mod mcp_selection_tests;
+
+#[cfg(test)]
+#[path = "../test/request_parity.test.rs"]
+mod request_parity_tests;

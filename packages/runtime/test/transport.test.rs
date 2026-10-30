@@ -5,6 +5,9 @@ use serde_json::json;
 #[path = "output_policy.test.rs"]
 mod output_policy;
 
+#[path = "transport_dispatch.test.rs"]
+mod dispatch;
+
 #[tokio::test]
 async fn status_and_header_observation_does_not_poll_or_replace_the_response_body() {
     use async_trait::async_trait;

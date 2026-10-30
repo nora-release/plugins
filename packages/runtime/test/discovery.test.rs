@@ -351,13 +351,49 @@ fn magpie_list_urls_and_versioned_endpoint_order_are_preserved() {
 fn codex_model_query_and_identity_headers_share_the_selected_version() {
     let mut definition = definition("openai-responses", "https://chatgpt.com");
     definition.adapter = crate::test_adapter("openai");
+    let credentials: OAuthCredentials = serde_json::from_value(json!({
+        "provider":"openAICodex", "access":"fixture-access", "refresh":"fixture-refresh",
+        "expires":4102444800000i64, "extras":{"accountId":"fixture-account"}
+    }))
+    .unwrap();
+    let mut resolved = crate::auth::base_auth("openai-codex", &credentials);
+    definition.adapter.enrich_auth(&credentials, &mut resolved);
     let url = crate::openai_provider::model_urls_with_version("https://chatgpt.com", "0.170.2")
         .unwrap()
         .remove(0);
-    let request = signed_request(url, &definition, &resolved(), Kind::OpenAI, None, false);
+    let request = signed_request(url, &definition, &resolved, Kind::OpenAI, None, false);
     assert!(request.url.contains("client_version=0.170.2"));
-    assert_eq!(request.headers["version"], "0.170.2");
-    assert!(request.headers["user-agent"].starts_with("codex_cli_rs/0.170.2 ("));
+    assert_eq!(request.headers["authorization"], "Bearer fixture-access");
+    assert_eq!(request.headers["chatgpt-account-id"], "fixture-account");
+    assert_eq!(request.headers["openai-beta"], "responses=experimental");
+    for (name, value) in crate::openai_provider::codex_version::headers("0.170.2") {
+        assert_eq!(request.headers[&name], value, "{name}");
+    }
+}
+
+#[test]
+fn openai_api_key_model_queries_do_not_acquire_codex_identity() {
+    let mut definition = definition("openai-responses", "https://api.openai.com/v1");
+    definition.adapter = crate::test_adapter("openai");
+    let credentials: OAuthCredentials = serde_json::from_value(json!({
+        "provider":"apiKey", "access":"fixture-key"
+    }))
+    .unwrap();
+    let mut resolved = crate::auth::base_auth("openai", &credentials);
+    definition.adapter.enrich_auth(&credentials, &mut resolved);
+    let request = signed_request(
+        Url::parse("https://api.openai.com/v1/models?client_version=0.170.2").unwrap(),
+        &definition,
+        &resolved,
+        Kind::OpenAI,
+        None,
+        true,
+    );
+    assert_eq!(request.headers["authorization"], "Bearer fixture-key");
+    assert_eq!(request.headers["user-agent"], "Nora");
+    for name in ["originator", "version", "chatgpt-account-id", "openai-beta"] {
+        assert!(!request.headers.contains_key(name), "{name}");
+    }
 }
 
 #[tokio::test]

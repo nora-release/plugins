@@ -1,4 +1,85 @@
 use super::*;
+
+#[test]
+fn minimum_version_matches_magpie_without_reducing_newer_versions() {
+    assert_eq!(MINIMUM, "0.159.0");
+    assert_eq!(newest([Some(MINIMUM), Some("0.158.9")]), "0.159.0");
+}
+
+#[test]
+fn codex_user_agents_match_magpies_platform_names_and_terminals() {
+    for (platform, architecture, release, expected) in [
+        (
+            "macos",
+            "aarch64",
+            "26.6\n",
+            "codex_cli_rs/0.170.2 (Mac OS 26.6.0; arm64) Apple_Terminal/455",
+        ),
+        (
+            "macos",
+            "x86_64",
+            "15.7.1\n",
+            "codex_cli_rs/0.170.2 (Mac OS 15.7.1; x86_64) Apple_Terminal/455",
+        ),
+        (
+            "windows",
+            "x86_64",
+            "Microsoft Windows [Version 10.0.26100.4652]",
+            "codex_cli_rs/0.170.2 (Windows 10.0.26100; x86_64) WindowsTerminal",
+        ),
+        (
+            "linux",
+            "x86_64",
+            "6.8.0-63-generic\n",
+            "codex_cli_rs/0.170.2 (Linux 6.8.0; x86_64) xterm-256color",
+        ),
+    ] {
+        assert_eq!(
+            user_agent_for(
+                "0.170.2",
+                platform,
+                architecture,
+                &system_name(platform, Some(release))
+            ),
+            expected
+        );
+    }
+    for (platform, expected) in [
+        ("macos", "Mac OS"),
+        ("windows", "Windows"),
+        ("linux", "Linux"),
+    ] {
+        assert_eq!(system_name(platform, None), expected);
+        assert_eq!(system_name(platform, Some("unavailable")), expected);
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn codex_identity_headers_use_the_hosts_macos_version_and_architecture() {
+    let output = std::process::Command::new("/usr/bin/sw_vers")
+        .arg("-productVersion")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let mut release = String::from_utf8(output.stdout).unwrap().trim().to_owned();
+    while release.matches('.').count() < 2 {
+        release.push_str(".0");
+    }
+    let architecture = if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else {
+        "x86_64"
+    };
+    let headers = headers("0.170.2");
+    assert_eq!(headers["originator"], "codex_cli_rs");
+    assert_eq!(headers["version"], "0.170.2");
+    assert_eq!(
+        headers["user-agent"],
+        format!("codex_cli_rs/0.170.2 (Mac OS {release}; {architecture}) Apple_Terminal/455")
+    );
+}
+
 #[test]
 fn floor_cache_and_installed_cli_are_compared_numerically() {
     assert_eq!(

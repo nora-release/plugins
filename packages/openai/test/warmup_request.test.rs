@@ -1,4 +1,5 @@
 use super::*;
+use nora_provider::ProviderAdapter;
 #[test]
 fn cheapest_model_low_effort_and_fallbacks_match_official() {
     let cases = [
@@ -181,8 +182,38 @@ async fn cancelling_warmup_drops_the_response_stream() {
     let _ = task.await;
     assert!(dropped.load(Ordering::SeqCst));
 }
+#[test]
+fn the_real_request_builder_signs_and_shapes_one_tiny_request_over_loopback_http() {
+    let directory = std::env::temp_dir().join(format!(
+        "nora-warmup-native-request-{}",
+        uuid::Uuid::new_v4()
+    ));
+    std::fs::create_dir_all(&directory).unwrap();
+    let worker = format!(
+        "{}::native_warmup_request_worker",
+        module_path!().split_once("::").unwrap().1
+    );
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", &worker, "--ignored", "--nocapture"])
+        .env_clear()
+        .env("HOME", &directory)
+        .env("CODEX_HOME", &directory)
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&directory);
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("running 1 test"));
+}
+
 #[tokio::test]
-async fn the_real_request_builder_signs_and_shapes_one_tiny_request_over_loopback_http() {
+#[ignore = "isolated by the_real_request_builder_signs_and_shapes_one_tiny_request_over_loopback_http"]
+async fn native_warmup_request_worker() {
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
         net::TcpListener,
@@ -191,20 +222,40 @@ async fn the_real_request_builder_signs_and_shapes_one_tiny_request_over_loopbac
         Definition::parse(serde_json::from_str(include_str!("../nora-plugin.json")).unwrap())
             .unwrap();
     definition.adapter = std::sync::Arc::new(OpenAI);
+    let directory = std::path::PathBuf::from(std::env::var_os("HOME").unwrap());
+    OpenAI.initialize_data_directory(&directory).unwrap();
+    std::fs::write(
+        directory.join("models_cache.json"),
+        serde_json::to_vec(&json!({"models":[{
+            "slug":"gpt-cheap", "base_instructions":"You are Codex, a stale CLI model.\nCLI policies."
+        }]})).unwrap(),
+    ).unwrap();
+    let native = "You are Codex, a warm-up model.\nCurrent model-list policies.";
+    let selected = instructions(
+        "gpt-cheap",
+        &[json!({
+            "id":"gpt-cheap", "base_instructions":"Unused model base.",
+            "model_messages":{"instructions_template":native}
+        })],
+    );
+    assert_eq!(selected, native);
+    assert_eq!(instructions("gpt-cheap", &[]), native);
     let params = json!({"account":"saved-a","credentials":{"type":"oauth","provider":"openAICodex","credentialProvider":"openAICodex","access":"fixture-only-access","expires":4070908800000_i64,"extras":{"accountId":"workspace-a"}}});
     let built = nora_provider::transport::build_request(
         &definition,
-        request(
-            &params,
-            "gpt-cheap",
-            Some("low"),
-            "Codex fixture instructions",
-        )
-        .unwrap(),
+        request(&params, "gpt-cheap", Some("low"), &selected).unwrap(),
     )
     .await
     .unwrap();
     assert_eq!(built.url, "https://chatgpt.com/backend-api/codex/responses");
+    assert_eq!(
+        built.headers["session-id"],
+        "c12dc832-a353-6f7c-97db-6d52e8e861f1"
+    );
+    assert_eq!(
+        built.headers["thread-id"],
+        "c12dc832-a353-6f7c-97db-6d52e8e861f1"
+    );
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {
@@ -232,7 +283,7 @@ async fn the_real_request_builder_signs_and_shapes_one_tiny_request_over_loopbac
         assert_eq!(body["model"], "gpt-cheap");
         assert_eq!(body["store"], false);
         assert_eq!(body["reasoning"]["effort"], "low");
-        assert_eq!(body["instructions"], "Codex fixture instructions");
+        assert_eq!(body["instructions"], native);
         assert_eq!(
             body["input"],
             json!([{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}])

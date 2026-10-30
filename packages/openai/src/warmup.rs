@@ -2,8 +2,12 @@ use super::*;
 use base64::Engine;
 use serde_json::json;
 
-#[path = "warmup_prompt.rs"]
-mod prompt;
+fn instructions(model: &str, models: &[Value]) -> String {
+    for entry in models {
+        crate::provider::responses_body::remember_model(entry);
+    }
+    crate::provider::responses_body::instructions(model)
+}
 
 fn id(model: &Value) -> Option<&str> {
     model
@@ -187,11 +191,7 @@ impl OpenAIPlugin {
         }
         let prices = self.warmup_prices(&models).await.unwrap_or(Value::Null);
         let (model, effort) = pick(&models, &prices)?;
-        let instructions = prompt::instructions(
-            model,
-            &models,
-            crate::provider::codex_version::models_cache_path().as_deref(),
-        );
+        let instructions = instructions(model, &models);
         tokio::time::timeout(std::time::Duration::from_secs(120), async {
             consume(
                 self.fetch(request(params, model, effort, &instructions)?)

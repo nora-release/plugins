@@ -621,7 +621,15 @@ impl ProviderPlugin for BundledProvider {
         let request = transport::build_request(&definition, request).await?;
         let api = transport::request_api(&definition, &credentials, &request.url);
         let secrets = transport::request_secrets(&request);
-        let response = transport::send(&client, &definition, &credentials, &api, request).await?;
+        let response = transport::send_with_proxy(
+            &client,
+            &definition,
+            &credentials,
+            &api,
+            request,
+            original.network_proxy.as_ref(),
+        )
+        .await?;
         let response = transport::finish_response(response, secrets).await?;
         definition.adapter.transform_response(&original, response)
     }

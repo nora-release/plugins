@@ -4,11 +4,18 @@ use nora_ai::{HttpClient, HttpClientError, HttpRequest, HttpStreamingResponse, R
 use nora_provider_plugin_sdk::{NetworkProxy, PluginError, PluginResult};
 use std::collections::BTreeSet;
 
+#[cfg(test)]
+tokio::task_local! {
+    static TEST_ROOTS: Vec<rustls::pki_types::CertificateDer<'static>>;
+}
+
 #[derive(Clone)]
 pub(crate) struct Client {
     secure: ReqwestHttpClient,
     unchecked: Option<ReqwestHttpClient>,
     hosts: BTreeSet<(String, u16)>,
+    http1: Option<ReqwestHttpClient>,
+    http1_hosts: BTreeSet<String>,
 }
 
 impl Client {
@@ -26,10 +33,21 @@ impl Client {
         let unchecked = (!hosts.is_empty())
             .then(|| build(proxy, &hosts).map(observed))
             .transpose()?;
+        let http1_hosts = definition
+            .filter(|_| !api)
+            .into_iter()
+            .flat_map(|definition| definition.adapter.http1_hosts())
+            .map(|host| host.to_ascii_lowercase())
+            .collect::<BTreeSet<_>>();
+        let http1 = (!http1_hosts.is_empty())
+            .then(|| http1_client(proxy).map(observed))
+            .transpose()?;
         Ok(Self {
             secure: observed(build(proxy, &BTreeSet::new())?),
             unchecked,
             hosts,
+            http1,
+            http1_hosts,
         })
     }
 }
@@ -38,11 +56,40 @@ impl Client {
 impl HttpClient for Client {
     async fn stream(&self, request: HttpRequest) -> Result<HttpStreamingResponse, HttpClientError> {
         let unchecked = host(&request.url).is_some_and(|host| self.hosts.contains(&host));
-        match self.unchecked.as_ref().filter(|_| unchecked) {
-            Some(client) => client.stream(request).await,
-            None => self.secure.stream(request).await,
+        if let Some(client) = self.unchecked.as_ref().filter(|_| unchecked) {
+            return client.stream(request).await;
         }
+        let http1 = url::Url::parse(&request.url).is_ok_and(|url| {
+            url.scheme() == "https"
+                && url
+                    .host_str()
+                    .is_some_and(|host| self.http1_hosts.contains(host))
+        });
+        if let Some(client) = self.http1.as_ref().filter(|_| http1) {
+            return client.stream(request).await;
+        }
+        self.secure.stream(request).await
     }
+}
+
+pub(crate) fn http1_client(proxy: Option<&NetworkProxy>) -> PluginResult<reqwest::Client> {
+    let tls = http1_tls_config()
+        .map_err(|_| PluginError::transport("The provider TLS client could not be initialized."))?;
+    // A preconfigured Rustls client keeps its ALPN list even after
+    // http1_only(), so replace the shared configuration explicitly.
+    nora_provider_plugin_sdk::http_client_builder(proxy)?
+        .use_preconfigured_tls(tls)
+        .http1_only()
+        .build()
+        .map_err(|_| PluginError::transport("The provider HTTP client could not be initialized."))
+}
+
+fn http1_tls_config() -> Result<rustls::ClientConfig, rustls::Error> {
+    #[cfg(test)]
+    if let Ok(roots) = TEST_ROOTS.try_with(Clone::clone) {
+        return nora_network::tls::client_config_with_extra_roots(roots);
+    }
+    nora_network::tls::client_config()
 }
 
 pub(crate) fn raw_for_url(
@@ -104,6 +151,13 @@ fn build(
     hosts: &BTreeSet<(String, u16)>,
 ) -> PluginResult<reqwest::Client> {
     let mut builder = nora_provider_plugin_sdk::http_client_builder(proxy)?;
+    #[cfg(test)]
+    if let Ok(roots) = TEST_ROOTS.try_with(Clone::clone) {
+        let tls = nora_network::tls::http_client_config(roots).map_err(|_| {
+            PluginError::transport("The provider TLS client could not be initialized.")
+        })?;
+        builder = builder.use_preconfigured_tls(tls);
+    }
     if !hosts.is_empty() {
         builder = builder.use_preconfigured_tls(crate::tls_verifier::configuration(
             hosts.iter().map(|(host, _)| host.clone()).collect(),
@@ -126,6 +180,10 @@ fn observed(client: reqwest::Client) -> ReqwestHttpClient {
 #[cfg(test)]
 #[path = "../test/network_client.test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../test/http1_transport.test.rs"]
+mod http1_transport_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 #[path = "../test/system_trust.test.rs"]

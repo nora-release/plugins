@@ -1,4 +1,7 @@
 CARGO ?= cargo
+# Set PROVIDER_ID to test/build/package one plugin; an empty value selects all.
+PROVIDER_ID ?=
+export PROVIDER_ID
 PROVIDERS_OUTPUT ?= $(CURDIR)/.build/providers
 PACKAGES_OUTPUT ?= $(CURDIR)/.build/packages
 REGISTRY ?= $(CURDIR)/registry.json

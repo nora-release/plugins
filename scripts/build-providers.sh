@@ -2,14 +2,45 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# Current tooling may build a previous source checkout; selection is optional
+# so existing local workspace builds keep preparing every provider.
+REPO_ROOT="$(cd "${NORA_PROVIDER_SOURCE_ROOT:-${SCRIPT_DIR}/..}" && pwd)"
 PROVIDERS_ROOT="${REPO_ROOT}/packages"
 MANIFEST_PATH="${REPO_ROOT}/Cargo.toml"
 CARGO_BIN="${CARGO:-cargo}"
 MODE="${1:-build}"
 OUTPUT="${2:-${REPO_ROOT}/.build/providers}"
 CARGO_COMMAND=("${CARGO_BIN}")
-WORKSPACE_ARGS=(--manifest-path "${MANIFEST_PATH}" --workspace)
+WORKSPACE_ARGS=(--manifest-path "${MANIFEST_PATH}")
+PROVIDER_ID="${PROVIDER_ID:-}"
+PROVIDER_PACKAGE="nora-provider"
+PROVIDER_BINARY="nora-provider"
+if [[ -n "${PROVIDER_ID}" ]]; then
+  if [[ ! "${PROVIDER_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ || ! -f "${PROVIDERS_ROOT}/${PROVIDER_ID}/nora-plugin.json" ]]; then
+    echo "Choose an existing provider ID: ${PROVIDER_ID}" >&2
+    exit 2
+  fi
+  PROVIDER_PACKAGE="$(python3 - "${PROVIDERS_ROOT}/${PROVIDER_ID}" "${PROVIDER_ID}" <<'PY'
+import json
+from pathlib import Path
+import sys
+import tomllib
+
+source, selected = Path(sys.argv[1]), sys.argv[2]
+if json.loads((source / "nora-plugin.json").read_text()).get("id") != selected:
+    raise SystemExit("The selected provider directory must match its manifest ID.")
+manifest = source / "Cargo.toml"
+package = tomllib.loads(manifest.read_text())["package"]["name"] if manifest.is_file() else "nora-provider"
+if not isinstance(package, str) or not package or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for character in package):
+    raise SystemExit("The selected provider has an invalid Cargo package name.")
+print(package)
+PY
+)"
+  PROVIDER_BINARY="${PROVIDER_PACKAGE}"
+  WORKSPACE_ARGS+=(--package "${PROVIDER_PACKAGE}")
+else
+  WORKSPACE_ARGS+=(--workspace)
+fi
 # Builds against local checkouts instead of the pinned git revisions:
 # NORA_PROVIDER_NORA_SOURCE for nora-ai, NORA_PLUGIN_KIT_SOURCE for the SDK.
 patch_local() {
@@ -44,11 +75,19 @@ case "${MODE}" in
     exit
     ;;
   --fmt-check)
-    "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --all --check
+    if [[ -n "${PROVIDER_ID}" ]]; then
+      "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --package "${PROVIDER_PACKAGE}" --check
+    else
+      "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --all --check
+    fi
     exit
     ;;
   --fmt)
-    "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --all
+    if [[ -n "${PROVIDER_ID}" ]]; then
+      "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --package "${PROVIDER_PACKAGE}"
+    else
+      "${CARGO_COMMAND[@]}" fmt --manifest-path "${MANIFEST_PATH}" --all
+    fi
     exit
     ;;
   build) ;;
@@ -71,6 +110,11 @@ fi
 CONFIGURATION_NAME="${CONFIGURATION:-${BUILD_CONFIGURATION:-Debug}}"
 PROFILE_DIR="debug"
 BUILD_ARGS=(build "${WORKSPACE_ARGS[@]}" --bins)
+if [[ -n "${PROVIDER_ID}" && "${PROVIDER_PACKAGE}" != nora-provider ]]; then
+  # The selected provider supplies its executable; the shared CLI prepares its
+  # manifest and catalog without compiling any other provider executable.
+  BUILD_ARGS+=(--package nora-provider)
+fi
 case "${CONFIGURATION_NAME}" in
   Release|Staging)
     PROFILE_DIR="release"
@@ -132,7 +176,11 @@ stage_provider() {
 }
 
 stage_provider nora-provider
-"${STAGING_ROOT}/runtime/nora-provider" --prepare "${PROVIDERS_ROOT}" "${STAGING_ROOT}/providers"
+DEFINITIONS="${PROVIDERS_ROOT}"
+if [[ -n "${PROVIDER_ID}" ]]; then
+  DEFINITIONS="${PROVIDERS_ROOT}/${PROVIDER_ID}/nora-plugin.json"
+fi
+"${STAGING_ROOT}/runtime/nora-provider" --prepare "${DEFINITIONS}" "${STAGING_ROOT}/providers"
 
 PACKAGE_COUNT=0
 for manifest in "${STAGING_ROOT}/providers"/*/nora-plugin.json; do
@@ -140,7 +188,16 @@ for manifest in "${STAGING_ROOT}/providers"/*/nora-plugin.json; do
   package_dir="$(dirname "${manifest}")"
   provider_id="$(basename "${package_dir}")"
   binary_name="nora-provider"
-  if [[ -f "${PROVIDERS_ROOT}/${provider_id}/Cargo.toml" ]]; then
+  if [[ -n "${PROVIDER_ID}" ]]; then
+    if [[ "${provider_id}" != "${PROVIDER_ID}" ]]; then
+      echo "The prepared package does not match the selected provider: ${provider_id}" >&2
+      exit 1
+    fi
+    binary_name="${PROVIDER_BINARY}"
+    if [[ "${binary_name}" != nora-provider ]]; then
+      stage_provider "${binary_name}"
+    fi
+  elif [[ -f "${PROVIDERS_ROOT}/${provider_id}/Cargo.toml" ]]; then
     binary_name="nora-provider-${provider_id}"
     stage_provider "${binary_name}"
   fi

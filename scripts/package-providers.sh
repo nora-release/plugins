@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${NORA_PROVIDER_SOURCE_ROOT:-${SCRIPT_DIR}/..}" && pwd)"
 OUTPUT="${1:-${REPO_ROOT}/.build/packages}"
 if [[ $# -gt 1 ]]; then
   echo "Usage: package-providers.sh [output-directory]" >&2
@@ -83,7 +83,7 @@ fi
 )
 if [[ -n "${PROVIDER_DOWNLOAD_BASE_URL:-}" ]]; then
   CATALOG_BINARY="${CARGO_TARGET_DIR:-${REPO_ROOT}/target}/${HOST_TARGET}/release/nora-provider"
-  "${CATALOG_BINARY}" --catalog "${REPO_ROOT}/packages" "${STAGING_ROOT}/archives/providers.json" \
+  "${CATALOG_BINARY}" --catalog "${STAGING_ROOT}/providers" "${STAGING_ROOT}/archives/providers.json" \
     "${STAGING_ROOT}/archives" "${HOST_TARGET}" "${PROVIDER_DOWNLOAD_BASE_URL}"
 fi
 if [[ -e "${OUTPUT}" ]]; then

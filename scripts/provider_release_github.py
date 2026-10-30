@@ -8,7 +8,7 @@ import re
 import subprocess
 import tempfile
 import time
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -31,6 +31,8 @@ class GitHubError(ReleaseError):
 class GitHub:
     def __init__(self, repo):
         self.repo = repo
+        self.release_ids = {}
+        self.pending_creations = set()
 
     def run(self, arguments, payload=None):
         try:
@@ -53,8 +55,30 @@ class GitHub:
         return parse_json(data, f"GitHub {endpoint}") if data.strip() else None
 
     def release(self, tag):
+        if tag in self.release_ids:
+            for attempt in range(3):
+                try:
+                    return self.remember_release(self.api(f"releases/{self.release_ids[tag]}"), tag)
+                except GitHubError as error:
+                    if error.status != 404 or attempt == 2:
+                        raise
+                    # A known release may briefly be absent from a read replica.
+                    # Keep its ID: losing it would allow a duplicate create.
+                    time.sleep(attempt + 1)
+        attempts = 3 if tag in self.pending_creations else 1
+        for attempt in range(attempts):
+            release = self.find_release(tag)
+            if release is not None:
+                return release
+            if tag not in self.pending_creations:
+                return None
+            if attempt + 1 < attempts:
+                time.sleep(attempt + 1)
+        raise ReleaseError("Release creation status is unknown; no second draft was created. Rerun to check it again")
+
+    def find_release(self, tag):
         try:
-            return self.api(f"releases/tags/{quote(tag, safe='')}")
+            return self.remember_release(self.api(f"releases/tags/{quote(tag, safe='')}"), tag)
         except GitHubError as error:
             if error.status != 404:
                 raise
@@ -67,10 +91,32 @@ class GitHub:
             matches = [item for item in releases if isinstance(item, dict) and item.get("tag_name") == tag]
             require(len(matches) <= 1, "GitHub returned multiple releases for this tag")
             if matches:
-                return matches[0]
+                return self.remember_release(matches[0], tag)
             if len(releases) < 100:
                 return None
             page += 1
+
+    def remember_release(self, value, tag):
+        require(isinstance(value, dict) and value.get("tag_name") == tag
+                and type(value.get("id")) is int and value["id"] > 0,
+                "GitHub returned no valid release ID for this tag")
+        previous = self.release_ids.get(tag)
+        require(previous is None or previous == value["id"], "The release ID changed during publication")
+        self.release_ids[tag] = value["id"]
+        self.pending_creations.discard(tag)
+        return value
+
+    def create_release(self, tag, target, name, body):
+        require(tag not in self.pending_creations and tag not in self.release_ids,
+                "Release creation is already pending or complete; refusing to create a second draft")
+        # A 5xx can hide a successful create. Until its ID is found, only reads
+        # are safe, even when the tag and list indexes still report no release.
+        self.pending_creations.add(tag)
+        created = self.api("releases", "POST", {
+            "tag_name": tag, "target_commitish": target, "name": name, "body": body,
+            "draft": True, "prerelease": False,
+        })
+        return self.remember_release(created, tag)
 
     def content(self, path, branch):
         value = self.api(f"contents/{quote(path, safe='/')}?ref={quote(branch, safe='')}")
@@ -108,7 +154,9 @@ class GitHub:
                         data = response.read(asset["size"] + 1)
                     break
                 except (URLError, OSError, TimeoutError) as error:
-                    if attempt == 2:
+                    permanent = (isinstance(error, HTTPError) and error.code != 404
+                                 and not 500 <= error.code < 600)
+                    if permanent or attempt == 2:
                         raise ReleaseError(f"Public release download failed: {asset.get('name')}: {error}") from error
                     time.sleep(0.5 * (attempt + 1))
         else:
@@ -176,7 +224,7 @@ def update_catalog(github, identity, entry, branch, path):
             })
             return True
         except GitHubError as error:
-            if error.status not in (409, 422) or attempt == 4:
+            if error.status != 409 or attempt == 4:
                 raise
     raise ReleaseError("The provider catalog changed too often; rerun this release")
 
@@ -215,6 +263,19 @@ def publish(directory, tag, repo, target, branch="main", catalog_path="providers
         return {**identity, "dry_run": True, "target": target,
                 "catalog": f"{branch}:{catalog_path}", "assets": sorted(expected)}
     github = github or GitHub(repo)
+    for attempt in range(3):
+        try:
+            return publish_once(github, identity, candidate, expected, directory, target, branch, catalog_path)
+        except GitHubError as error:
+            if error.status is None or not 500 <= error.status < 600 or attempt == 2:
+                raise
+            # A failed HTTP response does not mean the write failed. Re-read
+            # the tag, release, assets and catalog before attempting any write.
+            time.sleep(attempt + 1)
+
+
+def publish_once(github, identity, candidate, expected, directory, target, branch, catalog_path):
+    tag, repo = identity["tag"], identity["repo"]
     github.verify_tag(tag, target)
     release = github.release(tag)
     rerun = release is not None and release.get("draft") is False
@@ -226,10 +287,9 @@ def publish(directory, tag, repo, target, branch="main", catalog_path="providers
         if release is None:
             catalog, _ = current_catalog(github, identity, branch, catalog_path)
             merge_catalog(catalog, candidate)
-            github.run(["release", "create", tag, "--repo", repo, "--draft", "--verify-tag",
-                        "--target", target, "--title", f"{candidate.get('name', identity['id'])} v{identity['version']}",
-                        "--notes", f"Provider plugin {identity['id']} {identity['version']}."])
-            release = github.release(tag)
+            release = github.create_release(
+                tag, target, f"{candidate.get('name', identity['id'])} v{identity['version']}",
+                f"Provider plugin {identity['id']} {identity['version']}.")
         assets_for(release, identity, target)
         require(release["draft"], "Release became public while preparing its uploads; rerun to verify it")
         try:

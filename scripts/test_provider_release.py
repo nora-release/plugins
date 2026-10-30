@@ -9,8 +9,8 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
-from unittest.mock import patch
-from urllib.error import URLError
+from unittest.mock import call, patch
+from urllib.error import HTTPError, URLError
 import zipfile
 
 sys.dont_write_bytecode = True
@@ -73,8 +73,9 @@ class Fixture:
         return release.prepare(TAG, REPO, self.root, self.catalog, self.packages, self.output)
 
 
-class FakeGitHub:
+class FakeGitHub(GitHub):
     def __init__(self, fixture):
+        super().__init__(REPO)
         self.fixture = fixture
         self.catalog = copy.deepcopy(fixture.current)
         self.manifest = copy.deepcopy(fixture.manifest)
@@ -96,9 +97,6 @@ class FakeGitHub:
         self.calls.append(("verify-tag", tag, target))
         release.require(not self.move_tag and tag == TAG and target == TARGET, "Tag moved")
 
-    def release(self, tag):
-        return copy.deepcopy(self.current_release)
-
     def content(self, path, branch):
         if path.startswith("packages/"):
             return release.json_bytes(self.manifest), "manifest-sha"
@@ -108,7 +106,7 @@ class FakeGitHub:
         self.calls.append(tuple(arguments))
         command = arguments[1]
         if command == "create":
-            self.current_release = {"tag_name": TAG, "target_commitish": TARGET,
+            self.current_release = {"id": 429258650, "tag_name": TAG, "target_commitish": TARGET,
                                     "draft": True, "prerelease": False, "assets": []}
         elif command == "upload":
             if self.fail_upload:
@@ -141,6 +139,20 @@ class FakeGitHub:
         return data
 
     def api(self, endpoint, method="GET", payload=None):
+        if method == "GET" and endpoint.startswith("releases"):
+            if endpoint.startswith("releases/tags/"):
+                if self.current_release is not None and not self.current_release["draft"]:
+                    return copy.deepcopy(self.current_release)
+                raise GitHubError("No published release for this tag", 404)
+            if endpoint.startswith("releases?"):
+                return [copy.deepcopy(self.current_release)] if self.current_release is not None else []
+            if endpoint == "releases/429258650" and self.current_release is not None:
+                return copy.deepcopy(self.current_release)
+            raise GitHubError("Release not found", 404)
+        if endpoint == "releases" and method == "POST":
+            self.calls.append(("create-release", payload["tag_name"]))
+            self.current_release = {"id": 429258650, "assets": [], **copy.deepcopy(payload)}
+            return copy.deepcopy(self.current_release)
         if method == "DELETE":
             self.calls.append(("delete-draft-asset", endpoint))
             assert self.current_release["draft"]
@@ -168,8 +180,39 @@ class FakeGitHub:
         return {"commit": {"sha": "committed"}}
 
 
+class DelayedReleaseIndex(FakeGitHub):
+    def __init__(self, fixture, missing_id_reads=0, hidden_list_reads=None):
+        super().__init__(fixture)
+        self.missing_id_reads = missing_id_reads
+        self.hidden_list_reads = hidden_list_reads
+        self.release_reads = []
+
+    def api(self, endpoint, method="GET", payload=None):
+        if method == "GET" and endpoint.startswith("releases"):
+            self.release_reads.append(endpoint)
+            if endpoint.startswith("releases/tags/"):
+                raise GitHubError("Tag index has not caught up", 404)
+            if endpoint.startswith("releases?"):
+                if self.current_release is not None and self.hidden_list_reads is not None:
+                    if self.hidden_list_reads:
+                        self.hidden_list_reads -= 1
+                    else:
+                        return [copy.deepcopy(self.current_release)]
+                return []
+            if endpoint == "releases/429258650" and self.current_release is not None:
+                if self.missing_id_reads:
+                    self.missing_id_reads -= 1
+                    raise GitHubError("Release read replica has not caught up", 404)
+                return copy.deepcopy(self.current_release)
+            raise AssertionError(endpoint)
+        return super().api(endpoint, method, payload)
+
+
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
+        sleep = patch("provider_release_github.time.sleep")
+        self.sleep = sleep.start()
+        self.addCleanup(sleep.stop)
         self.temporary = tempfile.TemporaryDirectory(prefix="nora-release-test-")
         self.addCleanup(self.temporary.cleanup)
         self.fixture = Fixture(self.temporary.name)
@@ -481,6 +524,247 @@ class ReleaseTests(unittest.TestCase):
         modified["packages"][PLATFORM]["url"] += "?different-source=1"
         with self.assertRaisesRegex(release.ReleaseError, "immutable"):
             release.merge_catalog(current, modified)
+
+    def test_create_500_before_creating_fails_safely_when_remote_state_stays_unknown(self):
+        github = self.github()
+        api = github.api
+        creates = []
+        def fail_once(endpoint, method="GET", payload=None):
+            if endpoint == "releases" and method == "POST":
+                creates.append(copy.deepcopy(payload))
+                raise GitHubError("create unavailable", 500)
+            return api(endpoint, method, payload)
+        with patch.object(github, "api", side_effect=fail_once):
+            with self.assertRaisesRegex(release.ReleaseError, "creation status is unknown"):
+                self.publish(github)
+        self.assertEqual(len(creates), 1)
+        self.assertEqual(sum(call[0] == "verify-tag" for call in github.calls), 2)
+        self.assertEqual(self.sleep.call_args_list, [call(1), call(1), call(2)])
+        self.assertIsNone(github.current_release)
+        self.assertIn(TAG, github.pending_creations)
+        self.assertEqual(github.writes, [])
+        self.assertEqual(github.catalog, self.fixture.current)
+
+    def test_create_500_after_creating_reuses_the_draft_instead_of_creating_again(self):
+        github = self.github()
+        api = github.api
+        def ambiguous_create(endpoint, method="GET", payload=None):
+            result = api(endpoint, method, payload)
+            if endpoint == "releases" and method == "POST":
+                raise GitHubError("create response failed", 500)
+            return result
+        with patch.object(github, "api", side_effect=ambiguous_create):
+            self.assertTrue(self.publish(github)["published"])
+        creates = [call for call in github.calls if call[0] == "create-release"]
+        self.assertEqual(len(creates), 1)
+        self.sleep.assert_called_once_with(1)
+        self.assertFalse(github.current_release["draft"])
+
+    def test_upload_500_after_saving_one_asset_reuses_it_and_uploads_only_missing_files(self):
+        github = self.github()
+        run = github.run
+        uploads = []
+        saved = []
+        def partial_upload(arguments, payload=None):
+            if arguments[:2] == ["release", "upload"]:
+                uploads.append(tuple(arguments))
+                if len(uploads) == 1:
+                    first = Path(arguments[5])
+                    github.add_asset(first.name, first.read_bytes())
+                    saved.append(copy.deepcopy(github.current_release["assets"][0]))
+                    raise GitHubError("upload response failed", 502)
+            return run(arguments, payload)
+        with patch.object(github, "run", side_effect=partial_upload):
+            self.assertTrue(self.publish(github)["published"])
+        self.assertEqual(len(uploads), 2)
+        self.assertNotIn(saved[0]["name"], [Path(path).name for path in uploads[1][5:]])
+        self.assertEqual(next(asset["id"] for asset in github.current_release["assets"]
+                              if asset["name"] == saved[0]["name"]), saved[0]["id"])
+        self.assertFalse(any(call[0] == "delete-draft-asset" for call in github.calls))
+        self.sleep.assert_called_once_with(1)
+
+    def test_catalog_put_succeeded_but_returned_500_is_read_back_without_a_second_write(self):
+        github = self.github()
+        api = github.api
+        def committed_response_failed(endpoint, method="GET", payload=None):
+            result = api(endpoint, method, payload)
+            if method == "PUT":
+                raise GitHubError("commit response failed", 500)
+            return result
+        with patch.object(github, "api", side_effect=committed_response_failed):
+            result = self.publish(github)
+        self.assertTrue(result["published"])
+        self.assertFalse(result["catalog_changed"])
+        self.assertEqual(len(github.writes), 1)
+        self.assertEqual(github.catalog["providers"][0], self.fixture.entry)
+        self.assertEqual(sum(call[0] == "create-release" for call in github.calls), 1)
+        self.assertEqual(sum(call[:2] == ("release", "upload") for call in github.calls), 1)
+        self.sleep.assert_called_once_with(1)
+
+    def test_publish_500_after_becoming_public_reuses_public_assets(self):
+        github = self.github()
+        run = github.run
+        def published_response_failed(arguments, payload=None):
+            result = run(arguments, payload)
+            if arguments[:2] == ["release", "edit"]:
+                raise GitHubError("publish response failed", 503)
+            return result
+        with patch.object(github, "run", side_effect=published_response_failed):
+            self.assertTrue(self.publish(github)["published"])
+        self.assertEqual(sum(call[:2] == ("release", "edit") for call in github.calls), 1)
+        self.assertEqual(sum(call[:2] == ("release", "upload") for call in github.calls), 1)
+        self.assertIn(True, github.download_modes)
+        self.sleep.assert_called_once_with(1)
+
+    def test_persistent_upload_5xx_stops_after_three_attempts_with_bounded_backoff(self):
+        github = self.github()
+        github.fail_upload = True
+        with self.assertRaisesRegex(GitHubError, "upload failed"):
+            self.publish(github)
+        self.assertEqual(sum(call[0] == "create-release" for call in github.calls), 1)
+        self.assertEqual(sum(call[:2] == ("release", "upload") for call in github.calls), 3)
+        self.assertEqual(self.sleep.call_args_list, [call(1), call(2)])
+        self.assertTrue(github.current_release["draft"])
+        self.assertEqual(github.writes, [])
+        self.assertEqual(github.catalog, self.fixture.current)
+
+    def test_permission_and_validation_failures_are_not_retried(self):
+        self.fixture.prepare()
+        for status in (401, 403, 422):
+            with self.subTest(status=status):
+                github = FakeGitHub(self.fixture)
+                self.sleep.reset_mock()
+                api = github.api
+                creates = []
+                def rejection(endpoint, method="GET", payload=None):
+                    if endpoint == "releases" and method == "POST":
+                        creates.append(copy.deepcopy(payload))
+                        raise GitHubError("permanent rejection", status)
+                    return api(endpoint, method, payload)
+                with patch.object(github, "api", side_effect=rejection):
+                    with self.assertRaisesRegex(GitHubError, "permanent rejection"):
+                        self.publish(github)
+                self.assertEqual(len(creates), 1)
+                self.sleep.assert_not_called()
+                self.assertIsNone(github.current_release)
+
+    def test_catalog_validation_422_is_not_a_retryable_content_conflict(self):
+        github = self.github()
+        api = github.api
+        puts = []
+        def validation_error(endpoint, method="GET", payload=None):
+            if method == "PUT":
+                puts.append(copy.deepcopy(payload))
+                raise GitHubError("invalid catalog request", 422)
+            return api(endpoint, method, payload)
+        with patch.object(github, "api", side_effect=validation_error):
+            with self.assertRaisesRegex(GitHubError, "invalid catalog request"):
+                self.publish(github)
+        self.assertEqual(len(puts), 1)
+        self.sleep.assert_not_called()
+        self.assertEqual(github.catalog, self.fixture.current)
+
+    def test_public_download_permission_failure_is_not_retried(self):
+        github = GitHub(REPO)
+        asset = {"id": 1, "size": 3, "name": "fixture.zip",
+                 "browser_download_url": "https://github.com/nora-release/plugins/releases/download/openai-v1.2.1/fixture.zip"}
+        failure = HTTPError(asset["browser_download_url"], 403, "Forbidden", {}, None)
+        self.addCleanup(failure.close)
+        with patch("provider_release_github.build_opener") as opener:
+            opener.return_value.open.side_effect = failure
+            with self.assertRaisesRegex(release.ReleaseError, "Public release download failed"):
+                github.download(asset, public=True)
+        self.assertEqual(opener.return_value.open.call_count, 1)
+        self.sleep.assert_not_called()
+
+    def test_create_response_drives_first_publish_while_tag_and_list_indexes_are_stale(self):
+        self.fixture.prepare()
+        github = DelayedReleaseIndex(self.fixture)
+        self.assertTrue(self.publish(github)["published"])
+        self.assertEqual(github.release_ids[TAG], 429258650)
+        self.assertEqual(sum(call[0] == "create-release" for call in github.calls), 1)
+        self.assertEqual(github.release_reads[:2], [f"releases/tags/{TAG}", "releases?per_page=100&page=1"])
+        self.assertTrue(github.release_reads[2:])
+        self.assertTrue(all(endpoint == "releases/429258650" for endpoint in github.release_reads[2:]))
+        self.assertEqual(github.current_release["tag_name"], TAG)
+        self.assertEqual(github.current_release["target_commitish"], TARGET)
+        self.assertIs(github.current_release["prerelease"], False)
+        self.assertEqual(github.catalog["providers"][0], self.fixture.entry)
+        self.sleep.assert_not_called()
+
+    def test_known_release_id_retries_short_404_without_returning_to_tag_lookup_or_create(self):
+        self.fixture.prepare()
+        github = DelayedReleaseIndex(self.fixture, missing_id_reads=2)
+        self.assertTrue(self.publish(github)["published"])
+        self.assertEqual(sum(call[0] == "create-release" for call in github.calls), 1)
+        self.assertEqual(sum(call[0] == "verify-tag" for call in github.calls), 1)
+        self.assertEqual(self.sleep.call_args_list, [call(1), call(2)])
+        self.assertTrue(all(endpoint == "releases/429258650" for endpoint in github.release_reads[2:]))
+
+    def test_known_release_id_persistent_404_stops_without_creating_a_second_draft(self):
+        self.fixture.prepare()
+        github = DelayedReleaseIndex(self.fixture, missing_id_reads=3)
+        with self.assertRaisesRegex(GitHubError, "read replica"):
+            self.publish(github)
+        self.assertEqual(sum(call[0] == "create-release" for call in github.calls), 1)
+        self.assertEqual(github.release_ids[TAG], 429258650)
+        self.assertEqual(self.sleep.call_args_list, [call(1), call(2)])
+        self.assertTrue(github.current_release["draft"])
+        self.assertEqual(github.writes, [])
+        self.assertEqual(github.catalog, self.fixture.current)
+
+    def test_api_create_uses_draft_response_id_and_explicit_stable_release_fields(self):
+        github = GitHub(REPO)
+        created = {"id": 429258650, "tag_name": TAG, "target_commitish": TARGET,
+                   "draft": True, "prerelease": False, "assets": []}
+        with patch.object(github, "api", side_effect=[created, created]) as api:
+            self.assertEqual(github.create_release(TAG, TARGET, "OpenAI v1.2.1", "Release notes"), created)
+            self.assertEqual(github.release(TAG), created)
+        self.assertEqual(api.call_args_list, [
+            call("releases", "POST", {"tag_name": TAG, "target_commitish": TARGET,
+                                      "name": "OpenAI v1.2.1", "body": "Release notes",
+                                      "draft": True, "prerelease": False}),
+            call("releases/429258650"),
+        ])
+
+    def test_create_500_after_saving_draft_waits_for_delayed_indexes_without_second_create(self):
+        self.fixture.prepare()
+        github = DelayedReleaseIndex(self.fixture, hidden_list_reads=1)
+        api = github.api
+        def ambiguous_create(endpoint, method="GET", payload=None):
+            result = api(endpoint, method, payload)
+            if endpoint == "releases" and method == "POST":
+                raise GitHubError("created but response failed", 500)
+            return result
+        with patch.object(github, "api", side_effect=ambiguous_create):
+            self.assertTrue(self.publish(github)["published"])
+        self.assertEqual(sum(call[0] == "create-release" for call in github.calls), 1)
+        self.assertEqual(github.release_reads[:6], [f"releases/tags/{TAG}", "releases?per_page=100&page=1"] * 3)
+        self.assertTrue(all(endpoint == "releases/429258650" for endpoint in github.release_reads[6:]))
+        self.assertEqual(github.release_ids[TAG], 429258650)
+        self.assertNotIn(TAG, github.pending_creations)
+        self.assertEqual(self.sleep.call_args_list, [call(1), call(1)])
+        self.assertEqual(github.catalog["providers"][0], self.fixture.entry)
+
+    def test_create_500_with_saved_but_invisible_draft_fails_without_duplicate_create(self):
+        self.fixture.prepare()
+        github = DelayedReleaseIndex(self.fixture)
+        api = github.api
+        def ambiguous_create(endpoint, method="GET", payload=None):
+            result = api(endpoint, method, payload)
+            if endpoint == "releases" and method == "POST":
+                raise GitHubError("created but response failed", 500)
+            return result
+        with patch.object(github, "api", side_effect=ambiguous_create):
+            with self.assertRaisesRegex(release.ReleaseError, "creation status is unknown"):
+                self.publish(github)
+        self.assertEqual(sum(call[0] == "create-release" for call in github.calls), 1)
+        self.assertIn(TAG, github.pending_creations)
+        self.assertTrue(github.current_release["draft"])
+        self.assertEqual(github.current_release["assets"], [])
+        self.assertEqual(self.sleep.call_args_list, [call(1), call(1), call(2)])
+        self.assertEqual(github.writes, [])
+        self.assertEqual(github.catalog, self.fixture.current)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
   "apiVersion": 2,
   "id": "openai",
   "name": "OpenAI",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "runtime": {
     "entry": "provider"
   },

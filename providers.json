@@ -1222,15 +1222,15 @@
       "id": "openai",
       "name": "OpenAI",
       "description": "Connect your subscription or API key.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "repository": "https://github.com/nora-release/plugins/tree/main/packages/openai",
       "contributes": [
         "provider"
       ],
       "packages": {
         "aarch64-apple-darwin": {
-          "url": "https://github.com/nora-release/plugins/releases/download/providers-v2.0.0/openai-1.2.0-aarch64-apple-darwin.zip",
-          "sha256": "a90e7fe3c08e11970c7ea826ab97f57ec0a350cae0a96298e20d1f3421fc8d03"
+          "url": "https://github.com/nora-release/plugins/releases/download/openai-v1.2.1/openai-1.2.1-aarch64-apple-darwin.zip",
+          "sha256": "8a231113e94084fa19b965364a54a1558c66349f9c2d7c15a4e5915fa6dbb37f"
         }
       },
       "localSignIns": [

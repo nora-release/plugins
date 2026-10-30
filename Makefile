@@ -8,7 +8,7 @@ PLUGIN_KIT_REV := $(shell sed -n 's/^nora-plugin-manifest = .*rev = "\([0-9a-f]*
 TOOLS_ROOT := $(CURDIR)/.build/tools/$(PLUGIN_KIT_REV)
 NORA_PLUGIN := $(TOOLS_ROOT)/bin/nora-plugin
 
-.PHONY: build package test check fmt fmt-check marketplace marketplace-check
+.PHONY: build package test test-scripts check fmt fmt-check marketplace marketplace-check
 
 build:
 	CARGO="$(CARGO)" bash scripts/build-providers.sh build "$(PROVIDERS_OUTPUT)"
@@ -19,7 +19,11 @@ package:
 test:
 	CARGO="$(CARGO)" bash scripts/build-providers.sh --test
 
-check: fmt-check test
+test-scripts:
+	bash -n scripts/*.sh
+	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_*.py'
+
+check: fmt-check test-scripts test
 
 fmt:
 	CARGO="$(CARGO)" bash scripts/build-providers.sh --fmt

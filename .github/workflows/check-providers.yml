@@ -2,21 +2,48 @@ name: Check Rust providers
 
 on:
   pull_request:
-    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/*.sh', '.github/workflows/check-providers.yml']
+    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/**', '.github/actions/**', '.github/workflows/*.yml']
   push:
     branches: [main]
-    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/*.sh', '.github/workflows/check-providers.yml']
+    paths: ['Cargo.toml', 'Cargo.lock', 'Makefile', 'packages/**', 'scripts/**', '.github/actions/**', '.github/workflows/*.yml']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  check:
-    runs-on: macos-latest
+  static:
+    name: Formatting and scripts (no credentials)
+    runs-on: macos-15
     timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Check toolchain
+        run: rustup update stable --no-self-update && rustup component add rustfmt
+      - name: Check formatting and scripts
+        run: make fmt-check test-scripts
+      - name: Explain private dependency test coverage
+        if: github.actor == 'dependabot[bot]' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          Formatting and script tests ran without credentials.
+
+          Full Rust provider tests were **not run**: fork and Dependabot changes do not receive the token for the private `nora-ai` source. A trusted same-repository run must complete those tests before release.
+          SUMMARY
+
+  check:
+    name: Full provider tests (private dependency)
+    needs: static
+    if: github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: macos-15
+    timeout-minutes: 45
     env:
       RUST_TEST_THREADS: '1'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -24,6 +51,7 @@ jobs:
       - name: Check toolchain
         run: rustup update stable --no-self-update && rustup component add rustfmt
       - name: Check and test providers
-        run: make check
-      - name: Check packaging scripts
-        run: bash -n scripts/build-providers.sh scripts/package-providers.sh
+        uses: ./.github/actions/cargo-auth
+        with:
+          token: ${{ secrets.NORA_SOURCE_TOKEN }}
+          command: make check

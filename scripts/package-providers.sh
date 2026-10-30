@@ -41,7 +41,8 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ -n "${CARGO_TARGET_DIR:-}" && "${CARGO_TARGET_DIR}" != /* ]]; then
-  export CARGO_TARGET_DIR="$(pwd)/${CARGO_TARGET_DIR}"
+  CARGO_TARGET_DIR="$(pwd)/${CARGO_TARGET_DIR}"
+  export CARGO_TARGET_DIR
 fi
 
 CONFIGURATION=Release BUILD_CONFIGURATION=Release CARGO_BUILD_TARGET="${HOST_TARGET}" \

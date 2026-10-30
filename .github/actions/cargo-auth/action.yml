@@ -1,0 +1,21 @@
+name: Cargo private source authentication
+description: Run a trusted command with read-only access to the private nora-ai Git dependency.
+inputs:
+  token:
+    description: A token with read-only Contents access to nora-release/nora.
+    required: true
+  command:
+    description: Trusted shell commands to run with Cargo Git authentication.
+    required: false
+    default: make check
+runs:
+  using: composite
+  steps:
+    - name: Run with private source authentication
+      shell: bash
+      env:
+        NORA_SOURCE_TOKEN: ${{ inputs.token }}
+        NORA_CARGO_COMMAND: ${{ inputs.command }}
+      run: |
+        bash "${GITHUB_ACTION_PATH}/../../../scripts/cargo-git-auth.sh" -- \
+          bash -euo pipefail -c "$NORA_CARGO_COMMAND"

@@ -4,7 +4,7 @@ This file provides guidance to coding agents working in `packages/sandbox/`, Nor
 
 ## What This Component Is
 
-`sandbox-vm` owns VM and sandbox control only. Swift owns the agent SDK, model loop, tool definitions, product features, and environment routing.
+`sandbox-vm` owns VM and sandbox control only. The shared Rust runtime owns agent execution and model calls; Swift owns native app behavior and environment routing.
 
 Current product-facing responsibilities:
 
@@ -79,4 +79,4 @@ Use component targets when working directly inside `packages/sandbox`:
 - Keep source-of-truth in current Go code; docs here must track implementation
 - Do not reintroduce `agent-cli`, `slack-agentd`, `meetd`, `gcal-auth`, meeting joiner, prompt/history agent types, or old framework client/server paths
 - Prefer product-facing runtime ownership in `localconnector`, `envhost`, `runtimebridge`, and `platform/vm`
-- Avoid adding new tool/loop/LLM logic to `sandbox-vm`; the product agent now lives in `packages/agents` and the macOS app bridge
+- Avoid adding new tool/loop/LLM logic to `sandbox-vm`; the product agent lives in `packages/runtime`, with macOS translation in `packages/runtime/adapters/macos-bridge`

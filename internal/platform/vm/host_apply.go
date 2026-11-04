@@ -17,42 +17,119 @@ import (
 )
 
 // The sandbox exists because code inside the VM is untrusted, so every path, link target,
-// and mode it reports is untrusted too. These helpers apply accepted VM changes through an
-// os.Root opened at the host workspace: ".." and symlinks cannot reach outside it, and the
-// checks below reject the remaining inputs that would still be unsafe inside it.
+// and mode it reports is untrusted too. Diff paths are absolute VM paths, and tar entries
+// carry the same paths without the leading "/". Each one must fall inside a directory this
+// VM mounted. It is then applied through an os.Root opened at that mount's host directory,
+// so ".." and symlinks cannot leave the mount.
 
-// openHostRoot opens the host workspace that accepted changes are confined to.
-func openHostRoot(hostBaseDir string) (*os.Root, error) {
-	if err := os.MkdirAll(hostBaseDir, 0o755); err != nil {
-		return nil, fmt.Errorf("create target directory %s: %w", hostBaseDir, err)
+// hostMount is one mounted directory and the root that confines host writes to it.
+type hostMount struct {
+	vmPath string
+	root   *os.Root
+}
+
+// hostMounts holds the mounted directories that accepted changes may touch.
+type hostMounts struct {
+	mounts []hostMount
+}
+
+// openHostMounts opens a root for each mount's host directory under hostBaseDir.
+func openHostMounts(hostBaseDir string, mounts []Mount) (*hostMounts, error) {
+	opened := &hostMounts{}
+	for _, mount := range mounts {
+		hostPath := filepath.Clean(strings.TrimSpace(mount.HostPath))
+		vmPath := filepath.Clean(strings.TrimSpace(mount.VMPath))
+		if mount.VMPath == "" {
+			vmPath = hostPath
+		}
+		if !filepath.IsAbs(hostPath) || !filepath.IsAbs(vmPath) {
+			opened.Close()
+			return nil, fmt.Errorf("mount paths must be absolute: host %q, vm %q", mount.HostPath, mount.VMPath)
+		}
+		root, err := os.OpenRoot(filepath.Join(hostBaseDir, hostPath))
+		if err != nil {
+			opened.Close()
+			return nil, fmt.Errorf("open mount %s: %w", hostPath, err)
+		}
+		opened.mounts = append(opened.mounts, hostMount{vmPath: vmPath, root: root})
 	}
-	root, err := os.OpenRoot(hostBaseDir)
+	// Prefer the most specific mount when mounts nest.
+	sort.Slice(opened.mounts, func(i, j int) bool {
+		return len(opened.mounts[i].vmPath) > len(opened.mounts[j].vmPath)
+	})
+	return opened, nil
+}
+
+func (h *hostMounts) Close() {
+	for _, mount := range h.mounts {
+		mount.root.Close()
+	}
+}
+
+// relativeWithin returns path relative to base when path is base or inside it.
+func relativeWithin(base, path string) (string, bool) {
+	rel, err := filepath.Rel(base, path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return rel, true
+}
+
+// locate maps an absolute VM path to its mount and the path relative to that mount. The
+// relative path is "." for the mount directory itself.
+func (h *hostMounts) locate(vmPath string) (*hostMount, string, error) {
+	clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(vmPath)))
+	if !filepath.IsAbs(clean) {
+		return nil, "", fmt.Errorf("path %q is not an absolute VM path", vmPath)
+	}
+	for index := range h.mounts {
+		if rel, ok := relativeWithin(h.mounts[index].vmPath, clean); ok {
+			return &h.mounts[index], rel, nil
+		}
+	}
+	return nil, "", fmt.Errorf("path %q is outside every mounted directory", vmPath)
+}
+
+// locateEntry locates a mounted path that is not the mount directory itself.
+func (h *hostMounts) locateEntry(vmPath string) (*hostMount, string, error) {
+	mount, rel, err := h.locate(vmPath)
 	if err != nil {
-		return nil, fmt.Errorf("open target directory %s: %w", hostBaseDir, err)
+		return nil, "", err
 	}
-	return root, nil
+	if rel == "." {
+		return nil, "", fmt.Errorf("path %q is a mounted directory itself", vmPath)
+	}
+	return mount, rel, nil
 }
 
-// workspaceRelativePath returns name as a cleaned path strictly inside the workspace.
-// It rejects absolute paths, "..", and the workspace root itself.
-func workspaceRelativePath(name string) (string, error) {
-	clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(name)))
-	if clean == "." || filepath.IsAbs(clean) || clean == ".." ||
-		strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("path %q is outside the workspace", name)
-	}
-	return clean, nil
+// tarEntryPath turns a tar entry name, which omits the leading "/", into an absolute VM path.
+func tarEntryPath(name string) string {
+	return string(filepath.Separator) + strings.TrimLeft(filepath.FromSlash(name), string(filepath.Separator))
 }
 
-// symlinkTargetInsideWorkspace reports whether a link at linkPath pointing to target
-// resolves inside the workspace without leaving it.
-func symlinkTargetInsideWorkspace(linkPath, target string) bool {
-	if target == "" || filepath.IsAbs(target) {
-		return false
+// symlinkTarget validates a symlink at rel inside mount and returns the target to create.
+// Relative targets must resolve inside the mount. Absolute targets must point inside the
+// same mount and are rewritten as relative, so they stay correct when the host path differs.
+func symlinkTarget(mount *hostMount, rel, target string) (string, error) {
+	if target == "" {
+		return "", errors.New("symlink target is empty")
 	}
-	resolved := filepath.Join(filepath.Dir(linkPath), filepath.FromSlash(target))
-	_, err := workspaceRelativePath(resolved)
-	return err == nil || resolved == "."
+	if filepath.IsAbs(target) {
+		targetRel, ok := relativeWithin(mount.vmPath, filepath.Clean(target))
+		if !ok {
+			return "", fmt.Errorf("symlink target %q is outside the mount", target)
+		}
+		relative, err := filepath.Rel(filepath.Dir(rel), targetRel)
+		if err != nil {
+			return "", err
+		}
+		return relative, nil
+	}
+	resolved := filepath.Join(filepath.Dir(rel), filepath.FromSlash(target))
+	if _, ok := relativeWithin(".", resolved); !ok {
+		return "", fmt.Errorf("symlink target %q leaves the mount", target)
+	}
+	return target, nil
 }
 
 // removeIfSymlink removes name when it is a symlink, so a write replaces the link instead of
@@ -71,34 +148,39 @@ func removeIfSymlink(root *os.Root, name string) error {
 	return root.Remove(name)
 }
 
-// applyMovesInRoot performs pure renames (MovedFrom set, content unchanged).
-func applyMovesInRoot(root *os.Root, changes []types.FileDiff) {
+// applyMovesInMounts performs pure renames (MovedFrom set, content unchanged).
+func applyMovesInMounts(mounts *hostMounts, changes []types.FileDiff) {
 	var moveCount int
 	for _, change := range changes {
 		if change.MovedFrom == "" || change.IsUpdated || change.IsDeleted {
 			continue
 		}
-		source, err := workspaceRelativePath(change.MovedFrom)
+		sourceMount, source, err := mounts.locateEntry(change.MovedFrom)
 		if err != nil {
 			log.Printf("Warning: skipping move: %v", err)
 			continue
 		}
-		destination, err := workspaceRelativePath(change.Path)
+		destinationMount, destination, err := mounts.locateEntry(change.Path)
 		if err != nil {
 			log.Printf("Warning: skipping move: %v", err)
 			continue
 		}
+		if sourceMount != destinationMount {
+			log.Printf("Warning: skipping move across mounts: %s -> %s", change.MovedFrom, change.Path)
+			continue
+		}
+		root := sourceMount.root
 		if _, err := root.Lstat(source); errors.Is(err, fs.ErrNotExist) {
 			// Created and moved inside the VM; the tar carries it as a new file.
-			log.Printf("Move source %s not found on host, skipping rename", source)
+			log.Printf("Move source %s not found on host, skipping rename", change.MovedFrom)
 			continue
 		}
 		if err := root.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-			log.Printf("Warning: failed to create directory for %s: %v", destination, err)
+			log.Printf("Warning: failed to create directory for %s: %v", change.Path, err)
 			continue
 		}
 		if err := root.Rename(source, destination); err != nil {
-			log.Printf("Warning: failed to move %s -> %s: %v", source, destination, err)
+			log.Printf("Warning: failed to move %s -> %s: %v", change.MovedFrom, change.Path, err)
 			continue
 		}
 		moveCount++
@@ -108,9 +190,13 @@ func applyMovesInRoot(root *os.Root, changes []types.FileDiff) {
 	}
 }
 
-// applyDeletionsInRoot removes deleted paths and move sources, deepest paths first.
-func applyDeletionsInRoot(root *os.Root, changes []types.FileDiff) {
-	var deletions []string
+// applyDeletionsInMounts removes deleted paths and move sources, deepest paths first.
+func applyDeletionsInMounts(mounts *hostMounts, changes []types.FileDiff) {
+	type deletion struct {
+		mount *hostMount
+		rel   string
+	}
+	var deletions []deletion
 	for _, change := range changes {
 		name := change.Path
 		if !change.IsDeleted {
@@ -119,30 +205,30 @@ func applyDeletionsInRoot(root *os.Root, changes []types.FileDiff) {
 			}
 			name = change.MovedFrom
 		}
-		relative, err := workspaceRelativePath(name)
+		mount, rel, err := mounts.locateEntry(name)
 		if err != nil {
 			log.Printf("Warning: skipping deletion: %v", err)
 			continue
 		}
-		deletions = append(deletions, relative)
+		deletions = append(deletions, deletion{mount: mount, rel: rel})
 	}
 	if len(deletions) == 0 {
 		return
 	}
 	sort.Slice(deletions, func(i, j int) bool {
-		return strings.Count(deletions[i], string(filepath.Separator)) >
-			strings.Count(deletions[j], string(filepath.Separator))
+		return strings.Count(deletions[i].rel, string(filepath.Separator)) >
+			strings.Count(deletions[j].rel, string(filepath.Separator))
 	})
-	for _, relative := range deletions {
-		if err := root.RemoveAll(relative); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			log.Printf("Warning: failed to delete %s: %v", relative, err)
+	for _, item := range deletions {
+		if err := item.mount.root.RemoveAll(item.rel); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			log.Printf("Warning: failed to delete %s: %v", filepath.Join(item.mount.vmPath, item.rel), err)
 		}
 	}
 	log.Printf("Applied %d deletions", len(deletions))
 }
 
-// extractTarInRoot writes the exported workspace tarball into root.
-func extractTarInRoot(ctx context.Context, root *os.Root, tarball io.Reader) error {
+// extractTarInMounts writes the exported workspace tarball into the mounted directories.
+func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Reader) error {
 	reader := tar.NewReader(tarball)
 	var fileCount, skipCount int
 	skip := func(format string, args ...any) {
@@ -161,79 +247,85 @@ func extractTarInRoot(ctx context.Context, root *os.Root, tarball io.Reader) err
 		if err != nil {
 			return fmt.Errorf("failed to read tar header: %w", err)
 		}
-		relative, err := workspaceRelativePath(header.Name)
+		mount, rel, err := mounts.locate(tarEntryPath(header.Name))
 		if err != nil {
 			skip("skipping tar entry: %v", err)
 			continue
 		}
+		if rel == "." {
+			// The mount directory itself already exists on the host.
+			continue
+		}
+		root := mount.root
 		// Keep only permission bits: setuid, setgid, and sticky never come from the VM.
 		mode := os.FileMode(header.Mode).Perm()
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := root.MkdirAll(relative, mode|0o700); err != nil {
-				skip("failed to create directory %s: %v", relative, err)
+			if err := root.MkdirAll(rel, mode|0o700); err != nil {
+				skip("failed to create directory %s: %v", header.Name, err)
 			}
 
 		case tar.TypeReg:
-			if err := root.MkdirAll(filepath.Dir(relative), 0o755); err != nil {
-				skip("failed to create parent directory for %s: %v", relative, err)
+			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
+				skip("failed to create parent directory for %s: %v", header.Name, err)
 				continue
 			}
-			if err := removeIfSymlink(root, relative); err != nil {
-				skip("failed to replace symlink %s: %v", relative, err)
+			if err := removeIfSymlink(root, rel); err != nil {
+				skip("failed to replace symlink %s: %v", header.Name, err)
 				continue
 			}
-			output, err := root.OpenFile(relative, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+			output, err := root.OpenFile(rel, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 			if err != nil {
-				skip("failed to create file %s: %v", relative, err)
+				skip("failed to create file %s: %v", header.Name, err)
 				continue
 			}
 			_, copyErr := io.Copy(output, reader)
 			closeErr := output.Close()
 			if copyErr != nil || closeErr != nil {
-				skip("failed to write file %s: %v", relative, errors.Join(copyErr, closeErr))
+				skip("failed to write file %s: %v", header.Name, errors.Join(copyErr, closeErr))
 				continue
 			}
-			if err := root.Chmod(relative, mode); err != nil {
-				skip("failed to set mode on %s: %v", relative, err)
+			if err := root.Chmod(rel, mode); err != nil {
+				skip("failed to set mode on %s: %v", header.Name, err)
 				continue
 			}
 			fileCount++
 
 		case tar.TypeSymlink:
-			if !symlinkTargetInsideWorkspace(relative, header.Linkname) {
-				skip("skipping symlink %s: target %q leaves the workspace", relative, header.Linkname)
+			target, err := symlinkTarget(mount, rel, header.Linkname)
+			if err != nil {
+				skip("skipping symlink %s: %v", header.Name, err)
 				continue
 			}
-			if err := root.MkdirAll(filepath.Dir(relative), 0o755); err != nil {
-				skip("failed to create parent directory for %s: %v", relative, err)
+			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
+				skip("failed to create parent directory for %s: %v", header.Name, err)
 				continue
 			}
-			if err := root.Remove(relative); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				skip("failed to replace %s: %v", relative, err)
+			if err := root.Remove(rel); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				skip("failed to replace %s: %v", header.Name, err)
 				continue
 			}
-			if err := root.Symlink(header.Linkname, relative); err != nil {
-				skip("failed to create symlink %s -> %s: %v", relative, header.Linkname, err)
+			if err := root.Symlink(target, rel); err != nil {
+				skip("failed to create symlink %s -> %s: %v", header.Name, target, err)
 			}
 
 		case tar.TypeLink:
-			source, err := workspaceRelativePath(header.Linkname)
-			if err != nil {
-				skip("skipping hard link %s: %v", relative, err)
+			sourceMount, source, err := mounts.locateEntry(tarEntryPath(header.Linkname))
+			if err != nil || sourceMount != mount {
+				skip("skipping hard link %s -> %s: source is outside its mount", header.Name, header.Linkname)
 				continue
 			}
-			if err := root.MkdirAll(filepath.Dir(relative), 0o755); err != nil {
-				skip("failed to create parent directory for %s: %v", relative, err)
+			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
+				skip("failed to create parent directory for %s: %v", header.Name, err)
 				continue
 			}
-			if err := root.Remove(relative); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				skip("failed to replace %s: %v", relative, err)
+			if err := root.Remove(rel); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				skip("failed to replace %s: %v", header.Name, err)
 				continue
 			}
-			if err := root.Link(source, relative); err != nil {
-				skip("failed to create hard link %s -> %s: %v", relative, source, err)
+			if err := root.Link(source, rel); err != nil {
+				skip("failed to create hard link %s -> %s: %v", header.Name, header.Linkname, err)
 			}
 
 		default:
@@ -242,9 +334,9 @@ func extractTarInRoot(ctx context.Context, root *os.Root, tarball io.Reader) err
 	}
 
 	if skipCount > 0 {
-		log.Printf("Extracted %d files to %s (skipped %d entries)", fileCount, root.Name(), skipCount)
+		log.Printf("Extracted %d files (skipped %d entries)", fileCount, skipCount)
 	} else {
-		log.Printf("Successfully extracted %d files to: %s", fileCount, root.Name())
+		log.Printf("Successfully extracted %d files", fileCount)
 	}
 	return nil
 }

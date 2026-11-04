@@ -1492,30 +1492,32 @@ func (m *Manager) ApplySandboxDiff(ctx context.Context, sandboxID string, paths 
 		return fmt.Errorf("export diff failed: %w", err)
 	}
 
+	// Every host write below goes through these mount roots, so VM-reported paths cannot
+	// leave the mounted directories. Open them before discarding the overlay: if a mount
+	// cannot be opened, the changes must stay in the VM rather than be lost.
+	mounts, err := openHostMounts(hostBaseDir, m.GetMounts())
+	if err != nil {
+		return err
+	}
+	defer mounts.Close()
+
 	// Discard accepted changes from the overlay upper layer
 	if err := m.DiscardSandboxAllChanges(ctx, sandboxID); err != nil {
 		return fmt.Errorf("discard changes failed: %w", err)
 	}
 
-	// Every host write below goes through this root, so VM-reported paths cannot leave it.
-	root, err := openHostRoot(hostBaseDir)
-	if err != nil {
-		return err
-	}
-	defer root.Close()
-
 	// Apply pure moves first, while their sources still exist; the tar does not carry them.
-	applyMovesInRoot(root, diffResult.Changes)
+	applyMovesInMounts(mounts, diffResult.Changes)
 
 	if _, err := tarFile.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to seek tar file: %w", err)
 	}
-	if err := extractTarInRoot(ctx, root, tarFile); err != nil {
+	if err := extractTarInMounts(ctx, mounts, tarFile); err != nil {
 		return fmt.Errorf("extract workspace failed: %w", err)
 	}
 
 	// Apply deletions after files are written.
-	applyDeletionsInRoot(root, diffResult.Changes)
+	applyDeletionsInMounts(mounts, diffResult.Changes)
 
 	// Re-run housekeeper to clean up the overlay after discard
 	if err := m.RunSandboxHousekeeper(ctx, sandboxID); err != nil {

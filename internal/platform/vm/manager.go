@@ -1,7 +1,6 @@
 package vm
 
 import (
-	"archive/tar"
 	"context"
 	"fmt"
 	"io"
@@ -9,7 +8,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1499,240 +1497,30 @@ func (m *Manager) ApplySandboxDiff(ctx context.Context, sandboxID string, paths 
 		return fmt.Errorf("discard changes failed: %w", err)
 	}
 
-	// Apply pure moves first (before extraction, while source files still exist)
-	// Pure moves are not included in tar, so we handle them via os.Rename
-	if err := m.applyMoves(hostBaseDir, diffResult.Changes); err != nil {
-		return fmt.Errorf("apply moves failed: %w", err)
+	// Every host write below goes through this root, so VM-reported paths cannot leave it.
+	root, err := openHostRoot(hostBaseDir)
+	if err != nil {
+		return err
 	}
+	defer root.Close()
 
-	// Seek back to beginning for extraction
+	// Apply pure moves first, while their sources still exist; the tar does not carry them.
+	applyMovesInRoot(root, diffResult.Changes)
+
 	if _, err := tarFile.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to seek tar file: %w", err)
 	}
-
-	// Extract tar to host (creates new/modified files)
-	if err := m.extractTar(ctx, tarFile, hostBaseDir); err != nil {
+	if err := extractTarInRoot(ctx, root, tarFile); err != nil {
 		return fmt.Errorf("extract workspace failed: %w", err)
 	}
 
-	// Apply deletions (after files are written - safer order)
-	if err := m.applyDeletions(hostBaseDir, diffResult.Changes); err != nil {
-		return fmt.Errorf("apply deletions failed: %w", err)
-	}
+	// Apply deletions after files are written.
+	applyDeletionsInRoot(root, diffResult.Changes)
 
 	// Re-run housekeeper to clean up the overlay after discard
 	if err := m.RunSandboxHousekeeper(ctx, sandboxID); err != nil {
 		return fmt.Errorf("post-apply housekeeper failed: %w", err)
 	}
 
-	return nil
-}
-
-// applyMoves executes pure move operations (rename without content change).
-// These are files with MovedFrom set but IsUpdated=false.
-// Must be called before tar extraction while source files still exist on host.
-func (m *Manager) applyMoves(hostBaseDir string, changes []types.FileDiff) error {
-	var moveCount int
-	for _, change := range changes {
-		// Only handle pure moves (no content modification)
-		if change.MovedFrom == "" || change.IsUpdated || change.IsDeleted {
-			continue
-		}
-
-		srcPath := filepath.Join(hostBaseDir, change.MovedFrom)
-		dstPath := filepath.Join(hostBaseDir, change.Path)
-
-		// Check if source exists on host
-		if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-			// Source doesn't exist on host - this can happen if:
-			// 1. File was created and moved within the VM session
-			// 2. Source was already moved/deleted
-			// In these cases, the file should be in the tar (as new file)
-			log.Printf("Move source %s not found on host, skipping rename", change.MovedFrom)
-			continue
-		}
-
-		// Ensure destination directory exists
-		dstDir := filepath.Dir(dstPath)
-		if err := os.MkdirAll(dstDir, 0755); err != nil {
-			log.Printf("Warning: failed to create directory %s: %v", dstDir, err)
-			continue
-		}
-
-		// Perform the rename
-		if err := os.Rename(srcPath, dstPath); err != nil {
-			log.Printf("Warning: failed to move %s -> %s: %v", change.MovedFrom, change.Path, err)
-		} else {
-			moveCount++
-		}
-	}
-
-	if moveCount > 0 {
-		log.Printf("Applied %d moves", moveCount)
-	}
-	return nil
-}
-
-// applyDeletions executes deletion operations from the diff.
-// Deletions are sorted by path depth descending (delete children before parents).
-func (m *Manager) applyDeletions(hostBaseDir string, changes []types.FileDiff) error {
-	// Collect deletions
-	var deletions []string
-	for _, change := range changes {
-		if change.IsDeleted {
-			deletions = append(deletions, change.Path)
-		} else if change.MovedFrom != "" {
-			deletions = append(deletions, change.MovedFrom)
-		}
-	}
-
-	if len(deletions) == 0 {
-		return nil
-	}
-
-	// Sort by path depth descending (deepest first)
-	sort.Slice(deletions, func(i, j int) bool {
-		depthI := strings.Count(deletions[i], "/")
-		depthJ := strings.Count(deletions[j], "/")
-		return depthI > depthJ
-	})
-
-	for _, del := range deletions {
-		hostPath := filepath.Join(hostBaseDir, del)
-
-		var err error
-		// Remove directory and all contents
-		err = os.RemoveAll(hostPath)
-
-		if err != nil && !os.IsNotExist(err) {
-			log.Printf("Warning: failed to delete %s: %v", del, err)
-		}
-	}
-
-	log.Printf("Applied %d deletions", len(deletions))
-	return nil
-}
-
-// extractTar extracts the exported workspace tarball to the target directory
-func (m *Manager) extractTar(ctx context.Context, tarball io.Reader, targetHostDir string) error {
-	// Create target directory if it doesn't exist
-	if err := os.MkdirAll(targetHostDir, 0755); err != nil {
-		return fmt.Errorf("failed to create target directory %s: %w", targetHostDir, err)
-	}
-
-	tr := tar.NewReader(tarball)
-	var fileCount, skipCount int
-
-	for {
-		// Check for context cancellation
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		header, err := tr.Next()
-		if err == io.EOF {
-			break // End of archive
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read tar header: %w", err)
-		}
-
-		// Clean and validate the path to prevent directory traversal
-		cleanPath := filepath.Clean(header.Name)
-		if strings.HasPrefix(cleanPath, "..") || filepath.IsAbs(cleanPath) {
-			log.Printf("Warning: skipping potentially unsafe path: %s", header.Name)
-			skipCount++
-			continue
-		}
-
-		targetPath := filepath.Join(targetHostDir, cleanPath)
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			// Create directory
-			if err := os.MkdirAll(targetPath, os.FileMode(header.Mode)); err != nil {
-				log.Printf("Warning: failed to create directory %s: %v", targetPath, err)
-				skipCount++
-			}
-
-		case tar.TypeReg:
-			// Create parent directory if needed
-			parentDir := filepath.Dir(targetPath)
-			if err := os.MkdirAll(parentDir, 0755); err != nil {
-				log.Printf("Warning: failed to create parent directory %s: %v", parentDir, err)
-				skipCount++
-				continue
-			}
-
-			// Create and write file
-			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode))
-			if err != nil {
-				log.Printf("Warning: failed to create file %s: %v", targetPath, err)
-				skipCount++
-				continue
-			}
-
-			// Copy file contents
-			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
-				log.Printf("Warning: failed to write file %s: %v", targetPath, err)
-				skipCount++
-				continue
-			}
-			outFile.Close()
-			fileCount++
-
-		case tar.TypeSymlink:
-			// Remove existing symlink if present
-			os.Remove(targetPath)
-
-			// Create parent directory if needed
-			parentDir := filepath.Dir(targetPath)
-			if err := os.MkdirAll(parentDir, 0755); err != nil {
-				log.Printf("Warning: failed to create parent directory %s: %v", parentDir, err)
-				skipCount++
-				continue
-			}
-
-			// Create symlink
-			if err := os.Symlink(header.Linkname, targetPath); err != nil {
-				log.Printf("Warning: failed to create symlink %s -> %s: %v", targetPath, header.Linkname, err)
-				skipCount++
-			}
-
-		case tar.TypeLink:
-			// Handle hard links
-			linkTarget := filepath.Join(targetHostDir, header.Linkname)
-
-			// Create parent directory if needed
-			parentDir := filepath.Dir(targetPath)
-			if err := os.MkdirAll(parentDir, 0755); err != nil {
-				log.Printf("Warning: failed to create parent directory %s: %v", parentDir, err)
-				skipCount++
-				continue
-			}
-
-			// Remove existing file if present
-			os.Remove(targetPath)
-
-			// Create hard link
-			if err := os.Link(linkTarget, targetPath); err != nil {
-				log.Printf("Warning: failed to create hard link %s -> %s: %v", targetPath, linkTarget, err)
-				skipCount++
-			}
-
-		default:
-			log.Printf("Skipping unsupported tar entry type %c: %s", header.Typeflag, header.Name)
-			skipCount++
-		}
-	}
-
-	if skipCount > 0 {
-		log.Printf("Extracted %d files to %s (skipped %d entries)", fileCount, targetHostDir, skipCount)
-	} else {
-		log.Printf("Successfully extracted %d files to: %s", fileCount, targetHostDir)
-	}
 	return nil
 }

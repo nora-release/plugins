@@ -1512,11 +1512,13 @@ func (m *Manager) ApplySandboxDiff(ctx context.Context, sandboxID string, paths 
 	if _, err := tarFile.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to seek tar file: %w", err)
 	}
-	if err := extractTarInMounts(ctx, mounts, tarFile); err != nil {
+	written, err := extractTarInMounts(ctx, mounts, tarFile)
+	if err != nil {
 		return fmt.Errorf("extract workspace failed: %w", err)
 	}
 
-	// Apply deletions after files are written.
+	// Apply deletions after files are written, keeping any source whose move did not land.
+	keepUnwrittenMoveSources(diffResult.Changes, written, unappliedMoves)
 	applyDeletionsInMounts(mounts, diffResult.Changes, unappliedMoves)
 
 	// Re-run housekeeper to clean up the overlay after discard

@@ -199,11 +199,27 @@ func applyMovesInMounts(mounts *hostMounts, changes []types.FileDiff) map[string
 }
 
 // applyDeletionsInMounts removes deleted paths and move sources, deepest paths first. Sources
-// in keep belong to pure moves that were not applied and stay where they are.
+// in keep belong to pure moves that were not applied and stay where they are, so nothing is
+// deleted at or above them either: a directory rename also deletes the old directory.
 func applyDeletionsInMounts(mounts *hostMounts, changes []types.FileDiff, keep map[string]bool) {
 	type deletion struct {
 		mount *hostMount
 		rel   string
+	}
+	var kept []deletion
+	for source := range keep {
+		if mount, rel, err := mounts.locateEntry(source); err == nil {
+			kept = append(kept, deletion{mount: mount, rel: rel})
+		}
+	}
+	containsKept := func(item deletion) bool {
+		for _, k := range kept {
+			if k.mount == item.mount &&
+				(k.rel == item.rel || strings.HasPrefix(k.rel, item.rel+string(filepath.Separator))) {
+				return true
+			}
+		}
+		return false
 	}
 	var deletions []deletion
 	for _, change := range changes {
@@ -229,6 +245,11 @@ func applyDeletionsInMounts(mounts *hostMounts, changes []types.FileDiff, keep m
 			strings.Count(deletions[j].rel, string(filepath.Separator))
 	})
 	for _, item := range deletions {
+		if containsKept(item) {
+			log.Printf("Warning: keeping %s, which holds a file whose move was not applied",
+				filepath.Join(item.mount.vmPath, item.rel))
+			continue
+		}
 		if err := item.mount.root.RemoveAll(item.rel); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			log.Printf("Warning: failed to delete %s: %v", filepath.Join(item.mount.vmPath, item.rel), err)
 		}
@@ -236,9 +257,11 @@ func applyDeletionsInMounts(mounts *hostMounts, changes []types.FileDiff, keep m
 	log.Printf("Applied %d deletions", len(deletions))
 }
 
-// extractTarInMounts writes the exported workspace tarball into the mounted directories.
-func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Reader) error {
+// extractTarInMounts writes the exported workspace tarball into the mounted directories. It
+// returns the absolute VM paths it wrote, so callers can tell which changes reached the host.
+func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Reader) (map[string]bool, error) {
 	reader := tar.NewReader(tarball)
+	written := map[string]bool{}
 	var fileCount, skipCount int
 	skip := func(format string, args ...any) {
 		log.Printf("Warning: "+format, args...)
@@ -247,16 +270,17 @@ func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Read
 
 	for {
 		if err := ctx.Err(); err != nil {
-			return err
+			return written, err
 		}
 		header, err := reader.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("failed to read tar header: %w", err)
+			return written, fmt.Errorf("failed to read tar header: %w", err)
 		}
-		mount, rel, err := mounts.locate(tarEntryPath(header.Name))
+		vmPath := filepath.Clean(tarEntryPath(header.Name))
+		mount, rel, err := mounts.locate(vmPath)
 		if err != nil {
 			skip("skipping tar entry: %v", err)
 			continue
@@ -273,7 +297,9 @@ func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Read
 		case tar.TypeDir:
 			if err := root.MkdirAll(rel, mode|0o700); err != nil {
 				skip("failed to create directory %s: %v", header.Name, err)
+				continue
 			}
+			written[vmPath] = true
 
 		case tar.TypeReg:
 			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
@@ -299,6 +325,7 @@ func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Read
 				skip("failed to set mode on %s: %v", header.Name, err)
 				continue
 			}
+			written[vmPath] = true
 			fileCount++
 
 		case tar.TypeSymlink:
@@ -317,7 +344,9 @@ func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Read
 			}
 			if err := root.Symlink(target, rel); err != nil {
 				skip("failed to create symlink %s -> %s: %v", header.Name, target, err)
+				continue
 			}
+			written[vmPath] = true
 
 		case tar.TypeLink:
 			sourceMount, source, err := mounts.locateEntry(tarEntryPath(header.Linkname))
@@ -335,7 +364,9 @@ func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Read
 			}
 			if err := root.Link(source, rel); err != nil {
 				skip("failed to create hard link %s -> %s: %v", header.Name, header.Linkname, err)
+				continue
 			}
+			written[vmPath] = true
 
 		default:
 			skip("skipping unsupported tar entry type %c: %s", header.Typeflag, header.Name)
@@ -347,5 +378,19 @@ func extractTarInMounts(ctx context.Context, mounts *hostMounts, tarball io.Read
 	} else {
 		log.Printf("Successfully extracted %d files", fileCount)
 	}
-	return nil
+	return written, nil
+}
+
+// keepUnwrittenMoveSources adds to keep the sources of moves that also changed content but
+// whose new copy did not reach the host. Deleting those sources would lose the file.
+func keepUnwrittenMoveSources(changes []types.FileDiff, written, keep map[string]bool) {
+	for _, change := range changes {
+		if change.MovedFrom == "" || !change.IsUpdated || change.IsDeleted {
+			continue
+		}
+		if !written[filepath.Clean(change.Path)] {
+			log.Printf("Warning: keeping %s, because its moved copy %s was not written", change.MovedFrom, change.Path)
+			keep[change.MovedFrom] = true
+		}
+	}
 }

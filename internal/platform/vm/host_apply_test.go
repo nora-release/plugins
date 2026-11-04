@@ -115,7 +115,7 @@ func TestExtractTarInMountsWritesOrdinaryEntries(t *testing.T) {
 		{name: l.tarName("src/absolute.go"), typeflag: tar.TypeSymlink, linkname: l.vm("src/main.go")},
 		{name: l.tarName("src/copy.go"), typeflag: tar.TypeLink, linkname: l.tarName("src/main.go")},
 	})
-	if err := extractTarInMounts(context.Background(), l.mounts, tarball); err != nil {
+	if _, err := extractTarInMounts(context.Background(), l.mounts, tarball); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"src/main.go", "src/alias.go", "src/absolute.go", "src/copy.go"} {
@@ -201,7 +201,7 @@ func TestExtractTarInMountsRejectsEscapes(t *testing.T) {
 			if test.prepare != nil {
 				test.prepare(t, l)
 			}
-			if err := extractTarInMounts(context.Background(), l.mounts, buildTar(t, test.entries(l))); err != nil {
+			if _, err := extractTarInMounts(context.Background(), l.mounts, buildTar(t, test.entries(l))); err != nil {
 				t.Fatal(err)
 			}
 			l.requireOutsideUntouched(t)
@@ -223,7 +223,7 @@ func TestExtractTarInMountsReplacesSymlinkAndDropsSpecialModes(t *testing.T) {
 		{name: l.tarName("note"), typeflag: tar.TypeReg, body: "replaced"},
 		{name: l.tarName("tool"), typeflag: tar.TypeReg, mode: 0o4755, body: "#!/bin/sh"},
 	})
-	if err := extractTarInMounts(context.Background(), l.mounts, tarball); err != nil {
+	if _, err := extractTarInMounts(context.Background(), l.mounts, tarball); err != nil {
 		t.Fatal(err)
 	}
 	if info, err := os.Lstat(l.vm("note")); err != nil || !info.Mode().IsRegular() {
@@ -302,7 +302,7 @@ func TestHostMountsMapVMPathsToHostPaths(t *testing.T) {
 	}
 	defer mounts.Close()
 	tarball := buildTar(t, []tarEntry{{name: "workspace/readme.md", typeflag: tar.TypeReg, body: "hi"}})
-	if err := extractTarInMounts(context.Background(), mounts, tarball); err != nil {
+	if _, err := extractTarInMounts(context.Background(), mounts, tarball); err != nil {
 		t.Fatal(err)
 	}
 	if data, err := os.ReadFile(filepath.Join(host, "readme.md")); err != nil || string(data) != "hi" {
@@ -320,6 +320,57 @@ func TestUnappliedPureMoveKeepsItsSource(t *testing.T) {
 	applyDeletionsInMounts(l.mounts, changes, applyMovesInMounts(l.mounts, changes))
 	if _, err := os.Stat(l.vm("a.txt")); err != nil {
 		t.Fatalf("source of an unapplied move was deleted: %v", err)
+	}
+	l.requireOutsideUntouched(t)
+}
+
+func TestDirectoryRenameKeepsFilesWhoseMoveFailed(t *testing.T) {
+	l := newLayout(t)
+	if err := os.MkdirAll(l.vm("old"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"old/moved.txt", "old/stuck.txt"} {
+		if err := os.WriteFile(l.vm(name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// An overlay directory rename: one move per child, then a delete of the old directory.
+	// The second child's destination is outside every mount, so that move is skipped.
+	changes := []types.FileDiff{
+		{Path: l.vm("new/moved.txt"), MovedFrom: l.vm("old/moved.txt")},
+		{Path: filepath.Join(l.outside, "stuck.txt"), MovedFrom: l.vm("old/stuck.txt")},
+		{Path: l.vm("old"), IsDeleted: true, IsDir: true},
+	}
+	applyDeletionsInMounts(l.mounts, changes, applyMovesInMounts(l.mounts, changes))
+	if _, err := os.Stat(l.vm("new/moved.txt")); err != nil {
+		t.Fatalf("applied move is missing: %v", err)
+	}
+	if _, err := os.Stat(l.vm("old/stuck.txt")); err != nil {
+		t.Fatalf("file whose move failed was deleted with its directory: %v", err)
+	}
+	l.requireOutsideUntouched(t)
+}
+
+func TestUpdatedMoveKeepsItsSourceWhenTheNewCopyIsNotWritten(t *testing.T) {
+	l := newLayout(t)
+	if err := os.WriteFile(l.vm("a.txt"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Moved and edited, but the new path is outside every mount, so the tar entry is skipped.
+	outsideCopy := filepath.Join(l.outside, "a.txt")
+	changes := []types.FileDiff{{Path: outsideCopy, MovedFrom: l.vm("a.txt"), IsUpdated: true}}
+	tarball := buildTar(t, []tarEntry{{
+		name: strings.TrimPrefix(outsideCopy, "/"), typeflag: tar.TypeReg, body: "new",
+	}})
+	keep := applyMovesInMounts(l.mounts, changes)
+	written, err := extractTarInMounts(context.Background(), l.mounts, tarball)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keepUnwrittenMoveSources(changes, written, keep)
+	applyDeletionsInMounts(l.mounts, changes, keep)
+	if data, err := os.ReadFile(l.vm("a.txt")); err != nil || string(data) != "old" {
+		t.Fatalf("source of an unwritten move was deleted: %q, %v", data, err)
 	}
 	l.requireOutsideUntouched(t)
 }

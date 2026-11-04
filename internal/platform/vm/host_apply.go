@@ -148,25 +148,32 @@ func removeIfSymlink(root *os.Root, name string) error {
 	return root.Remove(name)
 }
 
-// applyMovesInMounts performs pure renames (MovedFrom set, content unchanged).
-func applyMovesInMounts(mounts *hostMounts, changes []types.FileDiff) {
+// applyMovesInMounts performs pure renames (MovedFrom set, content unchanged). It returns the
+// sources of pure moves it could not apply: the tar does not carry those files, so deleting
+// their sources afterwards would lose them.
+func applyMovesInMounts(mounts *hostMounts, changes []types.FileDiff) map[string]bool {
+	keep := map[string]bool{}
 	var moveCount int
 	for _, change := range changes {
 		if change.MovedFrom == "" || change.IsUpdated || change.IsDeleted {
 			continue
 		}
+		skip := func(format string, args ...any) {
+			log.Printf("Warning: "+format, args...)
+			keep[change.MovedFrom] = true
+		}
 		sourceMount, source, err := mounts.locateEntry(change.MovedFrom)
 		if err != nil {
-			log.Printf("Warning: skipping move: %v", err)
+			skip("skipping move: %v", err)
 			continue
 		}
 		destinationMount, destination, err := mounts.locateEntry(change.Path)
 		if err != nil {
-			log.Printf("Warning: skipping move: %v", err)
+			skip("skipping move: %v", err)
 			continue
 		}
 		if sourceMount != destinationMount {
-			log.Printf("Warning: skipping move across mounts: %s -> %s", change.MovedFrom, change.Path)
+			skip("skipping move across mounts: %s -> %s", change.MovedFrom, change.Path)
 			continue
 		}
 		root := sourceMount.root
@@ -176,11 +183,11 @@ func applyMovesInMounts(mounts *hostMounts, changes []types.FileDiff) {
 			continue
 		}
 		if err := root.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-			log.Printf("Warning: failed to create directory for %s: %v", change.Path, err)
+			skip("failed to create directory for %s: %v", change.Path, err)
 			continue
 		}
 		if err := root.Rename(source, destination); err != nil {
-			log.Printf("Warning: failed to move %s -> %s: %v", change.MovedFrom, change.Path, err)
+			skip("failed to move %s -> %s: %v", change.MovedFrom, change.Path, err)
 			continue
 		}
 		moveCount++
@@ -188,10 +195,12 @@ func applyMovesInMounts(mounts *hostMounts, changes []types.FileDiff) {
 	if moveCount > 0 {
 		log.Printf("Applied %d moves", moveCount)
 	}
+	return keep
 }
 
-// applyDeletionsInMounts removes deleted paths and move sources, deepest paths first.
-func applyDeletionsInMounts(mounts *hostMounts, changes []types.FileDiff) {
+// applyDeletionsInMounts removes deleted paths and move sources, deepest paths first. Sources
+// in keep belong to pure moves that were not applied and stay where they are.
+func applyDeletionsInMounts(mounts *hostMounts, changes []types.FileDiff, keep map[string]bool) {
 	type deletion struct {
 		mount *hostMount
 		rel   string
@@ -200,7 +209,7 @@ func applyDeletionsInMounts(mounts *hostMounts, changes []types.FileDiff) {
 	for _, change := range changes {
 		name := change.Path
 		if !change.IsDeleted {
-			if change.MovedFrom == "" {
+			if change.MovedFrom == "" || keep[change.MovedFrom] {
 				continue
 			}
 			name = change.MovedFrom

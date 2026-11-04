@@ -247,8 +247,7 @@ func TestApplyMovesAndDeletionsUseAbsoluteVMPaths(t *testing.T) {
 		{Path: l.vm("dir/b.txt"), MovedFrom: l.vm("a.txt")},
 		{Path: l.vm("old.txt"), IsDeleted: true},
 	}
-	applyMovesInMounts(l.mounts, changes)
-	applyDeletionsInMounts(l.mounts, changes)
+	applyDeletionsInMounts(l.mounts, changes, applyMovesInMounts(l.mounts, changes))
 
 	if _, err := os.Stat(l.vm("dir/b.txt")); err != nil {
 		t.Fatalf("move was not applied: %v", err)
@@ -265,18 +264,20 @@ func TestApplyMovesAndDeletionsStayInsideMounts(t *testing.T) {
 	if err := os.WriteFile(l.vm("a.txt"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	applyMovesInMounts(l.mounts, []types.FileDiff{
+	moves := []types.FileDiff{
 		{Path: l.vm("stolen"), MovedFrom: filepath.Join(l.outside, "secret")},
 		{Path: filepath.Join(l.outside, "planted"), MovedFrom: l.vm("a.txt")},
 		{Path: l.vm("../outside/planted"), MovedFrom: l.vm("a.txt")},
-	})
+	}
+	// A rejected pure move must leave its source in place: the tar does not carry it.
+	applyDeletionsInMounts(l.mounts, moves, applyMovesInMounts(l.mounts, moves))
 	applyDeletionsInMounts(l.mounts, []types.FileDiff{
 		{Path: l.outside, IsDeleted: true},
 		{Path: l.vm("../outside"), IsDeleted: true},
 		{Path: l.workspace, IsDeleted: true},
 		{Path: "relative", IsDeleted: true},
 		{Path: "/", IsDeleted: true},
-	})
+	}, nil)
 	if _, err := os.Stat(l.vm("a.txt")); err != nil {
 		t.Fatalf("a.txt should not have moved out: %v", err)
 	}
@@ -307,4 +308,18 @@ func TestHostMountsMapVMPathsToHostPaths(t *testing.T) {
 	if data, err := os.ReadFile(filepath.Join(host, "readme.md")); err != nil || string(data) != "hi" {
 		t.Fatalf("readme.md = %q, %v", data, err)
 	}
+}
+
+func TestUnappliedPureMoveKeepsItsSource(t *testing.T) {
+	l := newLayout(t)
+	if err := os.WriteFile(l.vm("a.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The destination is outside every mount, so the move is skipped.
+	changes := []types.FileDiff{{Path: filepath.Join(l.outside, "moved.txt"), MovedFrom: l.vm("a.txt")}}
+	applyDeletionsInMounts(l.mounts, changes, applyMovesInMounts(l.mounts, changes))
+	if _, err := os.Stat(l.vm("a.txt")); err != nil {
+		t.Fatalf("source of an unapplied move was deleted: %v", err)
+	}
+	l.requireOutsideUntouched(t)
 }

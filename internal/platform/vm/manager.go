@@ -1507,7 +1507,7 @@ func (m *Manager) ApplySandboxDiff(ctx context.Context, sandboxID string, paths 
 	}
 
 	// Apply pure moves first, while their sources still exist; the tar does not carry them.
-	applyMovesInMounts(mounts, diffResult.Changes)
+	unappliedMoves := applyMovesInMounts(mounts, diffResult.Changes)
 
 	if _, err := tarFile.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to seek tar file: %w", err)
@@ -1517,7 +1517,7 @@ func (m *Manager) ApplySandboxDiff(ctx context.Context, sandboxID string, paths 
 	}
 
 	// Apply deletions after files are written.
-	applyDeletionsInMounts(mounts, diffResult.Changes)
+	applyDeletionsInMounts(mounts, diffResult.Changes, unappliedMoves)
 
 	// Re-run housekeeper to clean up the overlay after discard
 	if err := m.RunSandboxHousekeeper(ctx, sandboxID); err != nil {

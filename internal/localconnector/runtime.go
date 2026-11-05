@@ -883,38 +883,82 @@ func (r *Runtime) resolvePathWithinRoot(path string) (string, error) {
 		return "", fmt.Errorf("connector runtime is required")
 	}
 
-	rootPath := r.rootPath
 	candidate := path
 	if !filepath.IsAbs(candidate) {
-		candidate = filepath.Join(rootPath, candidate)
+		candidate = filepath.Join(r.rootPath, candidate)
 	}
 	candidate = filepath.Clean(candidate)
-	if pathWithinRoot(candidate, rootPath) {
-		return candidate, nil
-	}
-	for _, mount := range r.mounts {
-		mountPath := filepath.Clean(strings.TrimSpace(mount.VMPath))
-		if mountPath == "." || mountPath == "" {
-			mountPath = filepath.Clean(strings.TrimSpace(mount.HostPath))
-		}
-		if pathWithinRoot(candidate, mountPath) {
+	for _, root := range r.allowedRoots() {
+		if rootContains(root, candidate) {
 			return candidate, nil
 		}
 	}
 	return "", fmt.Errorf("path escapes root or mounted roots: %s", path)
 }
 
-func pathWithinRoot(candidate string, rootPath string) bool {
-	rootPath = filepath.Clean(rootPath)
-	if candidate == rootPath {
-		return true
+// allowedRoot is a directory paths may resolve into, seen from the VM and from the host.
+type allowedRoot struct {
+	vmPath   string
+	hostPath string
+}
+
+// allowedRoots returns the workspace root and every mount, which the VM sees at vmPath.
+func (r *Runtime) allowedRoots() []allowedRoot {
+	roots := []allowedRoot{{vmPath: filepath.Clean(r.rootPath), hostPath: filepath.Clean(r.rootPath)}}
+	for _, mount := range r.mounts {
+		hostPath := filepath.Clean(strings.TrimSpace(mount.HostPath))
+		vmPath := filepath.Clean(strings.TrimSpace(mount.VMPath))
+		if vmPath == "." || vmPath == "" {
+			vmPath = hostPath
+		}
+		roots = append(roots, allowedRoot{vmPath: vmPath, hostPath: hostPath})
 	}
-	rel, err := filepath.Rel(rootPath, candidate)
-	if err != nil {
+	return roots
+}
+
+// rootContains reports whether candidate, an absolute VM path, stays inside root both as
+// written and after the host resolves its symlinks. A lexical check alone would accept a path
+// through a symlink in the mounted directory that points elsewhere.
+func rootContains(root allowedRoot, candidate string) bool {
+	rel, ok := relativeWithin(root.vmPath, candidate)
+	if !ok {
 		return false
 	}
+	resolvedRoot := resolveExistingSymlinks(root.hostPath)
+	resolvedCandidate := resolveExistingSymlinks(filepath.Join(root.hostPath, rel))
+	_, ok = relativeWithin(resolvedRoot, resolvedCandidate)
+	return ok
+}
+
+// resolveExistingSymlinks resolves symlinks in the longest existing prefix of path and appends
+// the components that do not exist yet, so a path to a file about to be created is checked too.
+func resolveExistingSymlinks(path string) string {
+	existing := filepath.Clean(path)
+	var missing []string
+	for {
+		if resolved, err := filepath.EvalSymlinks(existing); err == nil {
+			return filepath.Join(append([]string{resolved}, missing...)...)
+		}
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			return filepath.Clean(path)
+		}
+		missing = append([]string{filepath.Base(existing)}, missing...)
+		existing = parent
+	}
+}
+
+// relativeWithin returns path relative to base when path is base or inside it.
+func relativeWithin(base, path string) (string, bool) {
+	rel, err := filepath.Rel(filepath.Clean(base), path)
+	if err != nil {
+		return "", false
+	}
 	rel = filepath.Clean(rel)
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return rel, true
 }
 
 func (r *Runtime) storeReadStream(stream envhost.FileReadStream, cancel context.CancelFunc) string {

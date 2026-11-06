@@ -12,7 +12,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from provider_release import (ReleaseError, check_manifest, json_bytes, load_bundle,
+from provider_release import (RELEASED_CATEGORIES, ReleaseError, check_manifest, json_bytes, load_bundle,
                               merge_catalog, parse_json, require, safe_parts, version)
 
 
@@ -199,8 +199,19 @@ def published_entry(github, release, identity, target):
         return entry
 
 
+def main_manifest(github, plugin_id, branch):
+    failure = None
+    for category in RELEASED_CATEGORIES:
+        try:
+            manifest, _ = github.content(f"packages/{category}/{plugin_id}/nora-plugin.json", branch)
+            return manifest
+        except (GitHubError, ReleaseError) as error:
+            failure = error
+    raise ReleaseError(f"No released plugin source for {plugin_id} on {branch}") from failure
+
+
 def current_catalog(github, identity, branch, path):
-    manifest, _ = github.content(f"packages/{identity['id']}/nora-plugin.json", branch)
+    manifest = main_manifest(github, identity["id"], branch)
     manifest = parse_json(manifest, "main plugin manifest")
     require(isinstance(manifest, dict), "Main plugin manifest must be an object")
     check_manifest(manifest, {**identity, "version": manifest.get("version")})

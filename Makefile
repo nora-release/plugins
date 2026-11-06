@@ -11,7 +11,7 @@ PLUGIN_KIT_REV := $(shell sed -n 's/^nora-plugin-manifest = .*rev = "\([0-9a-f]*
 TOOLS_ROOT := $(CURDIR)/.build/tools/$(PLUGIN_KIT_REV)
 NORA_PLUGIN := $(TOOLS_ROOT)/bin/nora-plugin
 
-.PHONY: build package test test-scripts check fmt fmt-check marketplace marketplace-check
+.PHONY: build package test test-scripts check fmt fmt-check marketplace marketplace-check release-entry
 
 build:
 	CARGO="$(CARGO)" bash scripts/build-providers.sh build "$(PROVIDERS_OUTPUT)"
@@ -42,3 +42,8 @@ marketplace: $(NORA_PLUGIN)
 
 marketplace-check: $(NORA_PLUGIN)
 	"$(NORA_PLUGIN)" validate --registry "$(REGISTRY)" --catalog "$(CATALOG)" --verify-downloads
+
+# Describes a UI plugin release archive; leave TEAM empty for an ad-hoc signed release.
+release-entry: $(NORA_PLUGIN)
+	"$(NORA_PLUGIN)" release-entry --manifest "$(MANIFEST)" --archive "$(ARCHIVE)" \
+		--repository "$(REPOSITORY)" --tag "$(TAG)" --output "$(OUTPUT)" $(if $(TEAM),--team "$(TEAM)")

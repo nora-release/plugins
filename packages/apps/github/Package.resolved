@@ -1,0 +1,96 @@
+{
+  "originHash" : "dbdd492bc94c6cda81d478c9e7619134b7187a06c64845055cbf2fb4384479f9",
+  "pins" : [
+    {
+      "identity" : "displaylink",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Lakr233/DisplayLink.git",
+      "state" : {
+        "revision" : "41bea2661e04bebcb1c4f15fc0b6197850100fdd",
+        "version" : "3.0.1"
+      }
+    },
+    {
+      "identity" : "litext",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Lakr233/Litext",
+      "state" : {
+        "revision" : "87b33a002ae3539e8ec7d080abe86649a98e1c79",
+        "version" : "3.6.4"
+      }
+    },
+    {
+      "identity" : "lrucache",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nicklockwood/LRUCache",
+      "state" : {
+        "revision" : "f0570e943ea4445d258113ba73f50cb2b7e564ac",
+        "version" : "1.3.0"
+      }
+    },
+    {
+      "identity" : "markdownview",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Lakr233/MarkdownView.git",
+      "state" : {
+        "revision" : "a95d4e8d570365fde2267e93e64a067b6c5ab363",
+        "version" : "4.8.2"
+      }
+    },
+    {
+      "identity" : "plugin-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nora-release/plugin-kit.git",
+      "state" : {
+        "revision" : "5ce770d7030821e2fc1693b47acaf2cef46b0242",
+        "version" : "0.23.0"
+      }
+    },
+    {
+      "identity" : "shiki-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/fayazara/shiki-swift.git",
+      "state" : {
+        "revision" : "0a5fd5f8466a41d41abda12c974ce942c7908bc1",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "swift-cmark",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-cmark",
+      "state" : {
+        "revision" : "08ddb528923cc1a6527e02b7a1aee9e516ca749a",
+        "version" : "0.9.0"
+      }
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections",
+      "state" : {
+        "revision" : "35a1edcb8ebd2bfe251d587f0b69e62af28f508c",
+        "version" : "1.7.3"
+      }
+    },
+    {
+      "identity" : "swiftmath",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mgriebling/SwiftMath",
+      "state" : {
+        "revision" : "fa8244ed032f4a1ade4cb0571bf87d2f1a9fd2d7",
+        "version" : "1.7.3"
+      }
+    },
+    {
+      "identity" : "swiftsoup",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/scinfu/SwiftSoup.git",
+      "state" : {
+        "revision" : "49dcadd93161f4a44b4994d3a3e8de9f085aface",
+        "version" : "2.13.5"
+      }
+    }
+  ],
+  "version" : 3
+}

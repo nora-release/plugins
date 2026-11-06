@@ -63,7 +63,7 @@ if command != "build":
     raise SystemExit(0)
 manifest = Path(args[args.index("--manifest-path") + 1])
 if "--workspace" in args:
-    manifests = manifest.parent.glob("packages/*/Cargo.toml")
+    manifests = manifest.parent.glob("packages/*/*/Cargo.toml")
     packages = [tomllib.loads(path.read_text())["package"]["name"] for path in manifests]
 else:
     packages = [args[index + 1] for index, value in enumerate(args) if value == "--package"]
@@ -107,11 +107,11 @@ class ProviderBuildTests(unittest.TestCase):
         self.bin.mkdir()
         self.log = self.directory / "cargo.jsonl"
         self.tool_log = self.directory / "tool.jsonl"
-        (self.source / "Cargo.toml").write_text('[workspace]\nmembers = ["packages/runtime", "packages/openai", "packages/anthropic"]\n')
+        (self.source / "Cargo.toml").write_text('[workspace]\nmembers = ["packages/crates/runtime", "packages/providers/openai", "packages/providers/anthropic"]\n')
         for identity in ["openai", "anthropic", "compatible"]:
             self.add_provider(identity, native=identity != "compatible")
-        runtime = self.source / "packages/runtime"
-        runtime.mkdir()
+        runtime = self.source / "packages/crates/runtime"
+        runtime.mkdir(parents=True)
         (runtime / "Cargo.toml").write_text('[package]\nname = "nora-provider"\nversion = "1.0.0"\n')
         (self.source / "LICENSE").write_text("fixture project license")
         (self.source / "LICENSES").mkdir()
@@ -143,7 +143,7 @@ class ProviderBuildTests(unittest.TestCase):
         path.chmod(0o755)
 
     def add_provider(self, identity, native=True):
-        source = self.source / "packages" / identity
+        source = self.source / "packages/providers" / identity
         source.mkdir(parents=True)
         manifest = {"apiVersion":2,"id":identity,"name":identity,"version":"1.2.1",
                     "runtime":{"entry":"provider"},"contributes":{"provider":{}}}
@@ -262,7 +262,7 @@ class ProviderBuildTests(unittest.TestCase):
         self.assertFalse(self.output.exists())
 
     def test_manifest_identity_mismatch_is_rejected_before_building(self):
-        path = self.source / "packages/openai/nora-plugin.json"
+        path = self.source / "packages/providers/openai/nora-plugin.json"
         manifest = json.loads(path.read_text())
         manifest["id"] = "other"
         path.write_text(json.dumps(manifest))
@@ -290,7 +290,7 @@ class ProviderBuildTests(unittest.TestCase):
         self.assertEqual(list(self.directory.glob(".providers-*.??????")), [])
 
     def test_native_crate_name_is_read_from_the_selected_source_manifest(self):
-        manifest = self.source / "packages/openai/Cargo.toml"
+        manifest = self.source / "packages/providers/openai/Cargo.toml"
         manifest.write_text('[package]\nname = "custom-openai-binary"\nversion = "1.0.0"\n')
         self.assert_success(self.run_script("package-providers.sh", self.output))
         self.assertEqual(self.packages(self.calls()[0]), ["custom-openai-binary", "nora-provider"])

@@ -60,6 +60,19 @@ def check_sign_ins(sign_ins):
                         for key, value in inputs.items()), "Invalid local sign-in inputs")
 
 
+# Category folders under packages/ whose plugins are released as provider packages.
+RELEASED_CATEGORIES = ("providers", "middleware")
+
+
+def manifest_path(root, plugin_id):
+    """The source manifest of a released plugin, in whichever category holds it."""
+    for category in RELEASED_CATEGORIES:
+        path = Path(root) / "packages" / category / plugin_id / "nora-plugin.json"
+        if path.is_file():
+            return path
+    raise ReleaseError(f"No released plugin source for {plugin_id}")
+
+
 def require(condition, message):
     if not condition:
         raise ReleaseError(message)
@@ -192,7 +205,7 @@ def check_upgrade(catalog, release):
 
 def validate(tag, repo, root, catalog):
     release = identity(tag, repo)
-    check_manifest(read_json(Path(root) / "packages" / release["id"] / "nora-plugin.json"), release)
+    check_manifest(read_json(manifest_path(root, release["id"])), release)
     current = check_upgrade(read_json(catalog), release)
     return {**release, "rerun": current is not None and current["version"] == release["version"]}
 

@@ -5,7 +5,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Current tooling may build a previous source checkout; selection is optional
 # so existing local workspace builds keep preparing every provider.
 REPO_ROOT="$(cd "${NORA_PROVIDER_SOURCE_ROOT:-${SCRIPT_DIR}/..}" && pwd)"
-PROVIDERS_ROOT="${REPO_ROOT}/packages"
+# Providers and middleware are both released as provider packages.
+PLUGIN_ROOTS=("${REPO_ROOT}/packages/providers" "${REPO_ROOT}/packages/middleware")
+PACKAGES_ROOT="${REPO_ROOT}/packages"
+# Prints the source directory of a released plugin, or nothing when no category has it.
+plugin_directory() {
+  local root
+  for root in "${PLUGIN_ROOTS[@]}"; do
+    if [[ -f "${root}/$1/nora-plugin.json" ]]; then
+      printf '%s\n' "${root}/$1"
+      return
+    fi
+  done
+}
 MANIFEST_PATH="${REPO_ROOT}/Cargo.toml"
 CARGO_BIN="${CARGO:-cargo}"
 MODE="${1:-build}"
@@ -16,11 +28,11 @@ PROVIDER_ID="${PROVIDER_ID:-}"
 PROVIDER_PACKAGE="nora-provider"
 PROVIDER_BINARY="nora-provider"
 if [[ -n "${PROVIDER_ID}" ]]; then
-  if [[ ! "${PROVIDER_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ || ! -f "${PROVIDERS_ROOT}/${PROVIDER_ID}/nora-plugin.json" ]]; then
+  if [[ ! "${PROVIDER_ID}" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ || -z "$(plugin_directory "${PROVIDER_ID}")" ]]; then
     echo "Choose an existing provider ID: ${PROVIDER_ID}" >&2
     exit 2
   fi
-  PROVIDER_PACKAGE="$(python3 - "${PROVIDERS_ROOT}/${PROVIDER_ID}" "${PROVIDER_ID}" <<'PY'
+  PROVIDER_PACKAGE="$(python3 - "$(plugin_directory "${PROVIDER_ID}")" "${PROVIDER_ID}" <<'PY'
 import json
 from pathlib import Path
 import sys
@@ -102,7 +114,7 @@ case "$(basename "${OUTPUT}")" in
 esac
 mkdir -p "$(dirname "${OUTPUT}")"
 OUTPUT="$(cd "$(dirname "${OUTPUT}")" && pwd)/$(basename "${OUTPUT}")"
-if [[ "${REPO_ROOT}/" == "${OUTPUT}/"* || "${OUTPUT}/" == "${PROVIDERS_ROOT}/"* || -e "${OUTPUT}/Cargo.toml" || -e "${OUTPUT}/.git" || -L "${OUTPUT}" ]]; then
+if [[ "${REPO_ROOT}/" == "${OUTPUT}/"* || "${OUTPUT}/" == "${PACKAGES_ROOT}/"* || -e "${OUTPUT}/Cargo.toml" || -e "${OUTPUT}/.git" || -L "${OUTPUT}" ]]; then
   echo "The provider output must be a dedicated directory outside the source packages: ${OUTPUT}" >&2
   exit 2
 fi
@@ -176,11 +188,14 @@ stage_provider() {
 }
 
 stage_provider nora-provider
-DEFINITIONS="${PROVIDERS_ROOT}"
 if [[ -n "${PROVIDER_ID}" ]]; then
-  DEFINITIONS="${PROVIDERS_ROOT}/${PROVIDER_ID}/nora-plugin.json"
+  "${STAGING_ROOT}/runtime/nora-provider" --prepare \
+    "$(plugin_directory "${PROVIDER_ID}")/nora-plugin.json" "${STAGING_ROOT}/providers"
+else
+  for root in "${PLUGIN_ROOTS[@]}"; do
+    "${STAGING_ROOT}/runtime/nora-provider" --prepare "${root}" "${STAGING_ROOT}/providers"
+  done
 fi
-"${STAGING_ROOT}/runtime/nora-provider" --prepare "${DEFINITIONS}" "${STAGING_ROOT}/providers"
 
 PACKAGE_COUNT=0
 for manifest in "${STAGING_ROOT}/providers"/*/nora-plugin.json; do
@@ -197,7 +212,7 @@ for manifest in "${STAGING_ROOT}/providers"/*/nora-plugin.json; do
     if [[ "${binary_name}" != nora-provider ]]; then
       stage_provider "${binary_name}"
     fi
-  elif [[ -f "${PROVIDERS_ROOT}/${provider_id}/Cargo.toml" ]]; then
+  elif [[ -f "$(plugin_directory "${provider_id}")/Cargo.toml" ]]; then
     binary_name="nora-provider-${provider_id}"
     stage_provider "${binary_name}"
   fi

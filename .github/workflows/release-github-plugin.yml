@@ -1,0 +1,111 @@
+name: Release GitHub plugin
+
+# Bump packages/apps/github/nora-plugin.json on main, then push github-vX.Y.Z.
+on:
+  push:
+    tags: ['github-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-plugin-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: packages/apps/github
+    steps:
+      - name: Checkout tagged plugin
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Require a reviewed commit and an unused release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$GITHUB_SHA" "origin/$DEFAULT_BRANCH"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            printf 'This tag already has a release; use a new version.\n' >&2
+            exit 1
+          fi
+      - name: Resolve and test native Swift plugin
+        run: make install test
+      - name: Build universal application without signing credentials
+        # The build tool checks v + the manifest version; the release itself keeps the github- prefix.
+        run: python3 .build/checkouts/plugin-kit/scripts/build-distribution.py --config plugin-release.json --output dist --tag "v${GITHUB_REF_NAME#github-v}"
+      # Nora trusts releases listed in this reviewed catalog by checksum, so they are ad-hoc
+      # signed with App Sandbox instead of Developer ID signed and notarized.
+      - name: Ad-hoc sign with App Sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin_apps=(dist/*.app)
+          [[ ${#plugin_apps[@]} == 1 && -d "${plugin_apps[0]}" ]]
+          plugin_app="${plugin_apps[0]}"
+          entitlements="$RUNNER_TEMP/sandbox.entitlements"
+          python3 -c 'import plistlib, sys; open(sys.argv[1], "wb").write(plistlib.dumps({"com.apple.security.app-sandbox": True}))' "$entitlements"
+          for bundle in "$plugin_app/Contents/Extensions/NativePlugin.appex" "$plugin_app"; do
+            codesign --force --sign - --options runtime --entitlements "$entitlements" "$bundle"
+          done
+          codesign --verify --deep --strict "$plugin_app"
+      - name: Archive and describe the release
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin_apps=(dist/*.app)
+          plugin_app="${plugin_apps[0]}"
+          manifest="$plugin_app/Contents/Resources/nora-plugin.json"
+          archive="dist/$(python3 -c 'import json, re, sys; m = json.load(open(sys.argv[1])); print(m["id"] + "-" + re.sub("[^A-Za-z0-9._-]", "-", m["version"]) + "-macos-universal.zip")' "$manifest")"
+          ditto -c -k --keepParent "$plugin_app" "$archive"
+          make -C "$GITHUB_WORKSPACE" release-entry MANIFEST="$PWD/$manifest" ARCHIVE="$PWD/$archive" \
+            REPOSITORY="https://github.com/$GITHUB_REPOSITORY" TAG="$GITHUB_REF_NAME" OUTPUT="$PWD/dist"
+      - name: Preserve verified release assets
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: native-plugin-release
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            packages/apps/github/dist/*.zip
+            packages/apps/github/dist/marketplace.json
+            packages/apps/github/dist/nora-plugin.json
+            packages/apps/github/dist/SHA256SUMS
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified assets
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: native-plugin-release
+          path: dist
+      - name: Create a new versioned release without replacing existing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --draft --title "$GITHUB_REF_NAME" --notes 'Signed and notarized native Nora plugin.'
+          # Provider releases share this repository, so a plugin release never becomes "latest".
+          version="${GITHUB_REF_NAME#github-v}"
+          if [[ "${version%%+*}" == *-* ]]; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+          fi

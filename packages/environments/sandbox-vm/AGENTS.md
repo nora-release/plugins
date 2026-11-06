@@ -1,6 +1,6 @@
 # Sandbox VM
 
-This file provides guidance to coding agents working in `packages/sandbox/`, Nora's pure sandbox VM control library.
+This file provides guidance to coding agents working in `packages/environments/sandbox-vm/`, the sandbox VM control library Nora used to bundle. It is kept here to become an optional environment plugin; see README.md for its status.
 
 ## What This Component Is
 
@@ -29,7 +29,7 @@ macos (SwiftUI)
 ## Directory Map
 
 ```text
-packages/sandbox/
+packages/environments/sandbox-vm/
 ├── cmd/
 │   └── vmd/
 ├── sdk/apple/               gomobile-facing runtime API
@@ -48,7 +48,7 @@ Prefer root Makefile targets:
 - `make build-go` build the sandbox framework target
 - `make test-go` run Go tests
 
-Use component targets when working directly inside `packages/sandbox`:
+Use component targets when working directly inside `packages/environments/sandbox-vm`:
 
 - `make framework` build the local-vm runtime artifact (current filename: `dist/SandboxVM.xcframework`)
 - `make vm` build VM kernel/rootfs assets

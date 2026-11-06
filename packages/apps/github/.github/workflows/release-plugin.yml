@@ -1,0 +1,114 @@
+name: Release native Nora plugin
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-plugin-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: macos-15
+    environment: plugin-release
+    timeout-minutes: 60
+    steps:
+      - name: Checkout tagged plugin
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Require a reviewed commit and an unused release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$GITHUB_SHA" "origin/$DEFAULT_BRANCH"
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            printf 'This tag already has a release; use a new version.\n' >&2
+            exit 1
+          fi
+      - name: Resolve and test native Swift plugin
+        run: make install test
+      - name: Build universal application without signing credentials
+        run: python3 .build/checkouts/plugin-kit/scripts/build-distribution.py --config plugin-release.json --output dist --tag "$GITHUB_REF_NAME"
+      - name: Sign and notarize
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          NORA_PLUGIN_SIGNING_IDENTITY: ${{ vars.DEVELOPER_ID_APPLICATION_IDENTITY }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          signing_directory="$(mktemp -d "$RUNNER_TEMP/nora-plugin-signing.XXXXXX")"
+          export NORA_PLUGIN_KEYCHAIN_PATH="$signing_directory/signing.keychain-db"
+          export NORA_PLUGIN_NOTARY_PROFILE=nora-plugin-notary
+          trap 'security delete-keychain "$NORA_PLUGIN_KEYCHAIN_PATH" >/dev/null 2>&1 || true; rm -rf "$signing_directory"' EXIT
+          signing_password="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+          printf '::add-mask::%s\n' "$signing_password"
+          python3 - "$signing_directory" <<'PY'
+          import base64, os, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          (root / 'certificate.p12').write_bytes(base64.b64decode(os.environ['DEVELOPER_ID_P12_BASE64'], validate=True))
+          (root / 'AuthKey.p8').write_text(os.environ['APPLE_API_KEY_P8'])
+          PY
+          security create-keychain -p "$signing_password" "$NORA_PLUGIN_KEYCHAIN_PATH"
+          security set-keychain-settings -lut 3600 "$NORA_PLUGIN_KEYCHAIN_PATH"
+          security unlock-keychain -p "$signing_password" "$NORA_PLUGIN_KEYCHAIN_PATH"
+          security import "$signing_directory/certificate.p12" -k "$NORA_PLUGIN_KEYCHAIN_PATH" \
+            -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$signing_password" "$NORA_PLUGIN_KEYCHAIN_PATH" >/dev/null
+          xcrun notarytool store-credentials "$NORA_PLUGIN_NOTARY_PROFILE" --key "$signing_directory/AuthKey.p8" \
+            --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --keychain "$NORA_PLUGIN_KEYCHAIN_PATH" >/dev/null
+          plugin_apps=(dist/*.app)
+          [[ ${#plugin_apps[@]} == 1 && -d "${plugin_apps[0]}" ]]
+          bash .build/checkouts/plugin-kit/scripts/publish-native-plugin.sh "${plugin_apps[0]}" dist "https://github.com/$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" "$APPLE_TEAM_ID"
+      - name: Preserve verified release assets
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: native-plugin-release
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/*.zip
+            dist/marketplace.json
+            dist/nora-plugin.json
+            dist/SHA256SUMS
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified assets
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: native-plugin-release
+          path: dist
+      - name: Create a new versioned release without replacing existing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --draft --title "$GITHUB_REF_NAME" --notes 'Signed and notarized native Nora plugin.'
+          if [[ "${GITHUB_REF_NAME%%+*}" == *-* ]]; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
+          else
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          fi

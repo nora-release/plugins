@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "packagePath": ".",
+  "manifestPath": "nora-plugin.json",
+  "hostProduct": "PluginHost",
+  "extensionProduct": "PluginExtension",
+  "extensionPrincipalClass": "PluginExtension.GitHubPlugin",
+  "minimumSystemVersion": "14.0",
+  "hostResources": [
+    "assets"
+  ],
+  "extensionResources": [
+    ".build/apple/Products/Release/NoraGitHub_GitHubUI.bundle",
+    ".build/apple/Products/Release/NoraGitHub_GitHubCore.bundle",
+    ".build/apple/Products/Release/ShikiSwift_Shiki.bundle"
+  ]
+}

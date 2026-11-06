@@ -1,0 +1,7 @@
+{
+  "uiVersion": "5.51.2",
+  "languageNamesSource": "shiki@4.3.1 bundledLanguagesInfo",
+  "fileIconSource": "@lobehub/assets-fileicon@1.0.0 assets/*.svg",
+  "iconMappingSource": "lobehub/lobe-ui e7fa3d9 src/MaterialFileTypeIcon/icon-map.json",
+  "format": "Original SVG converted to vector PDF with CairoSVG 2.9.1"
+}

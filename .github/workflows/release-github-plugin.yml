@@ -1,8 +1,9 @@
-name: Release native Nora plugin
+name: Release GitHub plugin
 
+# Bump packages/apps/github/nora-plugin.json on main, then push github-vX.Y.Z.
 on:
   push:
-    tags: ['v*']
+    tags: ['github-v*']
 
 permissions:
   contents: read
@@ -16,6 +17,9 @@ jobs:
     runs-on: macos-15
     environment: plugin-release
     timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: packages/apps/github
     steps:
       - name: Checkout tagged plugin
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -41,7 +45,8 @@ jobs:
       - name: Resolve and test native Swift plugin
         run: make install test
       - name: Build universal application without signing credentials
-        run: python3 .build/checkouts/plugin-kit/scripts/build-distribution.py --config plugin-release.json --output dist --tag "$GITHUB_REF_NAME"
+        # The build tool checks v + the manifest version; the release itself keeps the github- prefix.
+        run: python3 .build/checkouts/plugin-kit/scripts/build-distribution.py --config plugin-release.json --output dist --tag "v${GITHUB_REF_NAME#github-v}"
       - name: Sign and notarize
         env:
           DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
@@ -84,10 +89,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: |
-            dist/*.zip
-            dist/marketplace.json
-            dist/nora-plugin.json
-            dist/SHA256SUMS
+            packages/apps/github/dist/*.zip
+            packages/apps/github/dist/marketplace.json
+            packages/apps/github/dist/nora-plugin.json
+            packages/apps/github/dist/SHA256SUMS
   publish:
     needs: prepare
     runs-on: ubuntu-latest
@@ -107,8 +112,10 @@ jobs:
           set -euo pipefail
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
             --draft --title "$GITHUB_REF_NAME" --notes 'Signed and notarized native Nora plugin.'
-          if [[ "${GITHUB_REF_NAME%%+*}" == *-* ]]; then
+          # Provider releases share this repository, so a plugin release never becomes "latest".
+          version="${GITHUB_REF_NAME#github-v}"
+          if [[ "${version%%+*}" == *-* ]]; then
             gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false
           else
-            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
           fi

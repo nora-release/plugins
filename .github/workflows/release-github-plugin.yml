@@ -15,7 +15,6 @@ concurrency:
 jobs:
   prepare:
     runs-on: macos-15
-    environment: plugin-release
     timeout-minutes: 60
     defaults:
       run:
@@ -47,41 +46,32 @@ jobs:
       - name: Build universal application without signing credentials
         # The build tool checks v + the manifest version; the release itself keeps the github- prefix.
         run: python3 .build/checkouts/plugin-kit/scripts/build-distribution.py --config plugin-release.json --output dist --tag "v${GITHUB_REF_NAME#github-v}"
-      - name: Sign and notarize
-        env:
-          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
-          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
-          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-          NORA_PLUGIN_SIGNING_IDENTITY: ${{ vars.DEVELOPER_ID_APPLICATION_IDENTITY }}
-          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      # Nora trusts releases listed in this reviewed catalog by checksum, so they are ad-hoc
+      # signed with App Sandbox instead of Developer ID signed and notarized.
+      - name: Ad-hoc sign with App Sandbox
         shell: bash
         run: |
           set -euo pipefail
-          signing_directory="$(mktemp -d "$RUNNER_TEMP/nora-plugin-signing.XXXXXX")"
-          export NORA_PLUGIN_KEYCHAIN_PATH="$signing_directory/signing.keychain-db"
-          export NORA_PLUGIN_NOTARY_PROFILE=nora-plugin-notary
-          trap 'security delete-keychain "$NORA_PLUGIN_KEYCHAIN_PATH" >/dev/null 2>&1 || true; rm -rf "$signing_directory"' EXIT
-          signing_password="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
-          printf '::add-mask::%s\n' "$signing_password"
-          python3 - "$signing_directory" <<'PY'
-          import base64, os, pathlib, sys
-          root = pathlib.Path(sys.argv[1])
-          (root / 'certificate.p12').write_bytes(base64.b64decode(os.environ['DEVELOPER_ID_P12_BASE64'], validate=True))
-          (root / 'AuthKey.p8').write_text(os.environ['APPLE_API_KEY_P8'])
-          PY
-          security create-keychain -p "$signing_password" "$NORA_PLUGIN_KEYCHAIN_PATH"
-          security set-keychain-settings -lut 3600 "$NORA_PLUGIN_KEYCHAIN_PATH"
-          security unlock-keychain -p "$signing_password" "$NORA_PLUGIN_KEYCHAIN_PATH"
-          security import "$signing_directory/certificate.p12" -k "$NORA_PLUGIN_KEYCHAIN_PATH" \
-            -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$signing_password" "$NORA_PLUGIN_KEYCHAIN_PATH" >/dev/null
-          xcrun notarytool store-credentials "$NORA_PLUGIN_NOTARY_PROFILE" --key "$signing_directory/AuthKey.p8" \
-            --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --keychain "$NORA_PLUGIN_KEYCHAIN_PATH" >/dev/null
           plugin_apps=(dist/*.app)
           [[ ${#plugin_apps[@]} == 1 && -d "${plugin_apps[0]}" ]]
-          bash .build/checkouts/plugin-kit/scripts/publish-native-plugin.sh "${plugin_apps[0]}" dist "https://github.com/$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" "$APPLE_TEAM_ID"
+          plugin_app="${plugin_apps[0]}"
+          entitlements="$RUNNER_TEMP/sandbox.entitlements"
+          python3 -c 'import plistlib, sys; open(sys.argv[1], "wb").write(plistlib.dumps({"com.apple.security.app-sandbox": True}))' "$entitlements"
+          for bundle in "$plugin_app/Contents/Extensions/NativePlugin.appex" "$plugin_app"; do
+            codesign --force --sign - --options runtime --entitlements "$entitlements" "$bundle"
+          done
+          codesign --verify --deep --strict "$plugin_app"
+      - name: Archive and describe the release
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin_apps=(dist/*.app)
+          plugin_app="${plugin_apps[0]}"
+          manifest="$plugin_app/Contents/Resources/nora-plugin.json"
+          archive="dist/$(python3 -c 'import json, re, sys; m = json.load(open(sys.argv[1])); print(m["id"] + "-" + re.sub("[^A-Za-z0-9._-]", "-", m["version"]) + "-macos-universal.zip")' "$manifest")"
+          ditto -c -k --keepParent "$plugin_app" "$archive"
+          make -C "$GITHUB_WORKSPACE" release-entry MANIFEST="$PWD/$manifest" ARCHIVE="$PWD/$archive" \
+            REPOSITORY="https://github.com/$GITHUB_REPOSITORY" TAG="$GITHUB_REF_NAME" OUTPUT="$PWD/dist"
       - name: Preserve verified release assets
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:

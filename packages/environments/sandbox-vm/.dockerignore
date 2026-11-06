@@ -1,0 +1,12 @@
+# Exclude everything by default
+*
+
+# Include source needed for VM/rootfs image builds.
+!go.mod
+!go.sum
+!cmd/vmd/
+!internal/
+!pkg/
+!scripts/
+!vmbuild/
+!resources/

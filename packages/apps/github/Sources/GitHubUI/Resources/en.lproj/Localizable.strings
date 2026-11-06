@@ -1,3 +1,7 @@
+"%@ merged into %@ from %@" = "%1$@ merged into %2$@ from %3$@";
+"%@ opened this %@" = "%1$@ opened this %2$@";
+"%@ wants to merge into %@ from %@" = "%1$@ wants to merge into %2$@ from %3$@";
+"%lld comments" = "%lld comments";
 "%lld commit updates" = "%lld commit updates";
 "%lld commits" = "%lld commits";
 "Added label" = "Added label";
@@ -14,6 +18,7 @@
 "Changed the title" = "Changed the title";
 "Changes requested" = "Changes requested";
 "Checks" = "Checks";
+"Closed" = "Closed";
 "Closed this item" = "Closed this item";
 "Code" = "Code";
 "Collaborator" = "Collaborator";
@@ -41,6 +46,7 @@
 "Dismissed" = "Dismissed";
 "Dismissed a review" = "Dismissed a review";
 "Done" = "Done";
+"Draft" = "Draft";
 "Enabled automatic merge" = "Enabled automatic merge";
 "Enter this code on GitHub:" = "Enter this code on GitHub:";
 "Expanded" = "Expanded";
@@ -52,6 +58,7 @@
 "Image unavailable" = "Image unavailable";
 "Important" = "Important";
 "Incomplete" = "Incomplete";
+"Issues" = "Issues";
 "Keep all commits and add a merge commit." = "Keep all commits and add a merge commit.";
 "Labels" = "Labels";
 "Leave a comment" = "Leave a comment";
@@ -63,6 +70,7 @@
 "Member" = "Member";
 "Mentioned this item" = "Mentioned this item";
 "Merge pull request" = "Merge pull request";
+"Merged" = "Merged";
 "Merged this pull request" = "Merged this pull request";
 "Milestone" = "Milestone";
 "No assignees" = "No assignees";
@@ -80,15 +88,18 @@
 "Note" = "Note";
 "Open" = "Open";
 "Open GitHub" = "Open GitHub";
+"Open on GitHub" = "Open on GitHub";
 "Owner" = "Owner";
 "Pending review" = "Pending review";
 "Pinned this item" = "Pinned this item";
 "Preparing preview…" = "Preparing preview…";
 "Preview" = "Preview";
+"Pull requests" = "Pull requests";
 "Re-run" = "Re-run";
 "Read the discussion, review changes, and hand work to Nora." = "Read the discussion, review changes, and hand work to Nora.";
 "Reconnect Account" = "Reconnect Account";
 "Referenced in" = "Referenced in";
+"Refresh" = "Refresh";
 "Related to me" = "Related to me";
 "Removed a review request" = "Removed a review request";
 "Removed from merge queue" = "Removed from merge queue";
@@ -122,4 +133,3 @@
 "Write" = "Write";
 "You're all caught up." = "You're all caught up.";
 "Your issues, reviews, and pull requests in one place." = "Your issues, reviews, and pull requests in one place.";
-"Refresh" = "Refresh";

@@ -14,7 +14,7 @@ struct GitHubDiscussionCard: View {
                 HStack(spacing: 8) {
                     Text(value.person.login).font(.system(size: 12, weight: .semibold)).lineLimit(1)
                     Spacer(minLength: 8)
-                    GitHubDate(date: value.eventDate)
+                    GitHubDate(date: value.eventDate, relative: true)
                     if let status = reviewStatus {
                         Label(status.title, systemImage: status.symbol)
                             .font(.system(size: 10, weight: .medium)).foregroundStyle(status.color)
@@ -99,7 +99,7 @@ struct GitHubEventRow: View {
             if !entry.value.shortSHA.isEmpty {
                 Text(entry.value.shortSHA).font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
             }
-            GitHubDate(date: entry.date)
+            GitHubDate(date: entry.date, relative: true)
         }
         .frame(minHeight: 28).padding(.horizontal, 3)
     }

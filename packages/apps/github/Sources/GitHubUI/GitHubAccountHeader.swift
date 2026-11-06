@@ -11,17 +11,15 @@ struct GitHubAccountHeader<Avatar: View, Actions: View>: View {
             Menu {
                 actions
             } label: {
-                HStack(spacing: 8) {
-                    Text(login).fontWeight(.semibold).lineLimit(1)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.down").font(.system(size: 10)).foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
-                .contentShape(Rectangle())
+                Text(login).fontWeight(.semibold).lineLimit(1)
+                    .frame(minHeight: 28, maxHeight: 28)
+                    .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden)
+            // A borderless menu centers its label in the space it is given, so it hugs its label instead.
+            .menuStyle(.borderlessButton).menuIndicator(.visible).fixedSize()
             .frame(height: 28)
             .accessibilityIdentifier("github.account.menu")
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 12)
         .frame(height: 48)

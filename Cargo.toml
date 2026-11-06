@@ -105,7 +105,7 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 nora-network = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779", features = ["ipv4-fallback"] }
-nora-plugin-manifest = { git = "https://github.com/nora-release/plugin-kit", rev = "8b41d8e90791d73660732e7d56a5cef802287175" }
+nora-plugin-manifest = { git = "https://github.com/nora-release/plugin-kit", rev = "e7d93704b5a0b2549f6152d153f4da962b761356" }
 nora-ai = { git = "https://github.com/nora-release/nora.git", rev = "d8e98dde126803eddae3560152847f23c4977694" }
 nora-provider-plugin-sdk = { git = "https://github.com/nora-release/plugin-kit", rev = "def945a909fd7c89e452d1a415ada353ee252779", features = ["ipv4-fallback"] }
 

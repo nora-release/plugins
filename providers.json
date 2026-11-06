@@ -7,7 +7,7 @@
       "name": "302.AI",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/302ai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/302ai",
       "contributes": [
         "provider"
       ],
@@ -24,7 +24,7 @@
       "name": "AiHubMix",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/aihubmix",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/aihubmix",
       "contributes": [
         "provider"
       ],
@@ -41,7 +41,7 @@
       "name": "Amazon Bedrock",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/amazon-bedrock",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/amazon-bedrock",
       "contributes": [
         "provider"
       ],
@@ -58,7 +58,7 @@
       "name": "Amazon Bedrock (Mantle)",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/amazon-bedrock-mantle",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/amazon-bedrock-mantle",
       "contributes": [
         "provider"
       ],
@@ -75,7 +75,7 @@
       "name": "Anthropic",
       "description": "Claude subscriptions use the installed Claude Code in an isolated account profile; API keys use Anthropic HTTP directly.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/anthropic",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/anthropic",
       "contributes": [
         "provider"
       ],
@@ -102,7 +102,7 @@
       "name": "Antigravity",
       "description": "Connect Antigravity with Google sign-in or an explicitly selected read-only account file.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/antigravity",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/antigravity",
       "contributes": [
         "provider"
       ],
@@ -119,7 +119,7 @@
       "name": "Antigravity Cloak",
       "description": "Adapt Claude Code and Claude Agent SDK system prompts only for Antigravity.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/antigravity-cloak",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/antigravity-cloak",
       "contributes": [
         "middleware"
       ],
@@ -136,7 +136,7 @@
       "name": "AutoClaw",
       "description": "Connect AutoClaw with Google or z.ai web sign-in, with account credits and optional daily check-in.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/autoclaw",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/autoclaw",
       "contributes": [
         "provider"
       ],
@@ -153,7 +153,7 @@
       "name": "AutoClaw CN",
       "description": "Connect AutoClaw CN with a phone verification code, with account credits and optional daily check-in.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/autoclaw-cn",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/autoclaw-cn",
       "contributes": [
         "provider"
       ],
@@ -170,7 +170,7 @@
       "name": "Azure OpenAI Responses",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/azure-openai-responses",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/azure-openai-responses",
       "contributes": [
         "provider"
       ],
@@ -187,7 +187,7 @@
       "name": "Baidu Qianfan",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/baidu-qianfan",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/baidu-qianfan",
       "contributes": [
         "provider"
       ],
@@ -204,7 +204,7 @@
       "name": "Bailian Decision Model",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/bailian-decision",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/bailian-decision",
       "contributes": [
         "provider"
       ],
@@ -221,7 +221,7 @@
       "name": "Bailian Token Plan",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/bailian-token-plan",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/bailian-token-plan",
       "contributes": [
         "provider"
       ],
@@ -238,7 +238,7 @@
       "name": "Block Patterns",
       "description": "Reject requests containing configured text or regular-expression patterns.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/block-patterns",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/block-patterns",
       "contributes": [
         "middleware"
       ],
@@ -255,7 +255,7 @@
       "name": "Brave Search",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/brave-search",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/brave-search",
       "contributes": [
         "provider"
       ],
@@ -272,7 +272,7 @@
       "name": "Cerebras",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cerebras",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/cerebras",
       "contributes": [
         "provider"
       ],
@@ -289,7 +289,7 @@
       "name": "ChatGPT API",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/chatgpt-api",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/chatgpt-api",
       "contributes": [
         "provider"
       ],
@@ -306,7 +306,7 @@
       "name": "CherryIN",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cherryin",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/cherryin",
       "contributes": [
         "provider"
       ],
@@ -323,7 +323,7 @@
       "name": "Cline",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cline",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/cline",
       "contributes": [
         "provider"
       ],
@@ -340,7 +340,7 @@
       "name": "ClinePass",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/clinepass",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/clinepass",
       "contributes": [
         "provider"
       ],
@@ -357,7 +357,7 @@
       "name": "Cloudflare AI Gateway",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cloudflare-ai-gateway",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/cloudflare-ai-gateway",
       "contributes": [
         "provider"
       ],
@@ -374,7 +374,7 @@
       "name": "Cloudflare Workers AI · Jev, Clef",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cloudflare-jev",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/cloudflare-jev",
       "contributes": [
         "provider"
       ],
@@ -391,7 +391,7 @@
       "name": "Cloudflare Workers AI",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cloudflare-workers-ai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/cloudflare-workers-ai",
       "contributes": [
         "provider"
       ],
@@ -408,7 +408,7 @@
       "name": "CodeArts",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/codearts",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/codearts",
       "contributes": [
         "provider"
       ],
@@ -425,7 +425,7 @@
       "name": "Codex History",
       "description": "Choose Codex Responses history compatibility separately for each provider.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/codex-history",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/codex-history",
       "contributes": [
         "middleware"
       ],
@@ -442,7 +442,7 @@
       "name": "Command Code",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/commandcode",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/commandcode",
       "contributes": [
         "provider"
       ],
@@ -459,7 +459,7 @@
       "name": "Command Code Plan",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/commandcode-plan",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/commandcode-plan",
       "contributes": [
         "provider"
       ],
@@ -476,7 +476,7 @@
       "name": "Custom Provider",
       "description": "Connect any OpenAI, Anthropic, or Gemini compatible service.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/compatible",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/compatible",
       "contributes": [
         "provider"
       ],
@@ -493,7 +493,7 @@
       "name": "Cursor",
       "description": "Cursor subscriptions through Cursor Agent Connect. Only the tools advertised by Nora may run.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/cursor",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/cursor",
       "contributes": [
         "provider"
       ],
@@ -510,7 +510,7 @@
       "name": "DeepSeek",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/deepseek",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/deepseek",
       "contributes": [
         "provider"
       ],
@@ -527,7 +527,7 @@
       "name": "DeepSeek Search",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/deepseek-search",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/deepseek-search",
       "contributes": [
         "provider"
       ],
@@ -544,7 +544,7 @@
       "name": "Devin",
       "description": "Devin CLI subscription service through native Connect protobuf. A CLI source is read only when explicitly selected.",
       "version": "1.1.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/devin",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/devin",
       "contributes": [
         "provider"
       ],
@@ -561,7 +561,7 @@
       "name": "Exa",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/exa-search",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/exa-search",
       "contributes": [
         "provider"
       ],
@@ -578,7 +578,7 @@
       "name": "Factory",
       "description": "Factory subscriptions and API keys. Models follow the Droid registry; account billing limits are queried live.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/factory",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/factory",
       "contributes": [
         "provider"
       ],
@@ -595,7 +595,7 @@
       "name": "Firecrawl",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/firecrawl",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/firecrawl",
       "contributes": [
         "provider"
       ],
@@ -612,7 +612,7 @@
       "name": "Fireworks",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/fireworks",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/fireworks",
       "contributes": [
         "provider"
       ],
@@ -629,7 +629,7 @@
       "name": "GCP AI",
       "description": "Use your own Google Cloud ADC or gcloud account for Vertex AI, with promotional-credit balance from the same Google account in Chrome.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gcp-ai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/gcp-ai",
       "contributes": [
         "provider"
       ],
@@ -646,7 +646,7 @@
       "name": "Gemini CLI",
       "description": "Connect Gemini CLI with Google sign-in. The current Gemini CLI login is discovered automatically and renewed in its original file.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gemini-cli",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/gemini-cli",
       "contributes": [
         "provider"
       ],
@@ -672,7 +672,7 @@
       "name": "GitHub Copilot",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/github-copilot",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/github-copilot",
       "contributes": [
         "provider"
       ],
@@ -698,7 +698,7 @@
       "name": "Google Gemini",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/google-gemini",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/google-gemini",
       "contributes": [
         "provider"
       ],
@@ -715,7 +715,7 @@
       "name": "Google Vertex AI",
       "description": "Use your Google Cloud project and an explicitly connected Application Default Credentials file, service account key, or service account impersonation.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/google-vertex",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/google-vertex",
       "contributes": [
         "provider"
       ],
@@ -732,7 +732,7 @@
       "name": "Groq",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/groq",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/groq",
       "contributes": [
         "provider"
       ],
@@ -749,7 +749,7 @@
       "name": "Huawei Cloud MaaS",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/huaweicloud",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/huaweicloud",
       "contributes": [
         "provider"
       ],
@@ -766,7 +766,7 @@
       "name": "Hugging Face",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/huggingface",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/huggingface",
       "contributes": [
         "provider"
       ],
@@ -783,7 +783,7 @@
       "name": "JoyCode",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/joycode",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/joycode",
       "contributes": [
         "provider"
       ],
@@ -800,7 +800,7 @@
       "name": "Kilo Gateway",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kilo",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/kilo",
       "contributes": [
         "provider"
       ],
@@ -817,7 +817,7 @@
       "name": "Kimi Code",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kimi-code",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/kimi-code",
       "contributes": [
         "provider"
       ],
@@ -834,7 +834,7 @@
       "name": "Kimi Coding",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kimi-coding",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/kimi-coding",
       "contributes": [
         "provider"
       ],
@@ -851,7 +851,7 @@
       "name": "Kimi Work",
       "description": "Use your explicitly selected local Kimi Work account or supplied Work and membership tokens.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kimi-work",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/kimi-work",
       "contributes": [
         "provider"
       ],
@@ -868,7 +868,7 @@
       "name": "Kiro",
       "description": "Connect Kiro with Google, GitHub, AWS Builder ID, IAM Identity Center or an API key. Existing Kiro CLI, Kiro IDE and Magpie logins are discovered automatically and renewed in their original source.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/kiro",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/kiro",
       "contributes": [
         "provider"
       ],
@@ -917,7 +917,7 @@
       "name": "LM Studio",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/lmstudio",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/lmstudio",
       "contributes": [
         "provider"
       ],
@@ -934,7 +934,7 @@
       "name": "MiMo App",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/mimo-app",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/mimo-app",
       "contributes": [
         "provider"
       ],
@@ -951,7 +951,7 @@
       "name": "MiniMax",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/minimax",
       "contributes": [
         "provider"
       ],
@@ -968,7 +968,7 @@
       "name": "MiniMax CN",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax-cn",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/minimax-cn",
       "contributes": [
         "provider"
       ],
@@ -985,7 +985,7 @@
       "name": "MiniMax Code",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax-code",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/minimax-code",
       "contributes": [
         "provider"
       ],
@@ -1002,7 +1002,7 @@
       "name": "MiniMax Code Global",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/minimax-code-global",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/minimax-code-global",
       "contributes": [
         "provider"
       ],
@@ -1019,7 +1019,7 @@
       "name": "Mistral",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/mistral",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/mistral",
       "contributes": [
         "provider"
       ],
@@ -1036,7 +1036,7 @@
       "name": "MLX-Serve",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/mlx-serve",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/mlx-serve",
       "contributes": [
         "provider"
       ],
@@ -1053,7 +1053,7 @@
       "name": "Model Map",
       "description": "Route requested model names to other models while preserving their public names in replies.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/model-map",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/model-map",
       "contributes": [
         "middleware"
       ],
@@ -1070,7 +1070,7 @@
       "name": "ModelScope",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/modelscope",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/modelscope",
       "contributes": [
         "provider"
       ],
@@ -1087,7 +1087,7 @@
       "name": "Moonshot AI",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/moonshotai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/moonshotai",
       "contributes": [
         "provider"
       ],
@@ -1104,7 +1104,7 @@
       "name": "Moonshot AI CN",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/moonshotai-cn",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/moonshotai-cn",
       "contributes": [
         "provider"
       ],
@@ -1121,7 +1121,7 @@
       "name": "Nous Portal",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/nous",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/nous",
       "contributes": [
         "provider"
       ],
@@ -1138,7 +1138,7 @@
       "name": "Nous Portal (OAuth)",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/nous-portal",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/nous-portal",
       "contributes": [
         "provider"
       ],
@@ -1155,7 +1155,7 @@
       "name": "NVIDIA NIM",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/nvidia",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/nvidia",
       "contributes": [
         "provider"
       ],
@@ -1172,7 +1172,7 @@
       "name": "Ollama",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/ollama",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/ollama",
       "contributes": [
         "provider"
       ],
@@ -1189,7 +1189,7 @@
       "name": "Ollama Cloud",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/ollama-cloud",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/ollama-cloud",
       "contributes": [
         "provider"
       ],
@@ -1206,7 +1206,7 @@
       "name": "oMLX",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/omlx",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/omlx",
       "contributes": [
         "provider"
       ],
@@ -1223,7 +1223,7 @@
       "name": "OpenAI",
       "description": "Connect your subscription or API key.",
       "version": "1.2.1",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/openai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/openai",
       "contributes": [
         "provider"
       ],
@@ -1249,7 +1249,7 @@
       "name": "OpenCode",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/opencode",
       "contributes": [
         "provider"
       ],
@@ -1266,7 +1266,7 @@
       "name": "OpenCode Go",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode-go",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/opencode-go",
       "contributes": [
         "provider"
       ],
@@ -1283,7 +1283,7 @@
       "name": "OpenCode Zen",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode-zen",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/opencode-zen",
       "contributes": [
         "provider"
       ],
@@ -1300,7 +1300,7 @@
       "name": "OpenCode Zen Free",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opencode-zen-free",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/opencode-zen-free",
       "contributes": [
         "provider"
       ],
@@ -1317,7 +1317,7 @@
       "name": "Open Design",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/opendesign",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/opendesign",
       "contributes": [
         "provider"
       ],
@@ -1334,7 +1334,7 @@
       "name": "OpenRouter",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/openrouter",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/openrouter",
       "contributes": [
         "provider"
       ],
@@ -1351,7 +1351,7 @@
       "name": "Param Override",
       "description": "Set, delete, move or rewrite request fields with optional conditions.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/param-override",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/param-override",
       "contributes": [
         "middleware"
       ],
@@ -1368,7 +1368,7 @@
       "name": "PipeLLM",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/pipellm",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/pipellm",
       "contributes": [
         "provider"
       ],
@@ -1385,7 +1385,7 @@
       "name": "Qoder",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qoder",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qoder",
       "contributes": [
         "provider"
       ],
@@ -1402,7 +1402,7 @@
       "name": "Qoder CN",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qoder-cn",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qoder-cn",
       "contributes": [
         "provider"
       ],
@@ -1419,7 +1419,7 @@
       "name": "Qwen",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qwen",
       "contributes": [
         "provider"
       ],
@@ -1436,7 +1436,7 @@
       "name": "Qwen (China)",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen-cn",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qwen-cn",
       "contributes": [
         "provider"
       ],
@@ -1453,7 +1453,7 @@
       "name": "Qwen Decision Model",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen-decision",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qwen-decision",
       "contributes": [
         "provider"
       ],
@@ -1470,7 +1470,7 @@
       "name": "Qwen Token Plan",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwen-token-plan",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qwen-token-plan",
       "contributes": [
         "provider"
       ],
@@ -1487,7 +1487,7 @@
       "name": "QwenWork",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwenwork",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qwenwork",
       "contributes": [
         "provider"
       ],
@@ -1504,7 +1504,7 @@
       "name": "QwenWork Enterprise",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/qwenwork-enterprise",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/qwenwork-enterprise",
       "contributes": [
         "provider"
       ],
@@ -1521,7 +1521,7 @@
       "name": "Raccoon",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/raccoon",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/raccoon",
       "contributes": [
         "provider"
       ],
@@ -1538,7 +1538,7 @@
       "name": "Privacy masking",
       "description": "Mask secrets, personal data and selected words before sending requests, and restore them in replies.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/redact",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/redact",
       "contributes": [
         "masker"
       ],
@@ -1555,7 +1555,7 @@
       "name": "Remote Magpie",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/remote-magpie",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/remote-magpie",
       "contributes": [
         "provider"
       ],
@@ -1572,7 +1572,7 @@
       "name": "Reserve",
       "description": "Keep account capacity in reserve or prefer subscriptions before pay-per-token accounts.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/reserve",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/reserve",
       "contributes": [
         "middleware"
       ],
@@ -1589,7 +1589,7 @@
       "name": "SearXNG",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/searxng",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/searxng",
       "contributes": [
         "provider"
       ],
@@ -1606,7 +1606,7 @@
       "name": "SiliconFlow (China)",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/siliconflow",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/siliconflow",
       "contributes": [
         "provider"
       ],
@@ -1623,7 +1623,7 @@
       "name": "SiliconFlow",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/siliconflow-global",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/siliconflow-global",
       "contributes": [
         "provider"
       ],
@@ -1640,7 +1640,7 @@
       "name": "StepFun",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/stepfun",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/stepfun",
       "contributes": [
         "provider"
       ],
@@ -1657,7 +1657,7 @@
       "name": "StepFun (China)",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/stepfun-cn",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/stepfun-cn",
       "contributes": [
         "provider"
       ],
@@ -1674,7 +1674,7 @@
       "name": "System Prompt",
       "description": "Add or replace the system prompt in each supported API format.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/system-prompt",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/system-prompt",
       "contributes": [
         "middleware"
       ],
@@ -1691,7 +1691,7 @@
       "name": "Tavily",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/tavily",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/tavily",
       "contributes": [
         "provider"
       ],
@@ -1708,7 +1708,7 @@
       "name": "Tencent Cloud",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/tencent-cloud",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/tencent-cloud",
       "contributes": [
         "provider"
       ],
@@ -1725,7 +1725,7 @@
       "name": "Think Tags",
       "description": "Remove think tags from reply text or turn Chat reasoning into visible text.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/think-tags",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/think-tags",
       "contributes": [
         "middleware"
       ],
@@ -1742,7 +1742,7 @@
       "name": "Together AI",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/together",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/together",
       "contributes": [
         "provider"
       ],
@@ -1759,7 +1759,7 @@
       "name": "Trae CN",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/trae-cn",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/trae-cn",
       "contributes": [
         "provider"
       ],
@@ -1776,7 +1776,7 @@
       "name": "Trae Global",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/trae-global",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/trae-global",
       "contributes": [
         "provider"
       ],
@@ -1793,7 +1793,7 @@
       "name": "TypeSafe Jev",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/typesafe",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/typesafe",
       "contributes": [
         "provider"
       ],
@@ -1810,7 +1810,7 @@
       "name": "Vercel AI Gateway",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/vercel-ai-gateway",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/vercel-ai-gateway",
       "contributes": [
         "provider"
       ],
@@ -1827,7 +1827,7 @@
       "name": "Jev · Vercel AI Gateway",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/vercel-jev",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/vercel-jev",
       "contributes": [
         "provider"
       ],
@@ -1844,7 +1844,7 @@
       "name": "Volcengine Ark",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/volcengine",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/volcengine",
       "contributes": [
         "provider"
       ],
@@ -1861,7 +1861,7 @@
       "name": "Word Guard",
       "description": "Reject or mask configured words and patterns in requests and replies.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/word-guard",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/middleware/word-guard",
       "contributes": [
         "middleware"
       ],
@@ -1878,7 +1878,7 @@
       "name": "WorkBuddy",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/workbuddy",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/workbuddy",
       "contributes": [
         "provider"
       ],
@@ -1904,7 +1904,7 @@
       "name": "WorkBuddy AI",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/workbuddy-ai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/workbuddy-ai",
       "contributes": [
         "provider"
       ],
@@ -1930,7 +1930,7 @@
       "name": "xAI",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/xai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/xai",
       "contributes": [
         "provider"
       ],
@@ -1956,7 +1956,7 @@
       "name": "Xiaomi MiMo",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/xiaomi",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/xiaomi",
       "contributes": [
         "provider"
       ],
@@ -1973,7 +1973,7 @@
       "name": "You.com",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/you-search",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/you-search",
       "contributes": [
         "provider"
       ],
@@ -1990,7 +1990,7 @@
       "name": "鱼鱼连线",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/yylx",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/yylx",
       "contributes": [
         "provider"
       ],
@@ -2007,7 +2007,7 @@
       "name": "Z.ai",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zai",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/zai",
       "contributes": [
         "provider"
       ],
@@ -2024,7 +2024,7 @@
       "name": "ZCode",
       "description": "Connect your subscription or API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zcode",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/zcode",
       "contributes": [
         "provider"
       ],
@@ -2041,7 +2041,7 @@
       "name": "Zed",
       "description": "Zed subscription models through the Zed cloud native provider envelopes. Zed publishes plan metadata rather than remaining-token quotas.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zed",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/zed",
       "contributes": [
         "provider"
       ],
@@ -2058,7 +2058,7 @@
       "name": "Zhipu GLM",
       "description": "Connect with your API key.",
       "version": "1.2.0",
-      "repository": "https://github.com/nora-release/plugins/tree/main/packages/zhipu",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/providers/zhipu",
       "contributes": [
         "provider"
       ],

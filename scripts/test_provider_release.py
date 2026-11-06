@@ -28,7 +28,7 @@ PLATFORM = "aarch64-apple-darwin"
 def row(plugin="openai", version="1.2.0", checksum="0" * 64):
     return {"apiVersion": 2, "id": plugin, "name": plugin, "version": version,
             "description": f"The {plugin} provider", "contributes": ["provider"],
-            "repository": f"https://github.com/nora-release/plugins/tree/main/packages/{plugin}",
+            "repository": f"https://github.com/nora-release/plugins/tree/main/packages/providers/{plugin}",
             "packages": {PLATFORM: {"url": "https://example.test/old.zip", "sha256": checksum}}}
 
 
@@ -38,7 +38,7 @@ class Fixture:
         self.identity = release.identity(TAG, REPO)
         self.manifest = {"apiVersion": 2, "id": "openai", "name": "OpenAI", "version": "1.2.1",
                          "runtime": {"entry": "provider"}, "contributes": {"provider": {}}}
-        source = self.root / "packages/openai"
+        source = self.root / "packages/providers/openai"
         source.mkdir(parents=True)
         (source / "nora-plugin.json").write_bytes(release.json_bytes(self.manifest))
         self.current = {"schemaVersion": 2, "providers": [row(), row("other", "4.0.0")]}
@@ -98,7 +98,7 @@ class FakeGitHub(GitHub):
         release.require(not self.move_tag and tag == TAG and target == TARGET, "Tag moved")
 
     def content(self, path, branch):
-        if path.startswith("packages/"):
+        if path.startswith("packages/providers/"):
             return release.json_bytes(self.manifest), "manifest-sha"
         return release.json_bytes(self.catalog), f"catalog-{self.revision}"
 

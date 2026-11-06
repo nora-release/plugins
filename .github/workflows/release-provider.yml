@@ -1,6 +1,6 @@
 name: Release provider
 
-# Bump packages/<id>/nora-plugin.json on main, then push <id>-vX.Y.Z.
+# Bump packages/<category>/<id>/nora-plugin.json on main, then push <id>-vX.Y.Z.
 # NORA_SOURCE_TOKEN needs Contents: read on the private nora-release/nora repo.
 on:
   push:

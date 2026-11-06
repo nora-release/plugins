@@ -1367,6 +1367,20 @@ dependencies = [
 [[package]]
 name = "nora-plugin-manifest"
 version = "0.24.0"
+source = "git+https://github.com/nora-release/plugin-kit?rev=8b41d8e90791d73660732e7d56a5cef802287175#8b41d8e90791d73660732e7d56a5cef802287175"
+dependencies = [
+ "flate2",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "unicode-normalization",
+ "url",
+]
+
+[[package]]
+name = "nora-plugin-manifest"
+version = "0.24.0"
 source = "git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779#def945a909fd7c89e452d1a415ada353ee252779"
 dependencies = [
  "flate2",
@@ -1392,7 +1406,7 @@ dependencies = [
  "multer",
  "nora-ai",
  "nora-network",
- "nora-plugin-manifest",
+ "nora-plugin-manifest 0.24.0 (git+https://github.com/nora-release/plugin-kit?rev=8b41d8e90791d73660732e7d56a5cef802287175)",
  "nora-provider-auth",
  "nora-provider-plugin-sdk",
  "rcgen",
@@ -2261,7 +2275,7 @@ dependencies = [
  "getrandom 0.2.17",
  "libc",
  "nora-network",
- "nora-plugin-manifest",
+ "nora-plugin-manifest 0.24.0 (git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779)",
  "reqwest",
  "serde",
  "serde_json",

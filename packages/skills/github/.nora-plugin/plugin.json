@@ -1,5 +1,0 @@
-{
-  "name": "github",
-  "version": "1.0.0",
-  "description": "Work with GitHub through the gh CLI: issues, pull requests, reviews, Actions, and releases."
-}

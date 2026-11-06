@@ -14,12 +14,6 @@
       "source": "packages/skills/format-converter"
     },
     {
-      "name": "github",
-      "description": "Work with GitHub through the gh CLI: issues, pull requests, reviews, Actions, and releases.",
-      "version": "1.0.0",
-      "source": "packages/skills/github"
-    },
-    {
       "name": "linear",
       "description": "Work with Linear through the linear CLI: issues, comments, teams, projects, and labels.",
       "version": "1.0.0",

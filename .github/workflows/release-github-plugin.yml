@@ -101,7 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --draft --title "$GITHUB_REF_NAME" --notes 'Signed and notarized native Nora plugin.'
+            --draft --title "$GITHUB_REF_NAME" --notes 'Native Nora plugin, ad-hoc signed with App Sandbox and listed in the reviewed Nora catalog.'
           # Provider releases share this repository, so a plugin release never becomes "latest".
           version="${GITHUB_REF_NAME#github-v}"
           if [[ "${version%%+*}" == *-* ]]; then

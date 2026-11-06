@@ -24,7 +24,8 @@ struct GitHubItemDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            tabs.padding(.top, 12).padding(.horizontal, 24)
+            GitHubItemHeader(service: service, item: item).padding(.horizontal, 24).padding(.top, 18)
+            tabs.padding(.top, 14).padding(.horizontal, 24)
             Group {
                 if service.isLoadingDetail {
                     GitHubDetailColumns {
@@ -191,6 +192,52 @@ struct GitHubItemDetailView: View {
                 GitHubSectionError(service: service, section: .commits)
             }.padding(24)
         }
+    }
+}
+
+/// What is open: the title, number, state, and who proposes what, above the tabs.
+private struct GitHubItemHeader: View {
+    @Bindable var service: GitHubService
+    let item: GitHubValue
+
+    private var summary: String {
+        let login = item.person.login
+        let base = item["base"]["ref"].text
+        let head = item["head"]["ref"].text
+        if item.isPullRequest, !base.isEmpty, !head.isEmpty {
+            if item.statusIcon == .merged { return GHL("\(login) merged into \(base) from \(head)") }
+            return GHL("\(login) wants to merge into \(base) from \(head)")
+        }
+        guard let date = item["created_at"].date else { return login }
+        return GHL("\(login) opened this \(GitHubDateText.relative(date))")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                (Text(item.title).foregroundStyle(.primary) + Text(verbatim: "  #\(item["number"].int ?? 0)").foregroundStyle(.secondary))
+                    .font(.system(size: 18, weight: .semibold))
+                    .lineLimit(2).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let url = URL(string: item["html_url"].text), url.scheme == "https" {
+                    Button { Task { try? await service.openURL(url) } } label: {
+                        Image(systemName: "arrow.up.right.square").font(.system(size: 14))
+                    }
+                    .buttonStyle(.borderless).foregroundStyle(.secondary)
+                    .help(GHL("Open on GitHub")).accessibilityLabel(GHL("Open on GitHub"))
+                    .accessibilityIdentifier("github.details.openOnGitHub")
+                }
+            }
+            HStack(spacing: 8) {
+                GitHubStatePill(item: item)
+                GitHubAvatar(person: item.person, size: 18)
+                Text(summary).font(.system(size: 12)).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("github.details.header")
     }
 }
 

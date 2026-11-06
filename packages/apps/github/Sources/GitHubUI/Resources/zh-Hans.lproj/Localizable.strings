@@ -1,3 +1,7 @@
+"%@ merged into %@ from %@" = "%1$@ 将 %3$@ 合并到了 %2$@";
+"%@ opened this %@" = "%1$@ 于%2$@创建";
+"%@ wants to merge into %@ from %@" = "%1$@ 想把 %3$@ 合并到 %2$@";
+"%lld comments" = "%lld 条评论";
 "%lld commit updates" = "%lld 次提交更新";
 "%lld commits" = "%lld 次提交";
 "Added label" = "添加了标签";
@@ -14,6 +18,7 @@
 "Changed the title" = "修改了标题";
 "Changes requested" = "请求修改";
 "Checks" = "检查";
+"Closed" = "已关闭";
 "Closed this item" = "关闭了此条目";
 "Code" = "代码";
 "Collaborator" = "协作者";
@@ -41,6 +46,7 @@
 "Dismissed" = "已驳回";
 "Dismissed a review" = "驳回了审查";
 "Done" = "完成";
+"Draft" = "草稿";
 "Enabled automatic merge" = "启用了自动合并";
 "Enter this code on GitHub:" = "在 GitHub 输入此验证码：";
 "Expanded" = "已展开";
@@ -52,6 +58,7 @@
 "Image unavailable" = "图片无法加载";
 "Important" = "重要";
 "Incomplete" = "未完成";
+"Issues" = "Issues";
 "Keep all commits and add a merge commit." = "保留所有提交，并创建一个合并提交。";
 "Labels" = "标签";
 "Leave a comment" = "写下留言";
@@ -63,6 +70,7 @@
 "Member" = "成员";
 "Mentioned this item" = "提及了此条目";
 "Merge pull request" = "合并 PR";
+"Merged" = "已合并";
 "Merged this pull request" = "合并了这个 PR";
 "Milestone" = "里程碑";
 "No assignees" = "暂无负责人";
@@ -80,15 +88,18 @@
 "Note" = "提示";
 "Open" = "未关闭";
 "Open GitHub" = "打开 GitHub";
+"Open on GitHub" = "在 GitHub 中打开";
 "Owner" = "所有者";
 "Pending review" = "等待审查";
 "Pinned this item" = "置顶了此条目";
 "Preparing preview…" = "正在准备预览…";
 "Preview" = "预览";
+"Pull requests" = "PR";
 "Re-run" = "重新运行";
 "Read the discussion, review changes, and hand work to Nora." = "查看讨论与变更，把需要处理的工作交给 Nora。";
 "Reconnect Account" = "重新连接账号";
 "Referenced in" = "引用于";
+"Refresh" = "刷新";
 "Related to me" = "与我相关";
 "Removed a review request" = "取消了审查请求";
 "Removed from merge queue" = "移出了合并队列";
@@ -122,4 +133,3 @@
 "Write" = "编辑";
 "You're all caught up." = "暂无需要处理的条目。";
 "Your issues, reviews, and pull requests in one place." = "集中处理你的 Issues、审查和 PR。";
-"Refresh" = "刷新";

@@ -94,8 +94,8 @@ public struct GitHubPanel: View {
                 Button(GHL("Disconnect"), role: .destructive) { Task { await service.disconnect() } }
             }
             VStack(spacing: 5) {
-                navigation(.issues, title: "Issues", icon: .issue)
-                navigation(.pullRequests, title: "PR", icon: .open)
+                navigation(.issues, title: GHL("Issues"), icon: .issue)
+                navigation(.pullRequests, title: GHL("Pull requests"), icon: .open)
             }.padding(.horizontal, 8).padding(.bottom, 14)
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 11))
@@ -114,12 +114,17 @@ public struct GitHubPanel: View {
                     }
                 } label: {
                     Text(service.repository.isEmpty ? GHL("Related to me") : service.repository)
-                        .font(.system(size: 11)).lineLimit(1).truncationMode(.middle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }.menuStyle(.borderlessButton)
-                Image(systemName: "line.3.horizontal.decrease").font(.system(size: 11)).foregroundStyle(.secondary)
-                Text(GHL("Open")).font(.system(size: 11)).foregroundStyle(.secondary)
-            }.padding(.horizontal, 10).frame(height: 34)
+                        .lineLimit(1).truncationMode(.middle)
+                        .font(.system(size: 12, weight: .medium))
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.visible).fixedSize()
+                .accessibilityIdentifier("github.repository.menu")
+                Spacer(minLength: 6)
+                // The feed lists open items only; the chip names that scope.
+                Text(GHL("Open")).font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                    .padding(.horizontal, 7).frame(height: 18)
+                    .background(.quaternary.opacity(0.5), in: Capsule())
+            }.padding(.horizontal, 12).frame(height: 34)
             Divider().padding(.horizontal, 8)
             itemList
         }
@@ -215,24 +220,32 @@ public struct GitHubPanel: View {
 private struct GitHubItemRow: View {
     let item: GitHubValue
     let selected: Bool
-    private var owner: GitHubValue {
-        if !item["repository"]["owner"].isNull { return item["repository"]["owner"] }
-        return .object(["login": .string(String(item.repositoryName.split(separator: "/").first ?? ""))])
-    }
+    private var comments: Int { item["comments"].int ?? 0 }
     var body: some View {
-        HStack(spacing: 9) {
-            GitHubAvatar(person: owner, size: 23)
+        HStack(alignment: .top, spacing: 9) {
+            GitHubIcon(kind: item.statusIcon, size: 15).foregroundStyle(item.statusColor)
+                .frame(width: 18, height: 16)
+                .help(item.stateTitle)
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.title).font(.system(size: 12, weight: .medium)).lineLimit(1).truncationMode(.tail)
+                Text(item.title).font(.system(size: 12, weight: .medium)).lineLimit(2).truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 4) {
-                    Text("#\(item["number"].int ?? 0) · \(item.repositoryName)").lineLimit(1).truncationMode(.tail)
+                    Text("#\(item["number"].int ?? 0) · \(item.repositoryName)").lineLimit(1).truncationMode(.middle)
+                    if let date = item["updated_at"].date ?? item.eventDate {
+                        Text(verbatim: "·")
+                        Text(GitHubDateText.short(date)).lineLimit(1).fixedSize()
+                    }
                     Spacer(minLength: 0)
-                    GitHubIcon(kind: item.statusIcon, size: 12).foregroundStyle(item.statusColor)
+                    if comments > 0 {
+                        HStack(spacing: 2) {
+                            Image(systemName: "bubble.left").font(.system(size: 9))
+                            Text(String(comments)).monospacedDigit()
+                        }.accessibilityLabel(GHL("\(comments) comments"))
+                    }
                 }.font(.system(size: 10)).foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 10).padding(.vertical, 9)
+        .padding(.horizontal, 10).padding(.vertical, 8)
         .background(selected ? Color.primary.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 7))
         .contentShape(RoundedRectangle(cornerRadius: 7)).help(item.title)
     }

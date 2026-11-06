@@ -1,11 +1,11 @@
 ---
 name: github
-description: Work with GitHub through the `gh` CLI, including issues, pull requests, reviews, Actions runs, releases, repository metadata, API queries, and CLI authentication/setup on persistent environments.
+description: Work with GitHub issues, pull requests, reviews, Actions runs, releases, and repository metadata, using the GitHub plugin's tools and the `gh` CLI on this Mac.
 ---
 
 # GitHub
 
-Use this skill whenever the task involves GitHub and the `gh` CLI is available or should be made available. Prefer direct `gh` commands over browser-only workflows for operations that have stable CLI support.
+This skill ships with the GitHub plugin and is available while that plugin is installed and enabled.
 
 ## Typical Goals
 
@@ -14,32 +14,21 @@ Use this skill whenever the task involves GitHub and the `gh` CLI is available o
 - Check GitHub Actions runs, jobs, failed logs, and commit statuses.
 - Query repository metadata, branches, tags, releases, artifacts, and security or Dependabot alerts when permissions allow.
 - Use `gh api` or GraphQL for fields not exposed by first-class subcommands.
-- Install or authenticate `gh` on a persistent VM when the user needs reusable GitHub CLI access.
+
+## Choosing A Tool
+
+- For a quick list of the user's repositories, or a repository's issues or pull requests, use the GitHub plugin's tools (List GitHub Repositories, List GitHub Issues, List GitHub Pull Requests). They use the account the user connected in the GitHub panel and need no setup.
+- For everything else, such as details, comments, reviews, checks, merges, releases, and API queries, run `gh` on this Mac.
+- If a plugin tool reports that GitHub is not connected, ask the user to connect their account in the GitHub panel, or fall back to `gh`.
 
 ## Operating Principles
 
 - Use `--repo owner/name` when outside the target repository or when ambiguity is possible.
 - Prefer `--json` with `--jq` for machine-readable output instead of parsing tables.
-- Prefer managed OAuth over device-flow setup. When GitHub credentials are missing, expired, or insufficient, use `RequestOAuthAuthorization` to connect the user's GitHub account, then pass the saved credential to `Exec.credential_env`.
 - Confirm destructive or hard-to-reverse actions before running them unless the user explicitly requested the action.
-- Do not claim an issue, PR, workflow, or release was changed until the CLI command succeeds.
+- Do not claim an issue, PR, workflow, or release was changed until the command succeeds.
 - If auth or permissions fail, report the concrete blocker and the command that exposed it.
 - Keep generated issue and PR text concise and specific; avoid adding unrelated templates or markdown documents unless asked.
-
-## Managed OAuth
-
-Before running a device-flow login or asking the user for a token, check whether a GitHub OAuth credential already exists:
-
-1. Call `ListOAuthCredentials`.
-2. If a `github` credential is available and active, use its alias in `Exec.credential_env`; replace `"default"` below with the actual alias returned by `ListOAuthCredentials`:
-   ```json
-   [{"env_var":"GH_TOKEN","provider":"github","alias":"default","value":"access_token"}]
-   ```
-3. If no usable GitHub credential exists, call `RequestOAuthAuthorization` with `provider: "github"`, a short stable `alias` such as `"default"`, and a concise `reason`. Request scopes that match the task, for example `["repo"]` for private repository read/write, `["read:org"]` for organization metadata, and `["workflow"]` only when workflow file changes or Actions operations require it.
-4. Share the returned `authorization_url` with the user and wait for them to confirm they completed authorization.
-5. Call `CompleteOAuthAuthorization` with the returned `state`. If it returns `completed`, retry the GitHub command with `Exec.credential_env` using the returned alias. If it returns `pending`, ask the user to finish the browser flow. If it returns `failed` or `expired`, start a fresh authorization flow.
-
-Managed OAuth keeps tokens out of the transcript. Do not print the token or try to read it directly; inject it only for the subprocess that needs GitHub access. `gh` honors `GH_TOKEN`, so a full `gh auth login` is usually unnecessary when using this flow.
 
 ## Initial Checks
 
@@ -171,34 +160,18 @@ query($owner:String!, $repo:String!, $number:Int!) {
 
 ## Authentication And Setup
 
-If `gh` is already authenticated, use it. If setup is required on a persistent VM, prefer the managed OAuth flow above and run `gh` commands with `Exec.credential_env`. Install `gh` using the platform package manager or GitHub's documented package source when needed.
+If `gh` is missing, install it with Homebrew (`brew install gh`) when the user agrees. If it is not signed in, ask the user to run `gh auth login` in their own terminal; it opens a browser, so do not try to drive it yourself. Never ask the user to paste a token into the chat.
 
-Preferred verification:
+Verify:
 
 ```bash
 gh auth status -h github.com
 gh api user --jq '.login'
 ```
 
-If normal browser handoff is inconvenient in the local VM, use a device flow:
-
-1. Capture an interactive login for `https://github.com/login` with allowed domain `github.com`.
-2. Confirm browser session state exists in the local browser profile if that flow is available.
-3. Install `python3`, Playwright for Python, Chromium, `xvfb`, and Chromium runtime libraries on the VM if browser automation is needed.
-4. Copy the cookie file to the VM, for example `/tmp/github-cookies.json`.
-5. Start a live `gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key` process and keep it running.
-6. Use Playwright under `xvfb-run` to open `https://github.com/login/device`, reuse saved cookies, enter the one-time code, and authorize the CLI.
-7. Re-run the verification commands.
-
-Important details for the GitHub device page:
-
-- Device codes expire quickly; restart the flow if automation stalls.
-- GitHub may split the code across inputs `user-code-0` through `user-code-8`; skip the hidden hyphen input.
-- Headful Chromium under `xvfb-run -a` may be more reliable than headless Chromium for the final authorization button.
-
 ## Failure Handling
 
-- `gh auth status` fails: authenticate or explain the missing credentials.
+- `gh auth status` fails: ask the user to run `gh auth login`, or use the plugin's tools for what they cover.
 - `HTTP 404` from `gh api`: check repository name, token scopes, and whether the authenticated user has access.
 - Empty search results: report the query used before creating new GitHub objects.
 - CI logs unavailable: inspect run permissions, retention, and whether the job is still running.

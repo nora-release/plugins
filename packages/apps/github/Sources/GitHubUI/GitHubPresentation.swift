@@ -39,6 +39,48 @@ extension GitHubValue {
     var statusColor: Color {
         switch statusIcon { case .merged: .purple; case .closed: .red; case .draft: .secondary; default: .green }
     }
+    var stateTitle: String {
+        switch statusIcon {
+        case .merged: GHL("Merged")
+        case .closed: GHL("Closed")
+        case .draft: GHL("Draft")
+        default: GHL("Open")
+        }
+    }
+}
+
+/// Dates in the language the plugin's text is shown in, so a date never switches language mid-sentence.
+enum GitHubDateText {
+    static let locale = Locale(identifier: Bundle.module.preferredLocalizations.first ?? "en")
+
+    /// "2 days ago", for conversations.
+    static func relative(_ date: Date) -> String {
+        date.formatted(.relative(presentation: .named, unitsStyle: .wide).locale(locale))
+    }
+
+    /// "2d", for dense lists.
+    static func short(_ date: Date) -> String {
+        date.formatted(.relative(presentation: .numeric, unitsStyle: .narrow).locale(locale))
+    }
+
+    static func full(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .long, time: .shortened).locale(locale))
+    }
+}
+
+/// The item's state the way GitHub shows it: a filled pill with its icon.
+struct GitHubStatePill: View {
+    let item: GitHubValue
+    var body: some View {
+        HStack(spacing: 5) {
+            GitHubIcon(kind: item.statusIcon, size: 13)
+            Text(item.stateTitle).font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10).frame(height: 24)
+        .background(item.statusIcon == .draft ? Color.gray : item.statusColor, in: Capsule())
+        .accessibilityElement(children: .combine)
+    }
 }
 
 struct GitHubAvatar: View {
@@ -69,12 +111,9 @@ struct GitHubDate: View {
     var relative = false
     var body: some View {
         if let date {
-            Group {
-                if relative { Text(date, style: .relative) }
-                else { Text(date, format: .dateTime.year().month().day()) }
-            }
-            .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-            .help(date.formatted(date: .long, time: .shortened))
+            Text(relative ? GitHubDateText.relative(date) : date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(GitHubDateText.locale)))
+                .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                .help(GitHubDateText.full(date))
         }
     }
 }

@@ -1367,7 +1367,7 @@ dependencies = [
 [[package]]
 name = "nora-plugin-manifest"
 version = "0.24.0"
-source = "git+https://github.com/nora-release/plugin-kit?rev=8b41d8e90791d73660732e7d56a5cef802287175#8b41d8e90791d73660732e7d56a5cef802287175"
+source = "git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779#def945a909fd7c89e452d1a415ada353ee252779"
 dependencies = [
  "flate2",
  "regex",
@@ -1381,7 +1381,7 @@ dependencies = [
 [[package]]
 name = "nora-plugin-manifest"
 version = "0.24.0"
-source = "git+https://github.com/nora-release/plugin-kit?rev=def945a909fd7c89e452d1a415ada353ee252779#def945a909fd7c89e452d1a415ada353ee252779"
+source = "git+https://github.com/nora-release/plugin-kit?rev=e7d93704b5a0b2549f6152d153f4da962b761356#e7d93704b5a0b2549f6152d153f4da962b761356"
 dependencies = [
  "flate2",
  "regex",
@@ -1406,7 +1406,7 @@ dependencies = [
  "multer",
  "nora-ai",
  "nora-network",
- "nora-plugin-manifest 0.24.0 (git+https://github.com/nora-release/plugin-kit?rev=8b41d8e90791d73660732e7d56a5cef802287175)",
+ "nora-plugin-manifest 0.24.0 (git+https://github.com/nora-release/plugin-kit?rev=e7d93704b5a0b2549f6152d153f4da962b761356)",
  "nora-provider-auth",
  "nora-provider-plugin-sdk",
  "rcgen",

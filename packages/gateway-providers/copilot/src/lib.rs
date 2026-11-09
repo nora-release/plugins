@@ -15,7 +15,7 @@ use nora_plugin_runtime_sdk::provider::{
     Fetch, FetchHead, Model, Provider, Question, SignIn, SignInFinish, Step, Usage,
 };
 use provider_support::{
-    collect_body_text_limited, random_hex, HttpClient, HttpMethod, HttpRequest,
+    collect_body_text_limited, random_hex, DevicePending, HttpClient, HttpMethod, HttpRequest,
     HttpStreamingResponse, PluginError, PluginResult, ReqwestHttpClient,
 };
 use refused::Refused;
@@ -30,7 +30,7 @@ const MAXIMUM_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 
 pub struct Copilot {
     client: Option<Arc<dyn HttpClient>>,
-    pending: Mutex<BTreeMap<String, github::Pending>>,
+    pending: Mutex<BTreeMap<String, DevicePending>>,
     /// Each GitHub token's session, kept until shortly before it expires.
     sessions: Mutex<BTreeMap<String, Session>>,
     /// Each GitHub token's Auto pick.
@@ -226,7 +226,7 @@ impl Provider for Copilot {
             return Err(PluginError::unsupported(format!("Signing in by {}", request.way)).into());
         }
         let client = self.client(request.question.proxy.as_deref())?;
-        let started = github::start(client.as_ref()).await?;
+        let started = github::device_flow().start(client.as_ref()).await?;
         let session = random_hex(16);
         let mut pending = self.pending.lock().await;
         // a sign-in given up is never finished: only the newest is kept
@@ -245,8 +245,8 @@ impl Provider for Copilot {
         let pending = sessions
             .get_mut(&request.session)
             .ok_or_else(github::signed_out)?;
-        let token = match github::poll(client.as_ref(), pending).await {
-            Ok(Some(token)) => token,
+        let tokens = match github::device_flow().poll(client.as_ref(), pending).await {
+            Ok(Some(tokens)) => tokens,
             Ok(None) => return Ok(Step::Waiting),
             Err(error) => {
                 sessions.remove(&request.session);
@@ -255,9 +255,10 @@ impl Provider for Copilot {
         };
         sessions.remove(&request.session);
         drop(sessions);
-        let account = github::account(client.as_ref(), &token).await?;
+        let token = tokens["access_token"].as_str().unwrap_or_default();
+        let account = github::account(client.as_ref(), token).await?;
         // an account without Copilot is told now, not at its first request
-        self.session(client.as_ref(), &token).await?;
+        self.session(client.as_ref(), token).await?;
         Ok(Step::Account(account))
     }
 

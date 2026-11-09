@@ -20,6 +20,7 @@ retired; the two are kept apart.
 | `siliconflow-global` | OpenAI Chat | SiliconFlow (international) |
 | `chatgpt` | OpenAI Responses | Has code: a ChatGPT plan signed in to as Codex CLI does (browser, port 1455); Responses requests shaped for ChatGPT's Codex backend with each model's own instructions; the 5-hour and weekly windows and credits |
 | `copilot` | OpenAI Chat | Has code: a GitHub Copilot plan signed in to with GitHub's device flow, as Copilot's editors do (a code typed at github.com/login/device); each model on the APIs Copilot serves it on (Chat Completions, Responses, Anthropic Messages); Auto, Copilot's pick with its session token, which is how a Free plan is served most models; a model Copilot refuses the account picked by hand is explained and left out of its list from then on; requests sent to the account's Copilot API with its session token, `X-Initiator` and vision headers; premium and chat allowances |
+| `grok` | OpenAI Responses | Has code: a Grok plan (SuperGrok, X Premium+) signed in to with xAI's device flow, as Grok Build does (a code typed at accounts.x.ai; no Grok CLI needed); requests sent to Grok Build's backend signed as it signs them, with what it turns away left out; each context window a model lists offered as `<model>@<size>`; the period's credits |
 | `kiro` | Anthropic | Has code: browser sign-in (Google, GitHub, AWS Builder ID, IAM Identity Center; the browser comes back to a port on this machine) or an API key; Anthropic Messages turned into Kiro's CodeWhisperer calls and back; credits |
 | `workbuddy` | OpenAI Chat | Has code: WorkBuddy (Tencent) on both sites, `workbuddy` and `workbuddy-ai`; browser sign-in, requests shaped for its chat endpoint, credits, daily check-in (China) |
 
@@ -42,7 +43,7 @@ nora plugin install kernel:nora.workbuddy .build/workbuddy --trust
 `kiro` and `workbuddy` keep the protocol modules of their Nora Router
 packages (`../providers/…`) and their tests; `support` gives them the HTTP
 client and errors, with the old codes, they were written against, and the
-OAuth callback server a browser sign-in comes back to. `chatgpt` and `copilot` are
+OAuth callback server a browser sign-in comes back to, and OAuth's device flow (`DeviceFlow`) a sign-in by code goes through. `chatgpt`, `copilot` and `grok` are
 written anew on plugin-kit's SDK. Reading
 an account from the vendor's own app (Kiro CLI and IDE, WorkBuddy desktop)
 and account discovery are left out: a plugin in the router has its own

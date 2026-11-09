@@ -3,9 +3,11 @@
 //! vendor logic carries over to nora-gateway's plugins unchanged.
 
 mod browser_sign_in;
+mod device_flow;
 mod oauth_callback_server;
 
 pub use browser_sign_in::BrowserSignIn;
+pub use device_flow::{explain, DeviceFlow, DevicePending, DeviceStarted};
 pub use oauth_callback_server::{
     OAuthCallbackInput, OAuthCallbackServer, OAuthCallbackServerConfig,
 };

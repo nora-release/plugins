@@ -16,12 +16,17 @@ pub(crate) const API: &str = "https://api.githubcopilot.com";
 const EARLY: Duration = Duration::from_secs(120);
 
 /// What VS Code's Copilot Chat says it is on every call to GitHub.
+pub(crate) const EDITOR: [(&str, &str); 4] = [
+    ("editor-version", "vscode/1.140.0"),
+    ("editor-plugin-version", "copilot-chat/0.68.0"),
+    ("copilot-integration-id", "vscode-chat"),
+    ("user-agent", "GitHubCopilotChat/0.68.0"),
+];
+
 pub(crate) fn editor_headers(request: HttpRequest) -> HttpRequest {
-    request
-        .with_header("editor-version", "vscode/1.140.0")
-        .with_header("editor-plugin-version", "copilot-chat/0.68.0")
-        .with_header("copilot-integration-id", "vscode-chat")
-        .with_header("user-agent", "GitHubCopilotChat/0.68.0")
+    EDITOR.iter().fold(request, |request, (name, value)| {
+        request.with_header(*name, *value)
+    })
 }
 
 /// The Copilot API's own headers, signed in with the session token.

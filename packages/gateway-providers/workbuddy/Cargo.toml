@@ -1,0 +1,29 @@
+[package]
+name = "nora-gateway-workbuddy"
+version = "1.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "WorkBuddy (Tencent CodeBuddy) subscriptions for nora-gateway."
+
+[[bin]]
+name = "workbuddy"
+path = "src/main.rs"
+
+[dependencies]
+nora-plugin-runtime-sdk.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+chrono.workspace = true
+futures.workspace = true
+getrandom.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+url.workspace = true
+
+[lints]
+workspace = true

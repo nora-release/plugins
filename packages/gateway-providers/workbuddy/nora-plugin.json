@@ -1,0 +1,34 @@
+{
+  "apiVersion": 3,
+  "id": "nora.workbuddy",
+  "name": "WorkBuddy",
+  "version": "1.0.0",
+  "runtime": { "kind": "process", "entry": "bin/workbuddy", "protocol": 2 },
+  "scope": "host",
+  "provides": ["ai.provider"],
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "workbuddy",
+        "name": "WorkBuddy",
+        "api": "openai-chat",
+        "baseURL": "https://copilot.tencent.com/v2",
+        "signIn": ["browser"],
+        "sendsRequests": true,
+        "usage": true,
+        "checkin": true
+      },
+      {
+        "id": "workbuddy-ai",
+        "name": "WorkBuddy (International)",
+        "api": "openai-chat",
+        "baseURL": "https://www.workbuddy.ai/v2",
+        "signIn": ["browser"],
+        "sendsRequests": true,
+        "usage": true,
+        "checkin": false
+      }
+    ]
+  },
+  "permissions": ["network:copilot.tencent.com", "network:www.workbuddy.ai"]
+}

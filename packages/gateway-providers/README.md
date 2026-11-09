@@ -19,7 +19,26 @@ retired; the two are kept apart.
 | `moonshotai-cn` | OpenAI Chat | Moonshot (China) |
 | `siliconflow-global` | OpenAI Chat | SiliconFlow (international) |
 
-These have no code: the router sends their requests itself and reads
+| `workbuddy` | OpenAI Chat | Has code: WorkBuddy (Tencent) on both sites, `workbuddy` and `workbuddy-ai`; browser sign-in, requests shaped for its chat endpoint, credits, daily check-in (China) |
+
+Those without code:  the router sends their requests itself and reads
 their models from the vendor's `/models`. The format is described in
 Nora's `docs/provider-plugins.md`. Balances (Moonshot, SiliconFlow) come
 once plugins with code answer `provider/usage`.
+
+## Plugins with code
+
+They are a Cargo workspace of their own (`Cargo.toml` here), on the
+plugin-kit revision whose protocol nora-gateway speaks, and use its
+`nora_plugin_runtime_sdk::provider`. Package one as Nora installs it:
+
+```sh
+packages/gateway-providers/package.sh workbuddy .build/workbuddy
+nora plugin install kernel:nora.workbuddy .build/workbuddy --trust
+```
+
+`workbuddy` keeps the protocol modules of the Nora Router package
+(`../providers/workbuddy`) and their tests; `src/compat.rs` gives them the
+HTTP client and errors they were written against. Its desktop sign-in and
+account discovery are left out: a plugin in the router has its own home,
+not the user's.

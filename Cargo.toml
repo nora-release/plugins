@@ -1,4 +1,6 @@
 [workspace]
+# their own workspace, on the protocol nora-gateway speaks
+exclude = ["packages/gateway-providers"]
 members = [
     "packages/middleware/redact",
     "packages/crates/middleware-runtime",

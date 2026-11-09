@@ -18,10 +18,9 @@ retired; the two are kept apart.
 | `moonshotai` | OpenAI Chat | Moonshot (international) |
 | `moonshotai-cn` | OpenAI Chat | Moonshot (China) |
 | `siliconflow-global` | OpenAI Chat | SiliconFlow (international) |
-
 | `workbuddy` | OpenAI Chat | Has code: WorkBuddy (Tencent) on both sites, `workbuddy` and `workbuddy-ai`; browser sign-in, requests shaped for its chat endpoint, credits, daily check-in (China) |
 
-Those without code:  the router sends their requests itself and reads
+Those without code: the router sends their requests itself and reads
 their models from the vendor's `/models`. The format is described in
 Nora's `docs/provider-plugins.md`. Balances (Moonshot, SiliconFlow) come
 once plugins with code answer `provider/usage`.

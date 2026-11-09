@@ -1,0 +1,27 @@
+[package]
+name = "nora-gateway-chatgpt"
+version = "1.0.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "ChatGPT subscriptions for nora-gateway, through ChatGPT's Codex backend."
+
+[[bin]]
+name = "chatgpt"
+path = "src/main.rs"
+
+[dependencies]
+nora-gateway-provider-support.workspace = true
+nora-plugin-runtime-sdk.workspace = true
+base64.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true
+
+[lints]
+workspace = true

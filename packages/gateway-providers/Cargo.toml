@@ -3,7 +3,7 @@
 # Nora Router still uses.
 [workspace]
 resolver = "2"
-members = ["kiro", "support", "workbuddy"]
+members = ["chatgpt", "kiro", "support", "workbuddy"]
 
 [workspace.package]
 edition = "2021"

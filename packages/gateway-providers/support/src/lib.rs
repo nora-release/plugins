@@ -2,6 +2,12 @@
 //! were written against, on reqwest and plugin-kit's provider SDK, so their
 //! vendor logic carries over to nora-gateway's plugins unchanged.
 
+mod browser_sign_in;
+mod oauth_callback_server;
+
+pub use browser_sign_in::BrowserSignIn;
+pub use oauth_callback_server::{OAuthCallbackInput, OAuthCallbackServer, OAuthCallbackServerConfig};
+
 use futures::{Stream, StreamExt};
 use nora_plugin_runtime_sdk::protocol::RpcError;
 use nora_plugin_runtime_sdk::provider::{rate_limited, sign_in_needed};
@@ -253,3 +259,22 @@ impl FetchResponse {
         }
     }
 }
+
+/// Why an OAuth sign-in through the callback server stopped.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum OAuthError {
+    Transport(String),
+    InvalidResponse(String),
+    Cancelled,
+}
+
+impl std::fmt::Display for OAuthError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Transport(message) | Self::InvalidResponse(message) => formatter.write_str(message),
+            Self::Cancelled => formatter.write_str("The sign-in was cancelled."),
+        }
+    }
+}
+
+impl std::error::Error for OAuthError {}

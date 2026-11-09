@@ -18,6 +18,7 @@ retired; the two are kept apart.
 | `moonshotai` | OpenAI Chat | Moonshot (international) |
 | `moonshotai-cn` | OpenAI Chat | Moonshot (China) |
 | `siliconflow-global` | OpenAI Chat | SiliconFlow (international) |
+| `chatgpt` | OpenAI Responses | Has code: a ChatGPT plan signed in to as Codex CLI does (browser, port 1455); Responses requests shaped for ChatGPT's Codex backend with each model's own instructions; the 5-hour and weekly windows and credits |
 | `kiro` | Anthropic | Has code: browser sign-in (Google, GitHub, AWS Builder ID, IAM Identity Center; the browser comes back to a port on this machine) or an API key; Anthropic Messages turned into Kiro's CodeWhisperer calls and back; credits |
 | `workbuddy` | OpenAI Chat | Has code: WorkBuddy (Tencent) on both sites, `workbuddy` and `workbuddy-ai`; browser sign-in, requests shaped for its chat endpoint, credits, daily check-in (China) |
 
@@ -39,7 +40,9 @@ nora plugin install kernel:nora.workbuddy .build/workbuddy --trust
 
 `kiro` and `workbuddy` keep the protocol modules of their Nora Router
 packages (`../providers/…`) and their tests; `support` gives them the HTTP
-client and errors, with the old codes, they were written against. Reading
+client and errors, with the old codes, they were written against, and the
+OAuth callback server a browser sign-in comes back to. `chatgpt` is
+written anew on plugin-kit's SDK. Reading
 an account from the vendor's own app (Kiro CLI and IDE, WorkBuddy desktop)
 and account discovery are left out: a plugin in the router has its own
 home, not the user's.

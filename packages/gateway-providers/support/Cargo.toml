@@ -15,7 +15,10 @@ async-trait.workspace = true
 futures.workspace = true
 getrandom.workspace = true
 reqwest.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+tokio.workspace = true
+url.workspace = true
 
 [lints]
 workspace = true

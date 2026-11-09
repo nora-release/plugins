@@ -714,6 +714,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-gateway-chatgpt"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "futures",
+ "nora-gateway-provider-support",
+ "nora-plugin-runtime-sdk",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "nora-gateway-kiro"
 version = "1.0.0"
 dependencies = [
@@ -739,7 +754,10 @@ dependencies = [
  "getrandom 0.2.17",
  "nora-plugin-runtime-sdk",
  "reqwest",
+ "serde",
  "serde_json",
+ "tokio",
+ "url",
 ]
 
 [[package]]

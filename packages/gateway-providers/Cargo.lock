@@ -714,6 +714,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nora-gateway-provider-support"
+version = "1.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "getrandom 0.2.17",
+ "nora-plugin-runtime-sdk",
+ "reqwest",
+ "serde_json",
+]
+
+[[package]]
 name = "nora-gateway-workbuddy"
 version = "1.0.0"
 dependencies = [
@@ -722,6 +734,7 @@ dependencies = [
  "chrono",
  "futures",
  "getrandom 0.2.17",
+ "nora-gateway-provider-support",
  "nora-plugin-runtime-sdk",
  "regex",
  "reqwest",

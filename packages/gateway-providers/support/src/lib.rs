@@ -1,6 +1,6 @@
-//! The HTTP client, requests and errors the WorkBuddy protocol modules were
-//! written against, on reqwest and the plugin SDK's errors, so the vendor
-//! logic carries over from the Nora Router package unchanged.
+//! The HTTP client, requests and errors the provider packages of Nora Router
+//! were written against, on reqwest and plugin-kit's provider SDK, so their
+//! vendor logic carries over to nora-gateway's plugins unchanged.
 
 use futures::{Stream, StreamExt};
 use nora_plugin_runtime_sdk::protocol::RpcError;
@@ -21,6 +21,34 @@ pub struct HttpRequest {
     pub url: String,
     pub headers: BTreeMap<String, String>,
     pub body: Option<Vec<u8>>,
+}
+
+impl HttpRequest {
+    pub fn new(method: HttpMethod, url: impl Into<String>) -> Self {
+        Self {
+            method,
+            url: url.into(),
+            headers: BTreeMap::new(),
+            body: None,
+        }
+    }
+
+    pub fn with_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.headers.insert(name.into(), value.into());
+        self
+    }
+
+    pub fn with_body(mut self, body: Vec<u8>) -> Self {
+        self.body = Some(body);
+        self
+    }
+}
+
+/// `bytes` random bytes from the operating system, as lowercase hex.
+pub fn random_hex(bytes: usize) -> String {
+    let mut buffer = vec![0u8; bytes];
+    getrandom::getrandom(&mut buffer).expect("The operating system random source is unavailable");
+    buffer.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 #[derive(Debug)]

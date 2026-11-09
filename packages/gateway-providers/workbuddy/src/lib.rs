@@ -7,20 +7,19 @@
 
 mod auth;
 mod checkin;
-mod compat;
 mod models;
 mod request;
 mod stream;
 mod tools;
 mod usage;
 
-use compat::*;
 use futures::StreamExt;
 use nora_plugin_runtime_sdk::protocol::RpcError;
 use nora_plugin_runtime_sdk::provider::{
     Checkin, CheckinOutcome, Fetch, FetchHead, Model, Provider, Question, Renewed, SignIn,
     SignInFinish, Step, Usage, UsageWindow,
 };
+use provider_support::*;
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::sync::Arc;

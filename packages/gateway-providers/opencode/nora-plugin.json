@@ -1,0 +1,24 @@
+{
+  "apiVersion": 3,
+  "id": "nora.opencode",
+  "name": "OpenCode",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "host",
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "opencode",
+        "name": "OpenCode",
+        "api": "anthropic",
+        "baseURL": "https://opencode.ai/zen",
+        "auth": "bearer"
+      }
+    ]
+  },
+  "permissions": [
+    "network:opencode.ai"
+  ]
+}

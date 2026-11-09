@@ -1,0 +1,27 @@
+{
+  "apiVersion": 3,
+  "id": "nora.kimi-coding",
+  "name": "Kimi Coding",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "host",
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "kimi-coding",
+        "name": "Kimi Coding",
+        "api": "anthropic",
+        "baseURL": "https://api.kimi.com/coding",
+        "auth": "bearer",
+        "headers": {
+          "User-Agent": "KimiCLI/1.5"
+        }
+      }
+    ]
+  },
+  "permissions": [
+    "network:api.kimi.com"
+  ]
+}

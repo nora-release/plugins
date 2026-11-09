@@ -1,0 +1,23 @@
+{
+  "apiVersion": 3,
+  "id": "nora.moonshotai-cn",
+  "name": "Moonshot AI CN",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "host",
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "moonshotai-cn",
+        "name": "Moonshot AI CN",
+        "api": "openai-chat",
+        "baseURL": "https://api.moonshot.cn/v1"
+      }
+    ]
+  },
+  "permissions": [
+    "network:api.moonshot.cn"
+  ]
+}

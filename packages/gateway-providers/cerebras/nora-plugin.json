@@ -1,0 +1,23 @@
+{
+  "apiVersion": 3,
+  "id": "nora.cerebras",
+  "name": "Cerebras",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "host",
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "cerebras",
+        "name": "Cerebras",
+        "api": "openai-chat",
+        "baseURL": "https://api.cerebras.ai/v1"
+      }
+    ]
+  },
+  "permissions": [
+    "network:api.cerebras.ai"
+  ]
+}

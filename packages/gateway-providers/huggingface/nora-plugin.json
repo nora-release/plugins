@@ -1,0 +1,23 @@
+{
+  "apiVersion": 3,
+  "id": "nora.huggingface",
+  "name": "Hugging Face",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "host",
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "huggingface",
+        "name": "Hugging Face",
+        "api": "openai-chat",
+        "baseURL": "https://router.huggingface.co/v1"
+      }
+    ]
+  },
+  "permissions": [
+    "network:router.huggingface.co"
+  ]
+}

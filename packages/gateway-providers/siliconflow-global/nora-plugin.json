@@ -1,0 +1,23 @@
+{
+  "apiVersion": 3,
+  "id": "nora.siliconflow-global",
+  "name": "SiliconFlow",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "host",
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "siliconflow-global",
+        "name": "SiliconFlow",
+        "api": "openai-chat",
+        "baseURL": "https://api.siliconflow.com/v1"
+      }
+    ]
+  },
+  "permissions": [
+    "network:api.siliconflow.com"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "apiVersion": 3,
+  "id": "nora.vercel-ai-gateway",
+  "name": "Vercel AI Gateway",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "host",
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "vercel-ai-gateway",
+        "name": "Vercel AI Gateway",
+        "api": "openai-chat",
+        "baseURL": "https://ai-gateway.vercel.sh"
+      }
+    ]
+  },
+  "permissions": [
+    "network:ai-gateway.vercel.sh"
+  ]
+}

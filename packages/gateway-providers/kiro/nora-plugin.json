@@ -1,0 +1,38 @@
+{
+  "apiVersion": 3,
+  "id": "nora.kiro",
+  "name": "Kiro",
+  "version": "1.0.0",
+  "runtime": {
+    "kind": "process",
+    "entry": "bin/kiro",
+    "protocol": 2
+  },
+  "scope": "host",
+  "provides": [
+    "ai.provider"
+  ],
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "kiro",
+        "name": "Kiro",
+        "api": "anthropic",
+        "baseURL": "https://runtime.us-east-1.kiro.dev",
+        "signIn": [
+          "browser",
+          "key"
+        ],
+        "sendsRequests": true,
+        "usage": true
+      }
+    ]
+  },
+  "permissions": [
+    "network:app.kiro.dev",
+    "network:prod.us-east-1.auth.desktop.kiro.dev",
+    "network:*.kiro.dev",
+    "network:*.amazonaws.com",
+    "listen:localhost"
+  ]
+}

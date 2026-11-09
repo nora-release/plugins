@@ -18,6 +18,7 @@ retired; the two are kept apart.
 | `moonshotai` | OpenAI Chat | Moonshot (international) |
 | `moonshotai-cn` | OpenAI Chat | Moonshot (China) |
 | `siliconflow-global` | OpenAI Chat | SiliconFlow (international) |
+| `kiro` | Anthropic | Has code: browser sign-in (Google, GitHub, AWS Builder ID, IAM Identity Center; the browser comes back to a port on this machine) or an API key; Anthropic Messages turned into Kiro's CodeWhisperer calls and back; credits |
 | `workbuddy` | OpenAI Chat | Has code: WorkBuddy (Tencent) on both sites, `workbuddy` and `workbuddy-ai`; browser sign-in, requests shaped for its chat endpoint, credits, daily check-in (China) |
 
 Those without code: the router sends their requests itself and reads
@@ -36,8 +37,9 @@ packages/gateway-providers/package.sh workbuddy .build/workbuddy
 nora plugin install kernel:nora.workbuddy .build/workbuddy --trust
 ```
 
-`workbuddy` keeps the protocol modules of the Nora Router package
-(`../providers/workbuddy`) and their tests; `src/compat.rs` gives them the
-HTTP client and errors they were written against. Its desktop sign-in and
-account discovery are left out: a plugin in the router has its own home,
-not the user's.
+`kiro` and `workbuddy` keep the protocol modules of their Nora Router
+packages (`../providers/…`) and their tests; `support` gives them the HTTP
+client and errors, with the old codes, they were written against. Reading
+an account from the vendor's own app (Kiro CLI and IDE, WorkBuddy desktop)
+and account discovery are left out: a plugin in the router has its own
+home, not the user's.

@@ -42,6 +42,15 @@ impl HttpRequest {
         self.body = Some(body);
         self
     }
+
+    /// The value as the body, sent as JSON unless a type is already set.
+    pub fn with_json_body(mut self, value: &serde_json::Value) -> Result<Self, serde_json::Error> {
+        self.body = Some(serde_json::to_vec(value)?);
+        self.headers
+            .entry("content-type".into())
+            .or_insert_with(|| "application/json".into());
+        Ok(self)
+    }
 }
 
 /// `bytes` random bytes from the operating system, as lowercase hex.
@@ -157,8 +166,9 @@ pub async fn collect_body_text_limited(
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// An error as the protocol modules name it; [`From`] turns it into what
-/// the router reads, a sign-in to renew or a rest among them.
+/// An error as the protocol modules name it, with the old SDK's codes;
+/// [`From`] turns it into what the router reads, a sign-in to renew or a
+/// rest among them.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PluginError {
     pub code: String,
@@ -181,10 +191,13 @@ impl PluginError {
         Self::new("authentication_required", message)
     }
     pub fn transport(message: impl Into<String>) -> Self {
-        Self::new("transport", message)
+        Self::new("upstream_transport_error", message)
     }
     pub fn unsupported(what: impl std::fmt::Display) -> Self {
-        Self::new("unsupported", format!("{what} is not supported."))
+        Self::new(
+            "method_not_supported",
+            format!("This provider plugin does not support {what}."),
+        )
     }
 }
 
@@ -200,7 +213,7 @@ impl From<PluginError> for RpcError {
             "authentication_required" => sign_in_needed(error.message),
             "rate_limited" => rate_limited(error.message, None),
             "invalid_request" => RpcError::invalid_params(error.message),
-            "unsupported" => RpcError::method_not_found(),
+            "method_not_supported" => RpcError::method_not_found(),
             _ => RpcError::new(-32000, error.message),
         }
     }

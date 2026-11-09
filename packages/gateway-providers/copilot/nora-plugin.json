@@ -11,6 +11,7 @@
       "id": "copilot",
       "name": "GitHub Copilot",
       "api": "openai-chat",
+      "apis": ["openai-responses", "anthropic"],
       "baseURL": "https://api.githubcopilot.com",
       "signIn": ["browser"],
       "sendsRequests": true,

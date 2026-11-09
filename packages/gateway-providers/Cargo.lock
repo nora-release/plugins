@@ -797,7 +797,7 @@ dependencies = [
 [[package]]
 name = "nora-plugin-protocol"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/plugin-kit?rev=c46a9595203c7a569b175bffb11f7d1db7b7b6ad#c46a9595203c7a569b175bffb11f7d1db7b7b6ad"
+source = "git+https://github.com/nora-release/plugin-kit?rev=c5638cc4f75143a4192e40a61532b1bd0302a8f9#c5638cc4f75143a4192e40a61532b1bd0302a8f9"
 dependencies = [
  "serde",
  "serde_json",
@@ -806,7 +806,7 @@ dependencies = [
 [[package]]
 name = "nora-plugin-runtime-sdk"
 version = "0.1.0"
-source = "git+https://github.com/nora-release/plugin-kit?rev=c46a9595203c7a569b175bffb11f7d1db7b7b6ad#c46a9595203c7a569b175bffb11f7d1db7b7b6ad"
+source = "git+https://github.com/nora-release/plugin-kit?rev=c5638cc4f75143a4192e40a61532b1bd0302a8f9#c5638cc4f75143a4192e40a61532b1bd0302a8f9"
 dependencies = [
  "base64 0.22.1",
  "nora-plugin-protocol",

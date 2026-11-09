@@ -19,7 +19,7 @@ retired; the two are kept apart.
 | `moonshotai-cn` | OpenAI Chat | Moonshot (China) |
 | `siliconflow-global` | OpenAI Chat | SiliconFlow (international) |
 | `chatgpt` | OpenAI Responses | Has code: a ChatGPT plan signed in to as Codex CLI does (browser, port 1455); Responses requests shaped for ChatGPT's Codex backend with each model's own instructions; the 5-hour and weekly windows and credits |
-| `copilot` | OpenAI Chat | Has code: a GitHub Copilot plan signed in to with GitHub's device flow, as Copilot's editors do (a code typed at github.com/login/device); requests sent to the account's Copilot API with its session token, `X-Initiator` and vision headers; premium and chat allowances |
+| `copilot` | OpenAI Chat | Has code: a GitHub Copilot plan signed in to with GitHub's device flow, as Copilot's editors do (a code typed at github.com/login/device); each model on the APIs Copilot serves it on (Chat Completions, Responses, Anthropic Messages); requests sent to the account's Copilot API with its session token, `X-Initiator` and vision headers; premium and chat allowances |
 | `kiro` | Anthropic | Has code: browser sign-in (Google, GitHub, AWS Builder ID, IAM Identity Center; the browser comes back to a port on this machine) or an API key; Anthropic Messages turned into Kiro's CodeWhisperer calls and back; credits |
 | `workbuddy` | OpenAI Chat | Has code: WorkBuddy (Tencent) on both sites, `workbuddy` and `workbuddy-ai`; browser sign-in, requests shaped for its chat endpoint, credits, daily check-in (China) |
 

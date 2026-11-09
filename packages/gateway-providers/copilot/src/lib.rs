@@ -92,21 +92,20 @@ impl Copilot {
         &self,
         client: &dyn HttpClient,
         session: &Session,
-        path: &str,
-        body: &[u8],
-        initiator: &str,
-        vision: bool,
+        outgoing: &Outgoing,
     ) -> PluginResult<provider_support::HttpStreamingResponse> {
         let mut request = copilot::api_headers(
-            HttpRequest::new(HttpMethod::Post, format!("{}{path}", session.api)),
+            HttpRequest::new(
+                HttpMethod::Post,
+                format!("{}{}", session.api, outgoing.path),
+            ),
             session,
         )
         .with_header("content-type", "application/json")
         .with_header("openai-intent", "conversation-panel")
-        .with_header("x-initiator", initiator)
-        .with_body(body.to_vec());
-        if vision {
-            request = request.with_header("copilot-vision-request", "true");
+        .with_body(outgoing.body.clone());
+        for (name, value) in &outgoing.headers {
+            request = request.with_header(name.clone(), value.clone());
         }
         tokio::time::timeout(Duration::from_secs(120), client.stream(request))
             .await
@@ -116,6 +115,17 @@ impl Copilot {
             })
     }
 }
+
+/// A request as it goes to Copilot: its path there, its body and the
+/// headers it adds to the session's.
+struct Outgoing {
+    path: &'static str,
+    body: Vec<u8>,
+    headers: Vec<(String, String)>,
+}
+
+/// The caller's headers sent on to Copilot: Anthropic's version and betas.
+const PASSED_HEADERS: &[&str] = &["anthropic-version", "anthropic-beta"];
 
 impl Provider for Copilot {
     async fn sign_in(&self, request: SignIn) -> Result<Step, RpcError> {
@@ -182,31 +192,46 @@ impl Provider for Copilot {
     }
 
     async fn fetch(&self, mut request: Fetch) -> Result<FetchHead, RpcError> {
-        let path = request
+        let (api, path) = request
             .url
             .strip_prefix(copilot::API)
-            .filter(|path| request.method == "POST" && *path == "/chat/completions")
+            .filter(|_| request.method == "POST")
+            .and_then(copilot::route)
             .ok_or_else(|| {
-                PluginError::invalid("A Copilot account takes Chat Completions requests.")
-            })?
-            .to_owned();
+                PluginError::invalid(
+                    "A Copilot account takes Chat Completions, Responses and Messages requests.",
+                )
+            })?;
         let (client, token) = self.signed_in(&request.question)?;
         let bytes = request.body.read_to_end(MAXIMUM_REQUEST_BYTES).await?;
         let body: Value = serde_json::from_slice(&bytes)
             .map_err(|_| PluginError::invalid("The request body is not JSON."))?;
-        let (initiator, vision) = (copilot::initiator(&body), copilot::has_image(&body));
+        let mut headers = vec![(
+            "x-initiator".to_owned(),
+            copilot::initiator(api, &body).to_owned(),
+        )];
+        if copilot::has_image(&body) {
+            headers.push(("copilot-vision-request".into(), "true".into()));
+        }
+        for (name, value) in &request.headers {
+            let name = name.to_ascii_lowercase();
+            if PASSED_HEADERS.contains(&name.as_str()) {
+                headers.push((name, value.clone()));
+            }
+        }
+        let outgoing = Outgoing {
+            path,
+            body: bytes,
+            headers,
+        };
 
         let mut session = self.session(client.as_ref(), &token).await?;
-        let mut response = self
-            .post(client.as_ref(), &session, &path, &bytes, initiator, vision)
-            .await?;
+        let mut response = self.post(client.as_ref(), &session, &outgoing).await?;
         if response.status == 401 {
             // a session Copilot turned away before its time: traded again once
             self.forget(&token).await;
             session = self.session(client.as_ref(), &token).await?;
-            response = self
-                .post(client.as_ref(), &session, &path, &bytes, initiator, vision)
-                .await?;
+            response = self.post(client.as_ref(), &session, &outgoing).await?;
         }
         let mut head = FetchHead {
             status: response.status,

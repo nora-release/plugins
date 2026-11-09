@@ -65,18 +65,22 @@ pub(crate) fn session(value: &Value) -> Option<Session> {
     })
 }
 
-/// The chat models `/models` offers the account on Chat Completions, as
-/// Copilot's model picker offers them.
+/// The chat models `/models` offers the account, as Copilot's clients
+/// offer them, each with the APIs it is served on.
 pub(crate) fn models(value: &Value) -> Vec<Model> {
     let Some(list) = value["data"].as_array() else {
         return Vec::new();
     };
     list.iter()
         .filter(|model| offered(model))
-        .map(|model| {
+        .filter_map(|model| {
+            let apis = apis(model);
+            if apis.is_empty() {
+                return None;
+            }
             let limits = &model["capabilities"]["limits"];
             let supports = &model["capabilities"]["supports"];
-            Model {
+            Some(Model {
                 name: model["name"]
                     .as_str()
                     .filter(|name| !name.is_empty())
@@ -94,31 +98,73 @@ pub(crate) fn models(value: &Value) -> Vec<Model> {
                     || supports["adaptive_thinking"] == true
                     || supports["max_thinking_budget"].as_u64().is_some(),
                 images: supports["vision"] == true,
+                apis,
                 ..Model::new(model["id"].as_str().unwrap_or_default())
-            }
+            })
         })
         .collect()
 }
 
-/// Whether a `/models` entry is a chat model this account may pick and
-/// Chat Completions serves: not Copilot's own helpers, and enabled for it.
+/// Whether a `/models` entry is a chat model this account may pick: not
+/// Copilot's own helpers nor an old snapshot, and enabled for the account.
+/// A Free plan's picker offers none by hand, so a model in one of the
+/// picker's categories counts too, as magpie and VS Code have it.
 fn offered(model: &Value) -> bool {
     let id = model["id"].as_str().unwrap_or_default();
     if id.is_empty() || model["capabilities"]["type"] != "chat" || internal(id) {
         return false;
     }
     let picker = model["model_picker_enabled"] == true;
-    if !picker {
+    let category = model["model_picker_category"]
+        .as_str()
+        .is_some_and(|category| !category.is_empty());
+    if !picker && (!category || model["vendor"] == "Experimental") {
         return false;
     }
-    let enabled = match model["policy"]["state"].as_str() {
+    match model["policy"]["state"].as_str() {
         Some(state) => state == "enabled",
-        None => true,
+        None => picker,
+    }
+}
+
+/// The APIs a model is served on, as its `supported_endpoints` say; a
+/// model that names none is on Chat Completions.
+fn apis(model: &Value) -> Vec<String> {
+    let Some(endpoints) = model["supported_endpoints"]
+        .as_array()
+        .filter(|list| !list.is_empty())
+    else {
+        return vec![CHAT.into()];
     };
-    let endpoints = model["supported_endpoints"].as_array();
-    let chat = endpoints
-        .is_none_or(|list| list.is_empty() || list.iter().any(|e| e == "/chat/completions"));
-    enabled && chat
+    let mut out: Vec<String> = Vec::new();
+    for endpoint in endpoints.iter().filter_map(Value::as_str) {
+        let api = match endpoint {
+            "/chat/completions" => CHAT,
+            "/responses" => RESPONSES,
+            "/v1/messages" => MESSAGES,
+            _ => continue,
+        };
+        if !out.iter().any(|known| known == api) {
+            out.push(api.into());
+        }
+    }
+    out
+}
+
+pub(crate) const CHAT: &str = "openai-chat";
+pub(crate) const RESPONSES: &str = "openai-responses";
+pub(crate) const MESSAGES: &str = "anthropic";
+
+/// The API a request is made in and the path it goes to at Copilot, from
+/// the path the router gave it: Copilot's bare host takes the OpenAI APIs
+/// without the /v1 the router adds.
+pub(crate) fn route(path: &str) -> Option<(&'static str, &'static str)> {
+    match path.trim_end_matches('/') {
+        "/chat/completions" | "/v1/chat/completions" => Some((CHAT, "/chat/completions")),
+        "/responses" | "/v1/responses" => Some((RESPONSES, "/responses")),
+        "/v1/messages" => Some((MESSAGES, "/v1/messages")),
+        _ => None,
+    }
 }
 
 /// Copilot's own models, which no client offers to pick.
@@ -131,27 +177,46 @@ fn internal(id: &str) -> bool {
             .any(|suffix| id.ends_with(suffix))
 }
 
-/// Who started a Chat Completions turn: the user typing, or the agent
-/// answering a tool. Copilot bills a premium request for the user's only.
-pub(crate) fn initiator(body: &Value) -> &'static str {
-    let last = body["messages"]
-        .as_array()
-        .and_then(|messages| messages.last());
-    match last {
-        Some(message) if message["role"] == "user" => "user",
-        _ => "agent",
+/// Who started a turn: the user typing, or the agent answering a tool.
+/// Copilot bills a premium request for the user's only.
+pub(crate) fn initiator(api: &str, body: &Value) -> &'static str {
+    let user = match api {
+        RESPONSES => match &body["input"] {
+            Value::String(_) => true,
+            Value::Array(items) => items.last().is_some_and(|item| item["role"] == "user"),
+            _ => false,
+        },
+        _ => body["messages"]
+            .as_array()
+            .and_then(|messages| messages.last())
+            .is_some_and(|message| {
+                message["role"] == "user"
+                    && !(api == MESSAGES
+                        && message["content"].as_array().is_some_and(|blocks| {
+                            !blocks.is_empty()
+                                && blocks.iter().all(|block| block["type"] == "tool_result")
+                        }))
+            }),
+    };
+    if user {
+        "user"
+    } else {
+        "agent"
     }
 }
 
-/// Whether a Chat Completions body carries an image.
-pub(crate) fn has_image(body: &Value) -> bool {
-    body["messages"].as_array().is_some_and(|messages| {
-        messages.iter().any(|message| {
-            message["content"]
-                .as_array()
-                .is_some_and(|parts| parts.iter().any(|part| part["type"] == "image_url"))
-        })
-    })
+/// Whether a request carries an image, in any of the three APIs.
+pub(crate) fn has_image(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => {
+            matches!(
+                object.get("type").and_then(Value::as_str),
+                Some("image_url" | "input_image" | "image")
+            ) || object.values().any(has_image)
+        }
+        Value::Array(items) => items.iter().any(has_image),
+        _ => false,
+    }
 }
 
 /// `/copilot_internal/user` as the router reads usage: the plan and each

@@ -12,7 +12,7 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 nora-gateway-provider-support = { path = "support" }
-nora-plugin-runtime-sdk = { git = "https://github.com/nora-release/plugin-kit", rev = "c46a9595203c7a569b175bffb11f7d1db7b7b6ad" }
+nora-plugin-runtime-sdk = { git = "https://github.com/nora-release/plugin-kit", rev = "c5638cc4f75143a4192e40a61532b1bd0302a8f9" }
 async-trait = "0.1"
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }

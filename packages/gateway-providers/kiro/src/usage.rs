@@ -94,6 +94,7 @@ pub(crate) fn parse(value: &Value) -> PluginResult<Usage> {
     Ok(Usage {
         plan: (!title.is_empty()).then(|| plan(title)),
         windows,
+        resets: None,
     })
 }
 

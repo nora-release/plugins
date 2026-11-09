@@ -2,7 +2,7 @@
 //! Responses bodies it takes, its model list and its usage.
 
 use crate::auth::{signed_out, text};
-use nora_plugin_runtime_sdk::provider::{Model, Usage, UsageWindow};
+use nora_plugin_runtime_sdk::provider::{Model, ResetCard, Usage, UsageResets, UsageWindow};
 use provider_support::{
     collect_body_text_limited, HttpClient, HttpRequest, HttpStreamingResponse, PluginError,
     PluginResult,
@@ -13,6 +13,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub(crate) const BASE: &str = "https://chatgpt.com/backend-api/codex";
 pub(crate) const USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
+/// The rate-limit resets the account holds, each with when it runs out.
+pub(crate) const RESET_CREDITS_URL: &str =
+    "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
 /// The Codex CLI the requests say they come from: the backend serves its
 /// newest models only to a client that names a recent one.
 pub(crate) const VERSION: &str = "0.159.0";
@@ -262,8 +265,8 @@ pub(crate) fn models(value: &Value) -> PluginResult<Vec<Listed>> {
         .collect())
 }
 
-/// `/wham/usage` as the router reads usage: the plan, its two windows and
-/// the credits left.
+/// `/wham/usage` as the router reads usage: the plan, its two windows, the
+/// credits left and how many rate-limit resets it holds.
 pub(crate) fn usage(value: &Value) -> Usage {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -309,13 +312,51 @@ pub(crate) fn usage(value: &Value) -> Usage {
             ..UsageWindow::default()
         });
     }
+    let resets = value
+        .pointer("/rate_limit_reset_credits/available_count")
+        .and_then(Value::as_u64)
+        .filter(|count| *count > 0)
+        .map(|count| UsageResets {
+            count: u32::try_from(count).unwrap_or(u32::MAX),
+            cards: Vec::new(),
+        });
     Usage {
         plan: value["plan_type"]
             .as_str()
             .filter(|plan| !plan.is_empty())
             .map(str::to_owned),
         windows,
+        resets,
     }
+}
+
+/// The resets `/wham/rate-limit-reset-credits` lists still to be used,
+/// the soonest to run out first, one that never does last.
+pub(crate) fn reset_cards(value: &Value) -> Vec<ResetCard> {
+    let mut cards: Vec<ResetCard> = value["credits"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|credit| credit["status"] == "available")
+        .filter_map(|credit| {
+            let id = credit["id"].as_str().filter(|id| !id.is_empty())?;
+            Some(ResetCard {
+                id: Some(id.to_owned()),
+                expires_at: credit["expires_at"]
+                    .as_str()
+                    .filter(|at| !at.is_empty())
+                    .map(str::to_owned),
+            })
+        })
+        .collect();
+    // RFC 3339 times in one zone sort as text
+    cards.sort_by(|a, b| match (&a.expires_at, &b.expires_at) {
+        (Some(a), Some(b)) => a.cmp(b),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+    cards
 }
 
 fn window_name(seconds: u64) -> String {

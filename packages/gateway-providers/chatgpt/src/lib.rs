@@ -312,9 +312,22 @@ impl Provider for ChatGpt {
             HttpRequest::new(HttpMethod::Get, codex::USAGE_URL),
             &credentials,
         );
-        Ok(codex::usage(
-            &codex::json(client.as_ref(), request, Duration::from_secs(30)).await?,
-        ))
+        let mut usage =
+            codex::usage(&codex::json(client.as_ref(), request, Duration::from_secs(30)).await?);
+        // when each reset runs out is a second look: without it, the count
+        if let Some(resets) = usage.resets.as_mut() {
+            let request = codex::account_request(
+                HttpRequest::new(HttpMethod::Get, codex::RESET_CREDITS_URL),
+                &credentials,
+            );
+            if let Ok(value) = codex::json(client.as_ref(), request, Duration::from_secs(4)).await {
+                let cards = codex::reset_cards(&value);
+                if cards.len() == resets.count as usize {
+                    resets.cards = cards;
+                }
+            }
+        }
+        Ok(usage)
     }
 }
 

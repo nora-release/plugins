@@ -92,3 +92,28 @@ event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{
         "ChatGPT answered HTTP 429: Slow down"
     );
 }
+
+#[test]
+fn usage_counts_the_resets_and_the_list_names_each() {
+    let usage =
+        usage(&json!({"plan_type": "plus", "rate_limit_reset_credits": {"available_count": 2}}));
+    let resets = usage.resets.unwrap();
+    assert_eq!(resets.count, 2);
+    assert!(resets.cards.is_empty());
+    assert!(
+        super::usage(&json!({"rate_limit_reset_credits": {"available_count": 0}}))
+            .resets
+            .is_none()
+    );
+
+    let cards = reset_cards(&json!({"available_count": 2, "credits": [
+        {"id": "late", "status": "available", "expires_at": "2027-01-01T00:00:00Z"},
+        {"id": "spent", "status": "redeemed", "expires_at": "2026-11-20T00:00:00Z"},
+        {"id": "never", "status": "available", "expires_at": null},
+        {"id": "soon", "status": "available", "expires_at": "2026-12-02T06:56:00Z"}
+    ]}));
+    let ids: Vec<&str> = cards.iter().filter_map(|card| card.id.as_deref()).collect();
+    assert_eq!(ids, ["soon", "late", "never"]);
+    assert_eq!(cards[0].expires_at.as_deref(), Some("2026-12-02T06:56:00Z"));
+    assert!(cards[2].expires_at.is_none());
+}

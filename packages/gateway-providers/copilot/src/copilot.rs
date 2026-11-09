@@ -296,6 +296,7 @@ pub(crate) fn usage(value: &Value) -> Usage {
             .filter(|plan| !plan.is_empty())
             .map(str::to_owned),
         windows,
+        resets: None,
     }
 }
 

@@ -272,6 +272,7 @@ fn usage_of(value: &Value) -> Usage {
     Usage {
         plan: value.get("plan").and_then(Value::as_str).map(str::to_owned),
         windows,
+        resets: None,
     }
 }
 

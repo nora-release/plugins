@@ -2,9 +2,12 @@
 //! in to with the device flow, as Copilot's editors do, whose requests go to
 //! Copilot's API and count against the plan's allowance.
 
+mod auto;
 mod copilot;
 mod github;
+mod refused;
 
+use auto::Pick;
 use copilot::Session;
 use futures::StreamExt;
 use nora_plugin_runtime_sdk::protocol::RpcError;
@@ -12,8 +15,10 @@ use nora_plugin_runtime_sdk::provider::{
     Fetch, FetchHead, Model, Provider, Question, SignIn, SignInFinish, Step, Usage,
 };
 use provider_support::{
-    random_hex, HttpClient, HttpMethod, HttpRequest, PluginError, PluginResult, ReqwestHttpClient,
+    collect_body_text_limited, random_hex, HttpClient, HttpMethod, HttpRequest,
+    HttpStreamingResponse, PluginError, PluginResult, ReqwestHttpClient,
 };
+use refused::Refused;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -23,12 +28,38 @@ use tokio::sync::Mutex;
 /// The most of a request body read: images and long contexts fit.
 const MAXIMUM_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 
-#[derive(Default)]
 pub struct Copilot {
     client: Option<Arc<dyn HttpClient>>,
     pending: Mutex<BTreeMap<String, github::Pending>>,
     /// Each GitHub token's session, kept until shortly before it expires.
     sessions: Mutex<BTreeMap<String, Session>>,
+    /// Each GitHub token's Auto pick.
+    picks: Mutex<BTreeMap<String, Pick>>,
+    /// The models each account was refused picked by hand.
+    refused: Mutex<Refused>,
+}
+
+impl Default for Copilot {
+    fn default() -> Self {
+        // the router runs the plugin in its own folder
+        let path = std::env::current_dir()
+            .ok()
+            .map(|dir| dir.join(refused::FILE));
+        Self {
+            client: None,
+            pending: Mutex::default(),
+            sessions: Mutex::default(),
+            picks: Mutex::default(),
+            refused: Mutex::new(Refused::load(path)),
+        }
+    }
+}
+
+/// A signed-in account: its GitHub token and login.
+struct Signed {
+    client: Arc<dyn HttpClient>,
+    token: String,
+    login: String,
 }
 
 impl Copilot {
@@ -39,15 +70,20 @@ impl Copilot {
         Ok(Arc::new(ReqwestHttpClient::new(proxy)?))
     }
 
-    fn signed_in(&self, question: &Question) -> PluginResult<(Arc<dyn HttpClient>, String)> {
-        let token = question
+    fn signed_in(&self, question: &Question) -> PluginResult<Signed> {
+        let credentials = question
             .credentials
             .as_ref()
-            .and_then(|credentials| credentials["github"].as_str())
+            .ok_or_else(github::signed_out)?;
+        let token = credentials["github"]
+            .as_str()
             .filter(|token| !token.is_empty())
-            .ok_or_else(github::signed_out)?
-            .to_owned();
-        Ok((self.client(question.proxy.as_deref())?, token))
+            .ok_or_else(github::signed_out)?;
+        Ok(Signed {
+            client: self.client(question.proxy.as_deref())?,
+            token: token.to_owned(),
+            login: credentials["login"].as_str().unwrap_or(token).to_owned(),
+        })
     }
 
     /// The GitHub token's Copilot session: the one kept, or a new one.
@@ -88,6 +124,23 @@ impl Copilot {
         self.sessions.lock().await.remove(token);
     }
 
+    /// The account's Auto pick: the one kept, or one asked anew.
+    async fn pick(
+        &self,
+        client: &dyn HttpClient,
+        token: &str,
+        session: &Session,
+        fresh: bool,
+    ) -> PluginResult<Pick> {
+        let mut picks = self.picks.lock().await;
+        if let Some(pick) = picks.get(token).filter(|pick| !fresh && pick.usable()) {
+            return Ok(pick.clone());
+        }
+        let pick = auto::ask(client, session).await?;
+        picks.insert(token.to_owned(), pick.clone());
+        Ok(pick)
+    }
+
     async fn post(
         &self,
         client: &dyn HttpClient,
@@ -122,6 +175,46 @@ struct Outgoing {
     path: &'static str,
     body: Vec<u8>,
     headers: Vec<(String, String)>,
+}
+
+impl Outgoing {
+    /// The request as Auto's pick: the model it named, the session it carries.
+    fn picked(&self, body: &Value, pick: &Pick) -> PluginResult<Self> {
+        let mut body = body.clone();
+        body["model"] = Value::String(pick.model.clone());
+        let mut headers = self.headers.clone();
+        headers.push(("copilot-session-token".into(), pick.token.clone()));
+        Ok(Self {
+            path: self.path,
+            body: serde_json::to_vec(&body)
+                .map_err(|_| PluginError::invalid("The request could not be encoded."))?,
+            headers,
+        })
+    }
+}
+
+/// What Copilot answered a request, its error read when it has one.
+async fn answer(response: HttpStreamingResponse) -> PluginResult<(HttpStreamingResponse, Value)> {
+    if (200..300).contains(&response.status) {
+        return Ok((response, Value::Null));
+    }
+    let status = response.status;
+    let headers = response.headers;
+    let text = collect_body_text_limited(response.body, 1024 * 1024)
+        .await
+        .map_err(|_| PluginError::transport("Copilot's answer was cut short."))?;
+    let value = serde_json::from_str(&text).unwrap_or(Value::Null);
+    let bytes = text.into_bytes();
+    let body: provider_support::HttpByteStream =
+        Box::pin(futures::stream::once(async move { Ok(bytes) }));
+    Ok((
+        HttpStreamingResponse {
+            status,
+            headers,
+            body,
+        },
+        value,
+    ))
 }
 
 /// The caller's headers sent on to Copilot: Anthropic's version and betas.
@@ -169,16 +262,16 @@ impl Provider for Copilot {
     }
 
     async fn models(&self, question: Question) -> Result<Vec<Model>, RpcError> {
-        let (client, token) = self.signed_in(&question)?;
-        let session = self.session(client.as_ref(), &token).await?;
+        let signed = self.signed_in(&question)?;
+        let client = signed.client.as_ref();
+        let session = self.session(client, &signed.token).await?;
         let request = copilot::api_headers(
             HttpRequest::new(HttpMethod::Get, format!("{}/models", session.api)),
             &session,
         );
-        let (status, value) =
-            github::json(client.as_ref(), request, Duration::from_secs(30)).await?;
+        let (status, value) = github::json(client, request, Duration::from_secs(30)).await?;
         if status == 401 {
-            self.forget(&token).await;
+            self.forget(&signed.token).await;
         }
         if !(200..300).contains(&status) {
             return Err(PluginError::transport(github::explain(
@@ -188,7 +281,18 @@ impl Provider for Copilot {
             ))
             .into());
         }
-        Ok(copilot::models(&value))
+        let refused = self.refused.lock().await;
+        let mut models: Vec<Model> = copilot::models(&value)
+            .into_iter()
+            .filter(|model| !refused.contains(&signed.login, &model.id))
+            .collect();
+        drop(refused);
+        // Auto, which Copilot's clients offer every account beside the
+        // models it lists, on the APIs its pick is served on
+        if let Ok(pick) = self.pick(client, &signed.token, &session, false).await {
+            models.insert(0, copilot::auto(&value, &pick.model));
+        }
+        Ok(models)
     }
 
     async fn fetch(&self, mut request: Fetch) -> Result<FetchHead, RpcError> {
@@ -202,10 +306,12 @@ impl Provider for Copilot {
                     "A Copilot account takes Chat Completions, Responses and Messages requests.",
                 )
             })?;
-        let (client, token) = self.signed_in(&request.question)?;
+        let signed = self.signed_in(&request.question)?;
+        let (client, token) = (signed.client.as_ref(), signed.token.as_str());
         let bytes = request.body.read_to_end(MAXIMUM_REQUEST_BYTES).await?;
         let body: Value = serde_json::from_slice(&bytes)
             .map_err(|_| PluginError::invalid("The request body is not JSON."))?;
+        let model = body["model"].as_str().unwrap_or_default().to_owned();
         let mut headers = vec![(
             "x-initiator".to_owned(),
             copilot::initiator(api, &body).to_owned(),
@@ -219,19 +325,39 @@ impl Provider for Copilot {
                 headers.push((name, value.clone()));
             }
         }
-        let outgoing = Outgoing {
+        let asked = Outgoing {
             path,
             body: bytes,
             headers,
         };
 
-        let mut session = self.session(client.as_ref(), &token).await?;
-        let mut response = self.post(client.as_ref(), &session, &outgoing).await?;
+        let mut session = self.session(client, token).await?;
+        let mut outgoing = if model == auto::AUTO {
+            asked.picked(&body, &self.pick(client, token, &session, false).await?)?
+        } else {
+            asked
+        };
+        let mut response = self.post(client, &session, &outgoing).await?;
         if response.status == 401 {
             // a session Copilot turned away before its time: traded again once
-            self.forget(&token).await;
-            session = self.session(client.as_ref(), &token).await?;
-            response = self.post(client.as_ref(), &session, &outgoing).await?;
+            self.forget(token).await;
+            session = self.session(client, token).await?;
+            response = self.post(client, &session, &outgoing).await?;
+        }
+        let (mut response, mut error) = answer(response).await?;
+        if model == auto::AUTO && auto::session_refused(response.status, &error) {
+            // Auto's session let go or its pick changed: Copilot picks again
+            let pick = self.pick(client, token, &session, true).await?;
+            outgoing = outgoing.picked(&body, &pick)?;
+            (response, error) = answer(self.post(client, &session, &outgoing).await?).await?;
+        }
+        if model != auto::AUTO && refused::refusal(response.status, &error) {
+            self.refused.lock().await.add(&signed.login, &model);
+            let bytes = serde_json::to_vec(&refused::explained(&model)).unwrap_or_default();
+            response.body = Box::pin(futures::stream::once(async move { Ok(bytes) }));
+            response
+                .headers
+                .insert("content-type".into(), "application/json".into());
         }
         let mut head = FetchHead {
             status: response.status,
@@ -266,12 +392,12 @@ impl Provider for Copilot {
     }
 
     async fn usage(&self, question: Question) -> Result<Usage, RpcError> {
-        let (client, token) = self.signed_in(&question)?;
+        let signed = self.signed_in(&question)?;
         let request = copilot::editor_headers(HttpRequest::new(HttpMethod::Get, copilot::USER_URL))
-            .with_header("authorization", format!("token {token}"))
+            .with_header("authorization", format!("token {}", signed.token))
             .with_header("accept", "application/json");
         let (status, value) =
-            github::json(client.as_ref(), request, Duration::from_secs(30)).await?;
+            github::json(signed.client.as_ref(), request, Duration::from_secs(30)).await?;
         if status == 401 {
             return Err(github::signed_out().into());
         }

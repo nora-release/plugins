@@ -72,37 +72,62 @@ pub(crate) fn models(value: &Value) -> Vec<Model> {
         return Vec::new();
     };
     list.iter()
-        .filter(|model| offered(model))
-        .filter_map(|model| {
-            let apis = apis(model);
-            if apis.is_empty() {
-                return None;
-            }
-            let limits = &model["capabilities"]["limits"];
-            let supports = &model["capabilities"]["supports"];
-            Some(Model {
-                name: model["name"]
-                    .as_str()
-                    .filter(|name| !name.is_empty())
-                    .map(str::to_owned),
-                context: limits["max_context_window_tokens"]
-                    .as_u64()
-                    .or_else(|| limits["max_prompt_tokens"].as_u64())
-                    .filter(|tokens| *tokens > 0),
-                output: limits["max_output_tokens"]
-                    .as_u64()
-                    .filter(|tokens| *tokens > 0),
-                reasoning: supports["reasoning_effort"]
-                    .as_array()
-                    .is_some_and(|efforts| !efforts.is_empty())
-                    || supports["adaptive_thinking"] == true
-                    || supports["max_thinking_budget"].as_u64().is_some(),
-                images: supports["vision"] == true,
-                apis,
-                ..Model::new(model["id"].as_str().unwrap_or_default())
-            })
-        })
+        .filter(|entry| offered(entry))
+        .filter_map(model)
         .collect()
+}
+
+/// Auto as the account's list offers it: what its pick is served on and
+/// takes, the pick being any of the list's models.
+pub(crate) fn auto(value: &Value, picked: &str) -> Model {
+    let entry = value["data"]
+        .as_array()
+        .and_then(|list| list.iter().find(|entry| entry["id"] == picked));
+    let served = entry.and_then(model);
+    Model {
+        name: Some("Auto".into()),
+        apis: served
+            .as_ref()
+            .map_or_else(|| vec![RESPONSES.into(), CHAT.into()], |m| m.apis.clone()),
+        ..served.map_or_else(
+            || Model::new(crate::auto::AUTO),
+            |m| Model {
+                id: crate::auto::AUTO.into(),
+                ..m
+            },
+        )
+    }
+}
+
+/// A `/models` entry as a model, none when it is on no API spoken here.
+fn model(entry: &Value) -> Option<Model> {
+    let apis = apis(entry);
+    if apis.is_empty() {
+        return None;
+    }
+    let limits = &entry["capabilities"]["limits"];
+    let supports = &entry["capabilities"]["supports"];
+    Some(Model {
+        name: entry["name"]
+            .as_str()
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned),
+        context: limits["max_context_window_tokens"]
+            .as_u64()
+            .or_else(|| limits["max_prompt_tokens"].as_u64())
+            .filter(|tokens| *tokens > 0),
+        output: limits["max_output_tokens"]
+            .as_u64()
+            .filter(|tokens| *tokens > 0),
+        reasoning: supports["reasoning_effort"]
+            .as_array()
+            .is_some_and(|efforts| !efforts.is_empty())
+            || supports["adaptive_thinking"] == true
+            || supports["max_thinking_budget"].as_u64().is_some(),
+        images: supports["vision"] == true,
+        apis,
+        ..Model::new(entry["id"].as_str().unwrap_or_default())
+    })
 }
 
 /// Whether a `/models` entry is a chat model this account may pick: not

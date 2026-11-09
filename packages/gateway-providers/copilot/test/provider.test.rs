@@ -43,7 +43,10 @@ fn plugin(replies: Vec<(u16, Value)>) -> (Copilot, Arc<Client>) {
     let client = Client::new(replies);
     let plugin = Copilot {
         client: Some(client.clone()),
-        ..Copilot::default()
+        pending: Mutex::default(),
+        sessions: Mutex::default(),
+        picks: Mutex::default(),
+        refused: Mutex::new(Refused::default()),
     };
     (plugin, client)
 }
@@ -108,6 +111,8 @@ async fn models_are_read_at_the_sessions_api() {
             200,
             json!({"data": [{"id": "gpt-4.1", "model_picker_enabled": true, "capabilities": {"type": "chat"}}]}),
         ),
+        (404, json!({})),
+        (404, json!({})),
     ]);
     let question = Question {
         credentials: Some(json!({"github": "gho_1", "login": "octocat"})),
@@ -130,6 +135,100 @@ async fn models_are_read_at_the_sessions_api() {
             .get("x-github-api-version")
             .map(String::as_str),
         Some("2026-01-09")
+    );
+}
+
+fn signed_question() -> Question {
+    Question {
+        credentials: Some(json!({"github": "gho_1", "login": "octocat"})),
+        ..Question::default()
+    }
+}
+
+#[tokio::test]
+async fn models_lead_with_auto_and_leave_out_those_refused() {
+    let (plugin, client) = plugin(vec![
+        session_reply(),
+        (
+            200,
+            json!({"data": [
+                {"id": "gpt-4.1", "model_picker_enabled": true, "capabilities": {"type": "chat"}},
+                {"id": "gpt-6-luna", "model_picker_enabled": true, "capabilities": {"type": "chat"},
+                 "supported_endpoints": ["/responses"]}
+            ]}),
+        ),
+        (
+            200,
+            json!({"session_token": "st", "selected_model": "gpt-6-luna", "expires_at": 4_000_000_000u64}),
+        ),
+    ]);
+    plugin.refused.lock().await.add("octocat", "gpt-6-luna");
+    let models = plugin.models(signed_question()).await.unwrap();
+    let ids: Vec<&str> = models.iter().map(|model| model.id.as_str()).collect();
+    assert_eq!(ids, ["auto", "gpt-4.1"]);
+    assert_eq!(models[0].apis, ["openai-responses"]);
+    let requests = client.requests.lock().unwrap();
+    assert_eq!(
+        requests[2].url,
+        "https://api.individual.githubcopilot.com/models/session"
+    );
+    assert_eq!(
+        requests[2]
+            .headers
+            .get("x-github-api-version")
+            .map(String::as_str),
+        Some("2025-10-01")
+    );
+}
+
+#[tokio::test]
+async fn auto_falls_back_to_the_newer_endpoint() {
+    let (plugin, client) = plugin(vec![
+        session_reply(),
+        (404, json!({"message": "Not Found"})),
+        (
+            200,
+            json!({"session_token": "st", "selected_model": {"id": "gpt-6-luna"}}),
+        ),
+    ]);
+    let session = plugin.session(client.as_ref(), "gho_1").await.unwrap();
+    let pick = plugin
+        .pick(client.as_ref(), "gho_1", &session, false)
+        .await
+        .unwrap();
+    assert_eq!(pick.model, "gpt-6-luna");
+    // kept: Copilot is not asked again
+    let again = plugin
+        .pick(client.as_ref(), "gho_1", &session, false)
+        .await
+        .unwrap();
+    assert_eq!(again, pick);
+    let requests = client.requests.lock().unwrap();
+    assert_eq!(requests.len(), 3);
+    assert_eq!(
+        requests[2].url,
+        "https://api.individual.githubcopilot.com/auto"
+    );
+}
+
+#[tokio::test]
+async fn models_are_listed_without_auto_when_copilot_picks_none() {
+    let (plugin, _) = plugin(vec![
+        session_reply(),
+        (
+            200,
+            json!({"data": [{"id": "gpt-4.1", "model_picker_enabled": true, "capabilities": {"type": "chat"}}]}),
+        ),
+        (404, json!({})),
+        (404, json!({})),
+    ]);
+    let models = plugin.models(signed_question()).await.unwrap();
+    assert_eq!(
+        models
+            .iter()
+            .map(|model| model.id.as_str())
+            .collect::<Vec<_>>(),
+        ["gpt-4.1"]
     );
 }
 

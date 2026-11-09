@@ -78,6 +78,23 @@ fn a_free_plan_lists_the_models_enabled_for_it() {
 }
 
 #[test]
+fn auto_is_served_on_its_picks_apis() {
+    let list = json!({"data": [
+        {"id": "mai-code-1.1-flash", "name": "MAI-Code", "capabilities": {"type": "chat",
+         "limits": {"max_context_window_tokens": 256000}, "supports": {"vision": true}},
+         "supported_endpoints": ["/responses", "ws:/responses"]}
+    ]});
+    let model = auto(&list, "mai-code-1.1-flash");
+    assert_eq!(model.id, "auto");
+    assert_eq!(model.name.as_deref(), Some("Auto"));
+    assert_eq!(model.apis, [RESPONSES]);
+    assert_eq!(model.context, Some(256_000));
+    assert!(model.images);
+    let unknown = auto(&list, "not-listed");
+    assert_eq!(unknown.apis, [RESPONSES, CHAT]);
+}
+
+#[test]
 fn a_request_goes_to_its_apis_path_at_copilot() {
     assert_eq!(
         route("/v1/chat/completions"),

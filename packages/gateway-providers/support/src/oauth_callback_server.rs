@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
 const XAI_ACCOUNTS_ORIGIN: &str = "https://accounts.x.ai";
@@ -66,7 +66,7 @@ pub struct OAuthCallbackServer {
     result_rx: Option<CallbackReceiver>,
     resolved: Arc<AtomicBool>,
     closed: Arc<AtomicBool>,
-    shutdown_tx: Option<oneshot::Sender<()>>,
+    shutdown_tx: Option<watch::Sender<bool>>,
     task: Option<JoinHandle<()>>,
     expected_state: Option<String>,
     paste_only: bool,
@@ -77,21 +77,6 @@ type CallbackSender = oneshot::Sender<CallbackResult>;
 type CallbackReceiver = oneshot::Receiver<CallbackResult>;
 
 impl OAuthCallbackServer {
-    pub const DEFAULT_SUCCESS_HTML: &'static str = r#"<!doctype html>
-<html><head><meta charset=utf-8><title>kw - login complete</title>
-<style>body{font-family:ui-sans-serif,system-ui;padding:3em;max-width:30em;margin:0 auto;color:#222}
-h1{color:#0a7}</style></head>
-<body><h1>Login complete</h1>
-<p>You can close this tab and return to your terminal.</p></body></html>
-"#;
-
-    pub const DEFAULT_ERROR_HTML: &'static str = r#"<!doctype html>
-<html><head><meta charset=utf-8><title>kw - login failed</title>
-<style>body{font-family:ui-sans-serif,system-ui;padding:3em;max-width:30em;margin:0 auto;color:#222}
-h1{color:#c33}</style></head>
-<body><h1>Login failed</h1><p>{{message}}</p></body></html>
-"#;
-
     pub fn new(port: u16) -> Self {
         Self::with_config(OAuthCallbackServerConfig::new(port))
     }
@@ -114,8 +99,12 @@ h1{color:#c33}</style></head>
         let (result_tx, result_rx) = oneshot::channel();
         Self {
             config,
-            success_html: Self::DEFAULT_SUCCESS_HTML.to_string(),
-            error_html: Self::DEFAULT_ERROR_HTML.to_string(),
+            success_html: page(
+                true,
+                "You're signed in",
+                "Your account is added to Nora. You can close this tab.",
+            ),
+            error_html: page(false, "The sign-in didn't finish", "{{message}}"),
             result_tx: Arc::new(Mutex::new(Some(result_tx))),
             result_rx: Some(result_rx),
             resolved: Arc::new(AtomicBool::new(false)),
@@ -169,7 +158,8 @@ h1{color:#c33}</style></head>
         }
     }
 
-    /// Start listening on 127.0.0.1. Idempotent.
+    /// Start listening on 127.0.0.1, and on ::1 too when the host is the
+    /// IPv4 loopback: a browser may take "localhost" for either. Idempotent.
     pub async fn start(&mut self) -> Result<(), OAuthError> {
         if self.task.is_some() {
             return Ok(());
@@ -182,12 +172,26 @@ h1{color:#c33}</style></head>
             .local_addr()
             .map_err(|error| OAuthError::Transport(error.to_string()))?
             .port();
+        // a Mac without IPv6 takes the callback on IPv4 alone
+        let ipv6 = if self.config.host == "127.0.0.1" {
+            TcpListener::bind(("::1", self.config.port)).await.ok()
+        } else {
+            None
+        };
 
         let shared = Arc::new(self.shared());
-        let (shutdown_tx, shutdown_rx) = oneshot::channel();
+        let (shutdown_tx, shutdown_rx) = watch::channel(false);
         self.shutdown_tx = Some(shutdown_tx);
         self.task = Some(tokio::spawn(async move {
-            accept_loop(listener, shared, shutdown_rx).await;
+            let second = async {
+                if let Some(ipv6) = ipv6 {
+                    accept_loop(ipv6, Arc::clone(&shared), shutdown_rx.clone()).await;
+                }
+            };
+            tokio::join!(
+                accept_loop(listener, Arc::clone(&shared), shutdown_rx.clone()),
+                second
+            );
         }));
 
         Ok(())
@@ -216,7 +220,7 @@ h1{color:#c33}</style></head>
     pub async fn stop(&mut self) {
         self.closed.store(true, Ordering::SeqCst);
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
+            let _ = shutdown_tx.send(true);
         }
         if let Some(task) = self.task.take() {
             let _ = task.await;
@@ -228,7 +232,7 @@ h1{color:#c33}</style></head>
         self.closed.store(true, Ordering::SeqCst);
         complete(&self.result_tx, &self.resolved, Err(OAuthError::Cancelled));
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
-            let _ = shutdown_tx.send(());
+            let _ = shutdown_tx.send(true);
         }
         if let Some(task) = self.task.take() {
             task.abort();
@@ -306,12 +310,19 @@ struct CallbackShared {
 async fn accept_loop(
     listener: TcpListener,
     shared: Arc<CallbackShared>,
-    mut shutdown_rx: oneshot::Receiver<()>,
+    mut shutdown_rx: watch::Receiver<bool>,
 ) {
     let mut connections = tokio::task::JoinSet::new();
     loop {
+        if *shutdown_rx.borrow() {
+            break;
+        }
         tokio::select! {
-            _ = &mut shutdown_rx => break,
+            changed = shutdown_rx.changed() => {
+                if changed.is_err() {
+                    break;
+                }
+            }
             accepted = listener.accept() => {
                 let Ok((stream, _)) = accepted else { continue };
                 while connections.try_join_next().is_some() {}
@@ -554,8 +565,37 @@ fn cors_response_headers(headers: &BTreeMap<String, String>) -> Vec<(String, Str
 }
 
 #[cfg(test)]
-#[path = "../test/oauth_callback_server.test.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "../test/callback_input.test.rs"]
 mod input_tests;
+#[cfg(test)]
+#[path = "../test/oauth_callback_server.test.rs"]
+mod tests;
+
+/// Nora's page for the end of a sign-in, with its app icon: `message` is
+/// HTML-escaped where it is placed, so a `{{message}}` placeholder filled in
+/// later stays safe.
+fn page(ok: bool, title: &str, message: &str) -> String {
+    use base64::Engine;
+    let logo = base64::engine::general_purpose::STANDARD.encode(include_bytes!("nora-logo.png"));
+    let mark = if ok {
+        "M5 12.5l4.5 4.5L19 7.5"
+    } else {
+        "M7 7l10 10M17 7L7 17"
+    };
+    format!(
+        r#"<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nora · {title}</title><style>
+:root{{--bg:#fafafa;--fg:#111;--muted:#6b6b6b;--line:#e4e4e4;--card:#fff}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#0e0e0e;--fg:#f2f2f2;--muted:#9a9a9a;--line:#262626;--card:#161616}}}}
+*{{box-sizing:border-box}}html,body{{height:100%;margin:0}}
+body{{background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;display:grid;place-items:center;padding:16px}}
+.card{{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:32px 28px;text-align:center}}
+.mark{{width:44px;height:44px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;background:var(--fg);color:var(--bg)}}
+.mark svg{{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}}
+h1{{font-size:18px;font-weight:620;margin:0 0 6px}}p{{margin:0;color:var(--muted);font-size:14px;overflow-wrap:anywhere}}
+.by{{margin-top:24px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:560;color:var(--muted)}}
+.by img{{width:20px;height:20px;border-radius:5px}}
+</style></head><body><div class="card"><div class="mark"><svg viewBox="0 0 24 24"><path d="{mark}"/></svg></div>
+<h1>{title}</h1><p>{message}</p><div class="by"><img alt="" src="data:image/png;base64,{logo}">Nora</div></div></body></html>"#
+    )
+}

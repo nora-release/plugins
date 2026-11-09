@@ -168,11 +168,12 @@ impl Provider for ChatGpt {
             return Err(PluginError::unsupported(format!("Signing in by {}", request.way)).into());
         }
         let client = self.client(request.question.proxy.as_deref())?;
+        // one port, one sign-in: a new one takes it over, the one before
+        // given up first so its port is free
+        let mut sessions = self.pending.lock().await;
+        sessions.clear();
         let (url, pending) = auth::start(client).await?;
         let session = random_hex(16);
-        let mut sessions = self.pending.lock().await;
-        // one port, one sign-in: a new one takes it over
-        sessions.clear();
         sessions.insert(session.clone(), pending);
         Ok(Step::Open {
             url,

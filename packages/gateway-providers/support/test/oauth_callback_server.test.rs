@@ -146,3 +146,54 @@ async fn send_request(port: u16, request: &str) -> Result<String, std::io::Error
     stream.read_to_end(&mut response).await?;
     Ok(String::from_utf8_lossy(&response).into_owned())
 }
+
+/// A browser that takes "localhost" for ::1 reaches the same sign-in, and
+/// the page it lands on is Nora's.
+#[tokio::test]
+async fn a_callback_over_ipv6_loopback_is_taken_too() {
+    let mut server = OAuthCallbackServer::new(0);
+    server.expect_state("s");
+    server.start().await.unwrap();
+    let port = server.config.port;
+    let Ok(mut stream) = TcpStream::connect(("::1", port)).await else {
+        return; // no IPv6 on this machine
+    };
+    let reply = tokio::spawn(async move {
+        stream
+            .write_all(b"GET /callback?code=c&state=s HTTP/1.1\r\n\r\n")
+            .await
+            .unwrap();
+        let mut response = Vec::new();
+        stream.read_to_end(&mut response).await.unwrap();
+        String::from_utf8_lossy(&response).into_owned()
+    });
+    let params = tokio::time::timeout(Duration::from_secs(5), server.wait_for_callback())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(params.get("code").map(String::as_str), Some("c"));
+    let page = reply.await.unwrap();
+    assert!(
+        page.contains("You're signed in") && page.contains("Nora</div>"),
+        "{page}"
+    );
+}
+
+/// A sign-in given up frees its port at once for the next.
+#[tokio::test]
+async fn a_dropped_server_frees_its_port() {
+    let mut first = OAuthCallbackServer::new(0);
+    first.start().await.unwrap();
+    let port = first.config.port;
+    drop(first);
+    let mut taken = false;
+    for _ in 0..20 {
+        let mut second = OAuthCallbackServer::new(port);
+        if second.start().await.is_ok() {
+            taken = true;
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(taken, "the port stayed taken");
+}

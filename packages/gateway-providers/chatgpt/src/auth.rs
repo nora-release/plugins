@@ -64,11 +64,17 @@ pub(crate) async fn start(client: Arc<dyn HttpClient>) -> PluginResult<(String, 
         .with_redirect_host("localhost");
     let mut server = OAuthCallbackServer::with_config(config);
     server.expect_state(state.clone());
-    server.start().await.map_err(|error| {
-        PluginError::transport(format!(
-            "ChatGPT's sign-in needs port {CALLBACK_PORT} on this Mac: {error}"
-        ))
-    })?;
+    // a sign-in just given up lets its port go a moment later
+    let mut attempts = 0;
+    while let Err(error) = server.start().await {
+        attempts += 1;
+        if attempts == 10 {
+            return Err(PluginError::transport(format!(
+                "ChatGPT's sign-in needs port {CALLBACK_PORT} on this Mac, which another app holds: {error}"
+            )));
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
     let redirect = server.redirect_uri();
     let mut url = url::Url::parse(AUTHORIZE_URL).expect("a valid authorize URL");
     url.query_pairs_mut()

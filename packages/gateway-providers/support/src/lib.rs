@@ -6,7 +6,9 @@ mod browser_sign_in;
 mod oauth_callback_server;
 
 pub use browser_sign_in::BrowserSignIn;
-pub use oauth_callback_server::{OAuthCallbackInput, OAuthCallbackServer, OAuthCallbackServerConfig};
+pub use oauth_callback_server::{
+    OAuthCallbackInput, OAuthCallbackServer, OAuthCallbackServerConfig,
+};
 
 use futures::{Stream, StreamExt};
 use nora_plugin_runtime_sdk::protocol::RpcError;
@@ -271,7 +273,9 @@ pub enum OAuthError {
 impl std::fmt::Display for OAuthError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Transport(message) | Self::InvalidResponse(message) => formatter.write_str(message),
+            Self::Transport(message) | Self::InvalidResponse(message) => {
+                formatter.write_str(message)
+            }
             Self::Cancelled => formatter.write_str("The sign-in was cancelled."),
         }
     }

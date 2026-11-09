@@ -110,3 +110,43 @@ async fn a_turned_away_sign_in_reads_as_signing_in_again() {
         nora_plugin_runtime_sdk::provider::SIGN_IN_NEEDED
     );
 }
+
+/// A sign-in started again takes over the port the one before held.
+#[tokio::test]
+async fn a_sign_in_started_again_takes_the_port_over() {
+    let (plugin, _) = plugin(vec![]);
+    let request = || SignIn {
+        question: Question {
+            provider: "chatgpt".into(),
+            ..Question::default()
+        },
+        way: "browser".into(),
+        inputs: BTreeMap::new(),
+    };
+    let Ok(Step::Open { session: first, .. }) = plugin.sign_in(request()).await else {
+        return; // port 1455 is another app's on this machine
+    };
+    let Step::Open {
+        session: second, ..
+    } = plugin.sign_in(request()).await.unwrap()
+    else {
+        panic!("no page to open");
+    };
+    assert_ne!(first, second);
+    let finish = |session: String| SignInFinish {
+        question: Question {
+            provider: "chatgpt".into(),
+            ..Question::default()
+        },
+        session,
+        code: String::new(),
+    };
+    assert!(
+        plugin.sign_in_finish(finish(first)).await.is_err(),
+        "the sign-in taken over still waits"
+    );
+    assert_eq!(
+        plugin.sign_in_finish(finish(second)).await.unwrap(),
+        Step::Waiting
+    );
+}

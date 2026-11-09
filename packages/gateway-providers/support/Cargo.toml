@@ -12,6 +12,7 @@ name = "provider_support"
 [dependencies]
 nora-plugin-runtime-sdk.workspace = true
 async-trait.workspace = true
+base64.workspace = true
 futures.workspace = true
 getrandom.workspace = true
 reqwest.workspace = true

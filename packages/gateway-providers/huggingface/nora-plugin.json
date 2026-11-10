@@ -3,6 +3,7 @@
   "id": "nora.huggingface",
   "name": "Hugging Face",
   "version": "1.0.0",
+  "description": "Models on Hugging Face's router, with an access token.",
   "runtime": {
     "kind": "none"
   },

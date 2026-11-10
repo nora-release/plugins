@@ -3,19 +3,34 @@
   "id": "nora.chatgpt",
   "name": "ChatGPT",
   "version": "1.0.0",
-  "runtime": { "kind": "process", "entry": "bin/chatgpt", "protocol": 2 },
-  "scope": "host",
-  "provides": ["ai.provider"],
-  "contributes": {
-    "ai.providers": [{
-      "id": "chatgpt",
-      "name": "ChatGPT",
-      "api": "openai-responses",
-      "baseURL": "https://chatgpt.com/backend-api/codex",
-      "signIn": ["browser"],
-      "sendsRequests": true,
-      "usage": true
-    }]
+  "description": "Your ChatGPT plan's models, signed in with ChatGPT as Codex does.",
+  "runtime": {
+    "kind": "process",
+    "entry": "bin/chatgpt",
+    "protocol": 2
   },
-  "permissions": ["network:chatgpt.com", "network:auth.openai.com", "listen:localhost:1455"]
+  "scope": "host",
+  "provides": [
+    "ai.provider"
+  ],
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "chatgpt",
+        "name": "ChatGPT",
+        "api": "openai-responses",
+        "baseURL": "https://chatgpt.com/backend-api/codex",
+        "signIn": [
+          "browser"
+        ],
+        "sendsRequests": true,
+        "usage": true
+      }
+    ]
+  },
+  "permissions": [
+    "network:chatgpt.com",
+    "network:auth.openai.com",
+    "listen:localhost:1455"
+  ]
 }

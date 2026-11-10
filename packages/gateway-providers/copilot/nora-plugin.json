@@ -3,20 +3,39 @@
   "id": "nora.copilot",
   "name": "GitHub Copilot",
   "version": "1.0.0",
-  "runtime": { "kind": "process", "entry": "bin/copilot", "protocol": 2 },
-  "scope": "host",
-  "provides": ["ai.provider"],
-  "contributes": {
-    "ai.providers": [{
-      "id": "copilot",
-      "name": "GitHub Copilot",
-      "api": "openai-chat",
-      "apis": ["openai-responses", "anthropic"],
-      "baseURL": "https://api.githubcopilot.com",
-      "signIn": ["browser"],
-      "sendsRequests": true,
-      "usage": true
-    }]
+  "description": "Your GitHub Copilot plan's models, signed in with GitHub.",
+  "runtime": {
+    "kind": "process",
+    "entry": "bin/copilot",
+    "protocol": 2
   },
-  "permissions": ["network:github.com", "network:api.github.com", "network:api.githubcopilot.com", "network:*.githubcopilot.com"]
+  "scope": "host",
+  "provides": [
+    "ai.provider"
+  ],
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "copilot",
+        "name": "GitHub Copilot",
+        "api": "openai-chat",
+        "apis": [
+          "openai-responses",
+          "anthropic"
+        ],
+        "baseURL": "https://api.githubcopilot.com",
+        "signIn": [
+          "browser"
+        ],
+        "sendsRequests": true,
+        "usage": true
+      }
+    ]
+  },
+  "permissions": [
+    "network:github.com",
+    "network:api.github.com",
+    "network:api.githubcopilot.com",
+    "network:*.githubcopilot.com"
+  ]
 }

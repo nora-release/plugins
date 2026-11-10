@@ -3,6 +3,7 @@
   "id": "nora.cerebras",
   "name": "Cerebras",
   "version": "1.0.0",
+  "description": "Cerebras models with an API key.",
   "runtime": {
     "kind": "none"
   },

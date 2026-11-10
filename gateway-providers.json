@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "release": "gateway-providers-1",
+  "plugins": [
+    {
+      "id": "nora.cerebras",
+      "name": "Cerebras",
+      "version": "1.0.0",
+      "description": "Cerebras models with an API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/cerebras",
+      "providers": [
+        {
+          "id": "cerebras",
+          "name": "Cerebras",
+          "api": "openai-chat"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.cerebras-1.0.0.zip",
+          "sha256": "a67e499092855ebf7a9c058509cf7512ab558c18c9778a436a51b32470e8e908"
+        }
+      }
+    },
+    {
+      "id": "nora.chatgpt",
+      "name": "ChatGPT",
+      "version": "1.0.0",
+      "description": "Your ChatGPT plan's models, signed in with ChatGPT as Codex does.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/chatgpt",
+      "providers": [
+        {
+          "id": "chatgpt",
+          "name": "ChatGPT",
+          "api": "openai-responses",
+          "signIn": [
+            "browser"
+          ]
+        }
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.chatgpt-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "bc71e4d064fb814f75dbd6300b8935d07260d1da231c3ee18b29fe5d8296f5c1"
+        }
+      }
+    },
+    {
+      "id": "nora.copilot",
+      "name": "GitHub Copilot",
+      "version": "1.0.0",
+      "description": "Your GitHub Copilot plan's models, signed in with GitHub.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/copilot",
+      "providers": [
+        {
+          "id": "copilot",
+          "name": "GitHub Copilot",
+          "api": "openai-chat",
+          "signIn": [
+            "browser"
+          ]
+        }
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.copilot-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "a890dac821588dba8ed0390735dfcb63eae93451877c5df68a7a95d2f1303a49"
+        }
+      }
+    },
+    {
+      "id": "nora.grok",
+      "name": "Grok",
+      "version": "1.0.0",
+      "description": "Your SuperGrok or X Premium+ plan's models, signed in with xAI.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/grok",
+      "providers": [
+        {
+          "id": "grok",
+          "name": "Grok",
+          "api": "openai-responses",
+          "signIn": [
+            "browser"
+          ]
+        }
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.grok-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "1518c2b1fd4db81bf4a7f80efb317843273ac7334fba0982e7e100d932f43273"
+        }
+      }
+    },
+    {
+      "id": "nora.huggingface",
+      "name": "Hugging Face",
+      "version": "1.0.0",
+      "description": "Models on Hugging Face's router, with an access token.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/huggingface",
+      "providers": [
+        {
+          "id": "huggingface",
+          "name": "Hugging Face",
+          "api": "openai-chat"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.huggingface-1.0.0.zip",
+          "sha256": "1cda0dd1b72af37626a85ea6414e954061c26725eb7b6feb40b7ab6c68a53617"
+        }
+      }
+    },
+    {
+      "id": "nora.kimi-coding",
+      "name": "Kimi Coding",
+      "version": "1.0.0",
+      "description": "Kimi's coding plan, with its API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/kimi-coding",
+      "providers": [
+        {
+          "id": "kimi-coding",
+          "name": "Kimi Coding",
+          "api": "anthropic"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.kimi-coding-1.0.0.zip",
+          "sha256": "2b920ad8e3da60760cae6cfdd2e4e71937cef39fb81208764b906ab2b50093b3"
+        }
+      }
+    },
+    {
+      "id": "nora.kiro",
+      "name": "Kiro",
+      "version": "1.0.0",
+      "description": "Kiro's models, signed in with Google, GitHub or AWS, or with an API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/kiro",
+      "providers": [
+        {
+          "id": "kiro",
+          "name": "Kiro",
+          "api": "anthropic",
+          "signIn": [
+            "browser",
+            "key"
+          ]
+        }
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.kiro-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "41592f672d34293fa265cfae4528bb0dd5bf669157e204322cbe9b615fab13be"
+        }
+      }
+    },
+    {
+      "id": "nora.moonshotai",
+      "name": "Moonshot AI",
+      "version": "1.0.0",
+      "description": "Moonshot AI models, with an API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/moonshotai",
+      "providers": [
+        {
+          "id": "moonshotai",
+          "name": "Moonshot AI",
+          "api": "openai-chat"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.moonshotai-1.0.0.zip",
+          "sha256": "9a97cb387515e38e7c4fff83f9941beed1262fc9ef2799bfa0f2fa64393cbd3b"
+        }
+      }
+    },
+    {
+      "id": "nora.moonshotai-cn",
+      "name": "Moonshot AI CN",
+      "version": "1.0.0",
+      "description": "Moonshot AI (China) models, with an API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/moonshotai-cn",
+      "providers": [
+        {
+          "id": "moonshotai-cn",
+          "name": "Moonshot AI CN",
+          "api": "openai-chat"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.moonshotai-cn-1.0.0.zip",
+          "sha256": "4f4e00307b6a9438a76c2811f0284bd2cb709336e02c05bb418b48d0a9614490"
+        }
+      }
+    },
+    {
+      "id": "nora.opencode",
+      "name": "OpenCode",
+      "version": "1.0.0",
+      "description": "OpenCode Zen's models, with an API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/opencode",
+      "providers": [
+        {
+          "id": "opencode",
+          "name": "OpenCode",
+          "api": "anthropic"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.opencode-1.0.0.zip",
+          "sha256": "9652620e4aca3a07d1cd2f2bb98d8b80c1f7c54f6af01896e5d121b2168f389d"
+        }
+      }
+    },
+    {
+      "id": "nora.siliconflow-global",
+      "name": "SiliconFlow",
+      "version": "1.0.0",
+      "description": "SiliconFlow (international) models, with an API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/siliconflow-global",
+      "providers": [
+        {
+          "id": "siliconflow-global",
+          "name": "SiliconFlow",
+          "api": "openai-chat"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.siliconflow-global-1.0.0.zip",
+          "sha256": "5790783bb60831ae027362cea093e42da93d1204f5b9bdd76cd896d1a22aaead"
+        }
+      }
+    },
+    {
+      "id": "nora.vercel-ai-gateway",
+      "name": "Vercel AI Gateway",
+      "version": "1.0.0",
+      "description": "Models through Vercel AI Gateway, with an API key.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/vercel-ai-gateway",
+      "providers": [
+        {
+          "id": "vercel-ai-gateway",
+          "name": "Vercel AI Gateway",
+          "api": "openai-chat"
+        }
+      ],
+      "packages": {
+        "any": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.vercel-ai-gateway-1.0.0.zip",
+          "sha256": "31fe2ee8fc9155e5136a16c383c8e0533ed1024ba9822cfacb262404cfe0e5ac"
+        }
+      }
+    },
+    {
+      "id": "nora.workbuddy",
+      "name": "WorkBuddy",
+      "version": "1.0.0",
+      "description": "WorkBuddy's models, in China or internationally, signed in in the browser.",
+      "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/workbuddy",
+      "providers": [
+        {
+          "id": "workbuddy",
+          "name": "WorkBuddy",
+          "api": "openai-chat",
+          "signIn": [
+            "browser"
+          ]
+        },
+        {
+          "id": "workbuddy-ai",
+          "name": "WorkBuddy (International)",
+          "api": "openai-chat",
+          "signIn": [
+            "browser"
+          ]
+        }
+      ],
+      "packages": {
+        "aarch64-apple-darwin": {
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.workbuddy-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "233b7385cb7d96e3c83f6383a7041cad95669e15e866dc220baf9d50f7dfd7b2"
+        }
+      }
+    }
+  ]
+}

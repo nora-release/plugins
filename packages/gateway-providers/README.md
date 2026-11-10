@@ -29,6 +29,23 @@ their models from the vendor's `/models`. The format is described in
 Nora's `docs/provider-plugins.md`. Balances (Moonshot, SiliconFlow) come
 once plugins with code answer `provider/usage`.
 
+## Catalog
+
+`gateway-providers.json` at the repository's root is the catalog Nora's
+Plugins page installs these from: each plugin's providers, and the download
+and SHA-256 of its package (`<id>-<version>-<target>.zip`, or
+`<id>-<version>.zip` for one without code). The packages are assets of a
+GitHub release. `release.py` builds them all, writes the catalog and, with
+`--publish`, uploads them:
+
+```sh
+packages/gateway-providers/release.py --tag gateway-providers-2 --publish
+```
+
+Raise a plugin's `version` in its manifest when it changes: Nora offers an
+update when the catalog lists a newer one. A manifest's `description` is
+the line the Plugins page shows.
+
 ## Plugins with code
 
 They are a Cargo workspace of their own (`Cargo.toml` here), on the

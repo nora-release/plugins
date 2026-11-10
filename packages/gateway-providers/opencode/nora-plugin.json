@@ -3,6 +3,7 @@
   "id": "nora.opencode",
   "name": "OpenCode",
   "version": "1.0.0",
+  "description": "OpenCode Zen's models, with an API key.",
   "runtime": {
     "kind": "none"
   },

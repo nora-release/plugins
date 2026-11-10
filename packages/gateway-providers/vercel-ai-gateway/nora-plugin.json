@@ -3,6 +3,7 @@
   "id": "nora.vercel-ai-gateway",
   "name": "Vercel AI Gateway",
   "version": "1.0.0",
+  "description": "Models through Vercel AI Gateway, with an API key.",
   "runtime": {
     "kind": "none"
   },

@@ -3,6 +3,7 @@
   "id": "nora.siliconflow-global",
   "name": "SiliconFlow",
   "version": "1.0.0",
+  "description": "SiliconFlow (international) models, with an API key.",
   "runtime": {
     "kind": "none"
   },

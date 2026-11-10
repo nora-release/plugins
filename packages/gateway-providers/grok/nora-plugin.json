@@ -3,19 +3,36 @@
   "id": "nora.grok",
   "name": "Grok",
   "version": "1.0.0",
-  "runtime": { "kind": "process", "entry": "bin/grok", "protocol": 2 },
-  "scope": "host",
-  "provides": ["ai.provider"],
-  "contributes": {
-    "ai.providers": [{
-      "id": "grok",
-      "name": "Grok",
-      "api": "openai-responses",
-      "baseURL": "https://cli-chat-proxy.grok.com/v1",
-      "signIn": ["browser"],
-      "sendsRequests": true,
-      "usage": true
-    }]
+  "description": "Your SuperGrok or X Premium+ plan's models, signed in with xAI.",
+  "runtime": {
+    "kind": "process",
+    "entry": "bin/grok",
+    "protocol": 2
   },
-  "permissions": ["network:auth.x.ai", "network:accounts.x.ai", "network:cli-chat-proxy.grok.com", "network:x.ai", "network:storage.googleapis.com"]
+  "scope": "host",
+  "provides": [
+    "ai.provider"
+  ],
+  "contributes": {
+    "ai.providers": [
+      {
+        "id": "grok",
+        "name": "Grok",
+        "api": "openai-responses",
+        "baseURL": "https://cli-chat-proxy.grok.com/v1",
+        "signIn": [
+          "browser"
+        ],
+        "sendsRequests": true,
+        "usage": true
+      }
+    ]
+  },
+  "permissions": [
+    "network:auth.x.ai",
+    "network:accounts.x.ai",
+    "network:cli-chat-proxy.grok.com",
+    "network:x.ai",
+    "network:storage.googleapis.com"
+  ]
 }

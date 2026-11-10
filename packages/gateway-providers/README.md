@@ -5,8 +5,8 @@ nora-gateway, Nora's router. They are installed like any Nora plugin
 (`nora plugin install kernel:<id> <folder> --trust`, or the Plugins page)
 and their accounts are signed in to in Settings → AI Providers.
 
-The `apiVersion` 2 packages in `../providers` serve Nora Router until it is
-retired; the two are kept apart.
+Nora's Plugins page lists them from `gateway-providers.json` at the
+repository's root, which `release.py` writes when it publishes the packages.
 
 | Plugin | API | Notes |
 | --- | --- | --- |

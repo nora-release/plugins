@@ -1,6 +1,5 @@
-# Provider plugins for nora-gateway: a workspace of their own, on the
-# plugin-kit revision their protocol comes from, apart from the packages
-# Nora Router still uses.
+# Provider plugins for nora-gateway, on the plugin-kit revision their
+# protocol comes from.
 [workspace]
 resolver = "2"
 members = ["chatgpt", "copilot", "grok", "kiro", "support", "workbuddy"]

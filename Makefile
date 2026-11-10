@@ -1,38 +1,36 @@
 CARGO ?= cargo
-# Set PROVIDER_ID to test/build/package one plugin; an empty value selects all.
-PROVIDER_ID ?=
-export PROVIDER_ID
-PROVIDERS_OUTPUT ?= $(CURDIR)/.build/providers
-PACKAGES_OUTPUT ?= $(CURDIR)/.build/packages
+GATEWAY_PROVIDERS := $(CURDIR)/packages/gateway-providers
 REGISTRY ?= $(CURDIR)/registry.json
 CATALOG ?= $(CURDIR)/marketplace.json
-# The marketplace tool comes from the same plugin-kit revision as the SDK.
-PLUGIN_KIT_REV := $(shell sed -n 's/^nora-plugin-manifest = .*rev = "\([0-9a-f]*\)".*/\1/p' $(CURDIR)/Cargo.toml)
+# The marketplace tool for the UI plugins' catalog.
+PLUGIN_KIT_REV := e7d93704b5a0b2549f6152d153f4da962b761356
 TOOLS_ROOT := $(CURDIR)/.build/tools/$(PLUGIN_KIT_REV)
 NORA_PLUGIN := $(TOOLS_ROOT)/bin/nora-plugin
 
-.PHONY: build package test test-scripts check fmt fmt-check marketplace marketplace-check release-entry
+.PHONY: build test clippy check fmt fmt-check release marketplace marketplace-check release-entry
 
+# The gateway provider plugins: a Cargo workspace of their own.
 build:
-	CARGO="$(CARGO)" bash scripts/build-providers.sh build "$(PROVIDERS_OUTPUT)"
-
-package:
-	CARGO="$(CARGO)" bash scripts/package-providers.sh "$(PACKAGES_OUTPUT)"
+	$(CARGO) build --manifest-path "$(GATEWAY_PROVIDERS)/Cargo.toml" --workspace
 
 test:
-	CARGO="$(CARGO)" bash scripts/build-providers.sh --test
+	$(CARGO) test --manifest-path "$(GATEWAY_PROVIDERS)/Cargo.toml" --workspace
 
-test-scripts:
-	bash -n scripts/*.sh
-	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_*.py'
-
-check: fmt-check test-scripts test
+clippy:
+	$(CARGO) clippy --manifest-path "$(GATEWAY_PROVIDERS)/Cargo.toml" --workspace --all-targets -- -D warnings
 
 fmt:
-	CARGO="$(CARGO)" bash scripts/build-providers.sh --fmt
+	$(CARGO) fmt --manifest-path "$(GATEWAY_PROVIDERS)/Cargo.toml" --all
 
 fmt-check:
-	CARGO="$(CARGO)" bash scripts/build-providers.sh --fmt-check
+	$(CARGO) fmt --manifest-path "$(GATEWAY_PROVIDERS)/Cargo.toml" --all --check
+
+check: fmt-check clippy test
+
+# Packages every gateway provider plugin and rewrites gateway-providers.json;
+# pass TAG=gateway-providers-N, and PUBLISH=1 to upload to that release.
+release:
+	python3 "$(GATEWAY_PROVIDERS)/release.py" --tag "$(TAG)" $(if $(PUBLISH),--publish)
 
 $(NORA_PLUGIN):
 	$(CARGO) install --locked --quiet --git https://github.com/nora-release/plugin-kit --rev "$(PLUGIN_KIT_REV)" --root "$(TOOLS_ROOT)" nora-plugin

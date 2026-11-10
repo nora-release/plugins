@@ -1,0 +1,17 @@
+{
+  "apiVersion": 3,
+  "id": "nora.linear",
+  "name": "Linear",
+  "version": "1.1.0",
+  "description": "Work with Linear through the linear CLI: issues, comments, teams, projects, and labels.",
+  "icon": "assets/icon.svg",
+  "runtime": {
+    "kind": "none"
+  },
+  "scope": "session",
+  "contributes": {
+    "agent.skills": [
+      "skills/linear"
+    ]
+  }
+}

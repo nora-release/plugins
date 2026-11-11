@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "release": "gateway-providers-1",
+  "release": "gateway-providers-2",
   "plugins": [
     {
       "id": "nora.cerebras",
@@ -17,7 +17,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.cerebras-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.cerebras-1.0.0.zip",
           "sha256": "a67e499092855ebf7a9c058509cf7512ab558c18c9778a436a51b32470e8e908"
         }
       }
@@ -25,7 +25,7 @@
     {
       "id": "nora.chatgpt",
       "name": "ChatGPT",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Your ChatGPT plan's models, signed in with ChatGPT as Codex does.",
       "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/chatgpt",
       "providers": [
@@ -40,8 +40,8 @@
       ],
       "packages": {
         "aarch64-apple-darwin": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.chatgpt-1.0.0-aarch64-apple-darwin.zip",
-          "sha256": "bc71e4d064fb814f75dbd6300b8935d07260d1da231c3ee18b29fe5d8296f5c1"
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.chatgpt-1.1.0-aarch64-apple-darwin.zip",
+          "sha256": "4ea81f4e63d4427a75b809f4cc3424556a857f6cd68eb48772a9f34abc27f660"
         }
       }
     },
@@ -63,15 +63,15 @@
       ],
       "packages": {
         "aarch64-apple-darwin": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.copilot-1.0.0-aarch64-apple-darwin.zip",
-          "sha256": "a890dac821588dba8ed0390735dfcb63eae93451877c5df68a7a95d2f1303a49"
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.copilot-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "20a7caf0d94e7fbd2d82c5e3c55d7e41a2f85ba99ea4ea10cc5db60f19a42e6a"
         }
       }
     },
     {
       "id": "nora.grok",
       "name": "Grok",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Your SuperGrok or X Premium+ plan's models, signed in with xAI.",
       "repository": "https://github.com/nora-release/plugins/tree/main/packages/gateway-providers/grok",
       "providers": [
@@ -86,8 +86,8 @@
       ],
       "packages": {
         "aarch64-apple-darwin": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.grok-1.0.0-aarch64-apple-darwin.zip",
-          "sha256": "1518c2b1fd4db81bf4a7f80efb317843273ac7334fba0982e7e100d932f43273"
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.grok-1.1.0-aarch64-apple-darwin.zip",
+          "sha256": "37e869782e8d6df25d1117c6b473085304f333c3135b00599a12d185dfcd314c"
         }
       }
     },
@@ -106,7 +106,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.huggingface-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.huggingface-1.0.0.zip",
           "sha256": "1cda0dd1b72af37626a85ea6414e954061c26725eb7b6feb40b7ab6c68a53617"
         }
       }
@@ -126,7 +126,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.kimi-coding-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.kimi-coding-1.0.0.zip",
           "sha256": "2b920ad8e3da60760cae6cfdd2e4e71937cef39fb81208764b906ab2b50093b3"
         }
       }
@@ -150,8 +150,8 @@
       ],
       "packages": {
         "aarch64-apple-darwin": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.kiro-1.0.0-aarch64-apple-darwin.zip",
-          "sha256": "41592f672d34293fa265cfae4528bb0dd5bf669157e204322cbe9b615fab13be"
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.kiro-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "48e9661cd8604ce9f80ba4c153c558403030e89cad2fda4cf07134620f7a1830"
         }
       }
     },
@@ -170,7 +170,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.moonshotai-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.moonshotai-1.0.0.zip",
           "sha256": "9a97cb387515e38e7c4fff83f9941beed1262fc9ef2799bfa0f2fa64393cbd3b"
         }
       }
@@ -190,7 +190,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.moonshotai-cn-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.moonshotai-cn-1.0.0.zip",
           "sha256": "4f4e00307b6a9438a76c2811f0284bd2cb709336e02c05bb418b48d0a9614490"
         }
       }
@@ -210,7 +210,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.opencode-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.opencode-1.0.0.zip",
           "sha256": "9652620e4aca3a07d1cd2f2bb98d8b80c1f7c54f6af01896e5d121b2168f389d"
         }
       }
@@ -230,7 +230,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.siliconflow-global-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.siliconflow-global-1.0.0.zip",
           "sha256": "5790783bb60831ae027362cea093e42da93d1204f5b9bdd76cd896d1a22aaead"
         }
       }
@@ -250,7 +250,7 @@
       ],
       "packages": {
         "any": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.vercel-ai-gateway-1.0.0.zip",
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.vercel-ai-gateway-1.0.0.zip",
           "sha256": "31fe2ee8fc9155e5136a16c383c8e0533ed1024ba9822cfacb262404cfe0e5ac"
         }
       }
@@ -281,8 +281,8 @@
       ],
       "packages": {
         "aarch64-apple-darwin": {
-          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-1/nora.workbuddy-1.0.0-aarch64-apple-darwin.zip",
-          "sha256": "233b7385cb7d96e3c83f6383a7041cad95669e15e866dc220baf9d50f7dfd7b2"
+          "url": "https://github.com/nora-release/plugins/releases/download/gateway-providers-2/nora.workbuddy-1.0.0-aarch64-apple-darwin.zip",
+          "sha256": "29122cc9f6e5a587df1c5c9034d314588230b0bc7102b93aa1c1d0f4423df575"
         }
       }
     }

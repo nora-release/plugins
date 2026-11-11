@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   prepare:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     defaults:
       run:
@@ -25,6 +25,25 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # The plugin's dependencies need Swift 6.4, which ships with Xcode 27; prefer the newest install.
+      - name: Select newest Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+          selected=""
+          for candidate in $(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V -r) /Applications/Xcode.app; do
+            if [[ -d "$candidate" ]]; then
+              selected="$candidate"
+              break
+            fi
+          done
+          if [[ -z "$selected" ]]; then
+            echo "No Xcode is installed on this runner" >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$selected/Contents/Developer"
+          xcodebuild -version
+          swift --version
       - name: Set up Node
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -45,7 +64,13 @@ jobs:
         run: make install test
       - name: Build universal application without signing credentials
         # The build tool checks v + the manifest version; the release itself keeps the github- prefix.
-        run: python3 .build/checkouts/plugin-kit/scripts/build-distribution.py --config plugin-release.json --output dist --tag "v${GITHUB_REF_NAME#github-v}"
+        # Resource bundles are read from where this Swift puts a universal build, which moved in Xcode 27.
+        shell: bash
+        run: |
+          set -euo pipefail
+          products="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path | tail -1)"
+          sed "s#\.build/apple/Products/Release#${products#"$PWD/"}#g" plugin-release.json > plugin-release.ci.json
+          python3 .build/checkouts/plugin-kit/scripts/build-distribution.py --config plugin-release.ci.json --output dist --tag "v${GITHUB_REF_NAME#github-v}"
       # Nora trusts releases listed in this reviewed catalog by checksum, so they are ad-hoc
       # signed with App Sandbox instead of Developer ID signed and notarized.
       - name: Ad-hoc sign with App Sandbox

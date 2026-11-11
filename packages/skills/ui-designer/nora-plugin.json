@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.ui-designer",
   "name": "UI Designer",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Design or restyle user interfaces from DESIGN.md references of well-known visual systems.",
   "icon": "assets/icon.svg",
   "runtime": {

@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.chatgpt",
   "name": "ChatGPT",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Your ChatGPT plan's models, signed in with ChatGPT as Codex does.",
   "runtime": {
     "kind": "process",

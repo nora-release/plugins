@@ -223,6 +223,7 @@ impl Provider for ChatGpt {
             .as_object_mut()
             .ok_or_else(|| PluginError::invalid("The request body is not an object."))?;
         let streamed = object.get("stream") == Some(&json!(true));
+        codex::fast(object);
         let model = object
             .get("model")
             .and_then(Value::as_str)

@@ -213,6 +213,36 @@ fn first_line(text: &str) -> &str {
     text.split_once('\n').map_or(text, |(first, _)| first)
 }
 
+/// The option a model's id carries for its fast tier, in Nora's model ids
+/// (Nora's docs/provider-plugins.md, "Model options").
+pub(crate) const FAST_OPTION: &str = "+fast";
+
+/// The service tier ChatGPT names its fast tier by.
+const FAST_TIER: &str = "priority";
+
+/// The model a requested id names, and whether it asks for the fast tier:
+/// `gpt-6.1-sol+fast` is gpt-6.1-sol on the `priority` tier.
+pub(crate) fn model_of(id: &str) -> (&str, bool) {
+    match id.strip_suffix(FAST_OPTION).filter(|base| !base.is_empty()) {
+        Some(base) => (base, true),
+        None => (id, false),
+    }
+}
+
+/// Asks for the fast tier, as Codex does, for an id that names it.
+pub(crate) fn fast(object: &mut Map<String, Value>) {
+    let Some(id) = object.get("model").and_then(Value::as_str) else {
+        return;
+    };
+    let (base, fast) = model_of(id);
+    if !fast {
+        return;
+    }
+    let base = base.to_owned();
+    object.insert("model".into(), json!(base));
+    object.insert("service_tier".into(), json!(FAST_TIER));
+}
+
 /// A model of the list and the instructions the backend wants with it.
 pub(crate) struct Listed {
     pub model: Model,
@@ -232,37 +262,75 @@ pub(crate) fn models(value: &Value) -> PluginResult<Vec<Listed>> {
         })
         .collect();
     listed.sort_by_key(|model| model["priority"].as_i64().unwrap_or(i64::MAX));
-    Ok(listed
-        .into_iter()
-        .map(|model| {
-            let id = model["slug"].as_str().unwrap_or_default();
-            let instructions = model
-                .pointer("/model_messages/instructions_template")
-                .or_else(|| model.get("base_instructions"))
-                .and_then(Value::as_str)
+    let mut out = Vec::new();
+    for model in listed {
+        let id = model["slug"].as_str().unwrap_or_default();
+        let instructions = model
+            .pointer("/model_messages/instructions_template")
+            .or_else(|| model.get("base_instructions"))
+            .and_then(Value::as_str)
+            .filter(|text| !text.is_empty())
+            .map(str::to_owned);
+        let efforts: Vec<String> = model["supported_reasoning_levels"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|level| level["effort"].as_str())
+            .filter(|effort| !effort.is_empty())
+            .map(str::to_owned)
+            .collect();
+        let default_effort = model["default_reasoning_level"]
+            .as_str()
+            .filter(|effort| efforts.iter().any(|known| known == effort))
+            .map(str::to_owned);
+        let name = model["display_name"]
+            .as_str()
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned);
+        let standard = Model {
+            name: name.clone(),
+            context: model["context_window"]
+                .as_u64()
+                .filter(|window| *window > 0),
+            reasoning: !efforts.is_empty(),
+            images: model["input_modalities"]
+                .as_array()
+                .is_some_and(|inputs| inputs.iter().any(|input| input == "image")),
+            efforts,
+            default_effort,
+            description: model["description"]
+                .as_str()
                 .filter(|text| !text.is_empty())
-                .map(str::to_owned);
-            Listed {
-                model: Model {
-                    name: model["display_name"]
-                        .as_str()
-                        .filter(|name| !name.is_empty())
-                        .map(str::to_owned),
-                    context: model["context_window"]
-                        .as_u64()
-                        .filter(|window| *window > 0),
-                    reasoning: model["supported_reasoning_levels"]
-                        .as_array()
-                        .is_some_and(|levels| !levels.is_empty()),
-                    images: model["input_modalities"]
-                        .as_array()
-                        .is_some_and(|inputs| inputs.iter().any(|input| input == "image")),
-                    ..Model::new(id)
-                },
+                .map(str::to_owned),
+            ..Model::new(id)
+        };
+        // its fast tier, as the model's +fast option
+        let tier = model["service_tiers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|tier| tier["id"] == FAST_TIER);
+        let fast = tier.map(|tier| Model {
+            id: format!("{id}{FAST_OPTION}"),
+            name: Some(format!("{} Fast", name.as_deref().unwrap_or(id))),
+            description: tier["description"]
+                .as_str()
+                .filter(|text| !text.is_empty())
+                .map(str::to_owned),
+            ..standard.clone()
+        });
+        out.push(Listed {
+            model: standard,
+            instructions: instructions.clone(),
+        });
+        if let Some(fast) = fast {
+            out.push(Listed {
+                model: fast,
                 instructions,
-            }
-        })
-        .collect())
+            });
+        }
+    }
+    Ok(out)
 }
 
 /// `/wham/usage` as the router reads usage: the plan, its two windows, the

@@ -171,8 +171,8 @@ impl Outgoing {
             .to_owned();
         let (model, window) = grok::model_of(&asked);
         if !model.is_empty() {
-            headers.push(("x-grok-model-override".into(), model.to_owned()));
-            object.insert("model".into(), Value::String(model.to_owned()));
+            headers.push(("x-grok-model-override".into(), model.clone()));
+            object.insert("model".into(), Value::String(model));
         }
         if window > 0 {
             headers.push(("x-grok-context-window".into(), window.to_string()));

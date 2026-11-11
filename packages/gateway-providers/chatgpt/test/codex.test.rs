@@ -117,3 +117,46 @@ fn usage_counts_the_resets_and_the_list_names_each() {
     assert_eq!(cards[0].expires_at.as_deref(), Some("2026-12-02T06:56:00Z"));
     assert!(cards[2].expires_at.is_none());
 }
+
+#[test]
+fn a_models_efforts_and_its_fast_tier_are_listed() {
+    let listed = models(&json!({"models": [{
+        "slug": "gpt-6.1-sol", "display_name": "GPT-6.1-Sol", "description": "Workhorse.",
+        "default_reasoning_level": "low",
+        "supported_reasoning_levels": [{"effort": "low"}, {"effort": "high"}, {"effort": "ultra"}],
+        "service_tiers": [{"id": "priority", "name": "Fast", "description": "2x speed, increased usage"}],
+        "base_instructions": "Be brief."
+    }, {"slug": "gpt-plain"}]}))
+    .unwrap();
+    let ids: Vec<&str> = listed
+        .iter()
+        .map(|listed| listed.model.id.as_str())
+        .collect();
+    assert_eq!(ids, ["gpt-6.1-sol", "gpt-6.1-sol+fast", "gpt-plain"]);
+    let (standard, fast) = (&listed[0].model, &listed[1].model);
+    assert_eq!(standard.efforts, ["low", "high", "ultra"]);
+    assert_eq!(standard.default_effort.as_deref(), Some("low"));
+    assert_eq!(standard.description.as_deref(), Some("Workhorse."));
+    assert_eq!(fast.name.as_deref(), Some("GPT-6.1-Sol Fast"));
+    assert_eq!(fast.efforts, standard.efforts);
+    assert_eq!(
+        fast.description.as_deref(),
+        Some("2x speed, increased usage")
+    );
+    assert_eq!(listed[1].instructions.as_deref(), Some("Be brief."));
+    assert!(listed[2].model.efforts.is_empty() && !listed[2].model.reasoning);
+}
+
+#[test]
+fn a_fast_id_asks_for_the_priority_tier() {
+    let mut body = json!({"model": "gpt-6.1-sol+fast"});
+    fast(body.as_object_mut().unwrap());
+    assert_eq!(
+        body,
+        json!({"model": "gpt-6.1-sol", "service_tier": "priority"})
+    );
+    let mut body = json!({"model": "gpt-6.1-sol"});
+    fast(body.as_object_mut().unwrap());
+    assert_eq!(body, json!({"model": "gpt-6.1-sol"}));
+    assert_eq!(model_of("+fast"), ("+fast", false));
+}

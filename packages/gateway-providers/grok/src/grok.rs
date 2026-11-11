@@ -73,9 +73,34 @@ pub(crate) fn version(text: &str) -> Option<String> {
     numeric.then(|| line.to_owned())
 }
 
+/// Reasoning efforts weakest first, the order Nora offers them in; one not
+/// named here goes last.
+const EFFORT_ORDER: [&str; 6] = ["minimal", "low", "medium", "high", "xhigh", "max"];
+
+/// What Grok's backend appends to a model's id for its fast serving tier
+/// (`grok-4.7-build-fast`, "Fast variant. 2x the price.").
+const FAST_SUFFIX: &str = "-build-fast";
+
+/// The option a listed id carries for the fast tier, in Nora's model ids:
+/// `<model>+fast[@<window>]` (Nora's docs/provider-plugins.md, "Model
+/// options").
+const FAST_OPTION: &str = "+fast";
+
 /// The model a requested id names and the context window it asks for:
-/// `grok-4.7@500k` is grok-4.7 at 500000 tokens, `grok-4.7` its default.
-pub(crate) fn model_of(id: &str) -> (&str, u64) {
+/// `grok-4.7@500k` is grok-4.7 at 500000 tokens, `grok-4.7` its default,
+/// and `grok-4.7+fast` the fast tier, grok-4.7-build-fast.
+pub(crate) fn model_of(id: &str) -> (String, u64) {
+    let (model, window) = split_window(id);
+    match model
+        .strip_suffix(FAST_OPTION)
+        .filter(|base| !base.is_empty())
+    {
+        Some(base) => (format!("{base}{FAST_SUFFIX}"), window),
+        None => (model.to_owned(), window),
+    }
+}
+
+fn split_window(id: &str) -> (&str, u64) {
     let Some((model, size)) = id.rsplit_once('@') else {
         return (id, 0);
     };
@@ -99,15 +124,28 @@ fn label(window: u64) -> String {
 
 /// The models the account lists: Responses models only, each at its
 /// default window under its own id, and each other window it lists
-/// beside it (`grok-4.7@500k`), as Grok Build's /context-window offers.
+/// beside it (`grok-4.7@500k`), as Grok Build's /context-window offers. A
+/// model's fast tier, listed as a model of its own, is that model's
+/// `+fast` option (`grok-4.7+fast`), so Nora offers it as a switch.
 pub(crate) fn models(value: &Value) -> Vec<Model> {
     let Some(list) = value["data"].as_array() else {
         return Vec::new();
     };
+    let listed: Vec<&str> = list
+        .iter()
+        .filter_map(|entry| entry["id"].as_str())
+        .collect();
     let mut out = Vec::new();
     for entry in list {
-        let Some(id) = entry["id"].as_str().filter(|id| !id.is_empty()) else {
+        let Some(own) = entry["id"].as_str().filter(|id| !id.is_empty()) else {
             continue;
+        };
+        let fast_of = own
+            .strip_suffix(FAST_SUFFIX)
+            .filter(|base| !base.is_empty() && listed.contains(base));
+        let id: &str = &match fast_of {
+            Some(base) => format!("{base}{FAST_OPTION}"),
+            None => own.to_owned(),
         };
         if entry["api_backend"]
             .as_str()
@@ -119,9 +157,30 @@ pub(crate) fn models(value: &Value) -> Vec<Model> {
             .as_str()
             .filter(|name| !name.is_empty())
             .unwrap_or(id);
-        let reasoning = entry["reasoning_efforts"]
+        // listed strongest first; named weakest first
+        let levels: Vec<&Value> = entry["reasoning_efforts"]
             .as_array()
-            .is_some_and(|efforts| !efforts.is_empty());
+            .into_iter()
+            .flatten()
+            .collect();
+        let effort = |level: &Value| {
+            level["value"]
+                .as_str()
+                .or_else(|| level["id"].as_str())
+                .filter(|effort| !effort.is_empty())
+                .map(str::to_owned)
+        };
+        let mut efforts: Vec<String> = levels.iter().filter_map(|level| effort(level)).collect();
+        efforts.sort_by_key(|effort| EFFORT_ORDER.iter().position(|known| known == effort));
+        let default_effort = levels
+            .iter()
+            .find(|level| level["default"] == true)
+            .and_then(|level| effort(level));
+        let reasoning = !levels.is_empty();
+        let description = entry["description"]
+            .as_str()
+            .filter(|text| !text.is_empty())
+            .map(str::to_owned);
         let images = ["input_modalities", "modalities"].iter().any(|key| {
             entry[*key]
                 .as_array()
@@ -149,6 +208,9 @@ pub(crate) fn models(value: &Value) -> Vec<Model> {
             context: (window > 0).then_some(window),
             reasoning,
             images,
+            efforts: efforts.clone(),
+            default_effort: default_effort.clone(),
+            description: description.clone(),
             ..Model::new(id)
         };
         out.push(model(id.to_owned(), name.to_owned(), base));

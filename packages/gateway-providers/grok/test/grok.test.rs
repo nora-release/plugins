@@ -27,11 +27,43 @@ fn the_stable_channel_names_a_version() {
 }
 
 #[test]
-fn a_window_suffix_names_the_window() {
-    assert_eq!(model_of("grok-4.7"), ("grok-4.7", 0));
-    assert_eq!(model_of("grok-4.7@500k"), ("grok-4.7", 500_000));
-    assert_eq!(model_of("grok-4.7@131072"), ("grok-4.7", 131_072));
-    assert_eq!(model_of("odd@name"), ("odd@name", 0));
+fn a_window_suffix_names_the_window_and_fast_the_fast_tier() {
+    let of = |id: &str| {
+        let (model, window) = model_of(id);
+        (model, window)
+    };
+    assert_eq!(of("grok-4.7"), ("grok-4.7".into(), 0));
+    assert_eq!(of("grok-4.7@500k"), ("grok-4.7".into(), 500_000));
+    assert_eq!(of("grok-4.7@131072"), ("grok-4.7".into(), 131_072));
+    assert_eq!(of("odd@name"), ("odd@name".into(), 0));
+    assert_eq!(of("grok-4.7+fast"), ("grok-4.7-build-fast".into(), 0));
+    assert_eq!(
+        of("grok-4.7+fast@500k"),
+        ("grok-4.7-build-fast".into(), 500_000)
+    );
+    assert_eq!(of("+fast"), ("+fast".into(), 0));
+}
+
+#[test]
+fn a_models_fast_tier_is_its_fast_option() {
+    let listed = models(&json!({"data": [
+        {"id": "grok-4.7", "name": "Grok 4.7", "context_window": 256000, "context_windows": [256000, 500000]},
+        {"id": "grok-4.7-build-fast", "name": "Grok 4.7 Fast", "context_window": 256000, "context_windows": [256000, 500000]},
+        {"id": "grok-9-build-fast", "context_window": 128000}
+    ]}));
+    let ids: Vec<&str> = listed.iter().map(|model| model.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "grok-4.7",
+            "grok-4.7@500k",
+            "grok-4.7+fast",
+            "grok-4.7+fast@500k",
+            "grok-9-build-fast"
+        ]
+    );
+    assert_eq!(listed[2].name.as_deref(), Some("Grok 4.7 Fast"));
+    assert_eq!(listed[3].context, Some(500_000));
 }
 
 #[test]
@@ -147,4 +179,19 @@ fn usage_reads_the_periods_credits_and_on_demand() {
     let bare = usage(&json!({"config": {}}));
     assert_eq!(bare.windows.len(), 1);
     assert_eq!(bare.windows[0].name, "Allowance");
+}
+
+#[test]
+fn a_models_efforts_are_weakest_first_with_its_default() {
+    let listed = models(&json!({"data": [{
+        "id": "grok-4.7", "context_window": 256000, "description": "Frontier.",
+        "reasoning_efforts": [
+            {"value": "xhigh", "default": false}, {"value": "high", "default": true},
+            {"value": "medium", "default": false}, {"value": "low", "default": false}
+        ]
+    }]}));
+    assert_eq!(listed[0].efforts, ["low", "medium", "high", "xhigh"]);
+    assert_eq!(listed[0].default_effort.as_deref(), Some("high"));
+    assert_eq!(listed[0].description.as_deref(), Some("Frontier."));
+    assert!(listed[0].reasoning);
 }

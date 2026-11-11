@@ -3,7 +3,7 @@ GATEWAY_PROVIDERS := $(CURDIR)/packages/gateway-providers
 REGISTRY ?= $(CURDIR)/registry.json
 CATALOG ?= $(CURDIR)/marketplace.json
 # The marketplace tool for the UI plugins' catalog.
-PLUGIN_KIT_REV := e7d93704b5a0b2549f6152d153f4da962b761356
+PLUGIN_KIT_REV := a63cfcf8ef1bcf3c868b75439a5600db740fa369
 TOOLS_ROOT := $(CURDIR)/.build/tools/$(PLUGIN_KIT_REV)
 NORA_PLUGIN := $(TOOLS_ROOT)/bin/nora-plugin
 

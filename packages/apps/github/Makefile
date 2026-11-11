@@ -14,4 +14,4 @@ test:
 
 package: build
 	mkdir -p dist
-	ditto -c -k --keepParent .build/NoraGitHub.app "dist/com.nora.github-$(PLUGIN_TAG)-macos.zip"
+	python3 script/package-v3.py --app .build/NoraGitHub.app --archive "dist/com.nora.github-$(PLUGIN_TAG)-macos.zip"

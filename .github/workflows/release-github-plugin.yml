@@ -69,7 +69,8 @@ jobs:
           plugin_app="${plugin_apps[0]}"
           manifest="$plugin_app/Contents/Resources/nora-plugin.json"
           archive="dist/$(python3 -c 'import json, re, sys; m = json.load(open(sys.argv[1])); print(m["id"] + "-" + re.sub("[^A-Za-z0-9._-]", "-", m["version"]) + "-macos-universal.zip")' "$manifest")"
-          ditto -c -k --keepParent "$plugin_app" "$archive"
+          # A package in Nora's format: its manifest and command schemas beside the app.
+          python3 script/package-v3.py --app "$plugin_app" --archive "$archive"
           make -C "$GITHUB_WORKSPACE" release-entry MANIFEST="$PWD/$manifest" ARCHIVE="$PWD/$archive" \
             REPOSITORY="https://github.com/$GITHUB_REPOSITORY" TAG="$GITHUB_REF_NAME" OUTPUT="$PWD/dist"
       - name: Preserve verified release assets

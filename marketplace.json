@@ -11,7 +11,7 @@
         "skills": [
           "skills/github"
         ],
-        "version": "0.12.0",
+        "version": "0.13.0",
         "summary": "Connect GitHub to view PR discussions, reviews, CI/CD checks, commits, and changes; comment and merge from native Nora views.",
         "publisher": "Nora",
         "apiVersion": 1,
@@ -59,9 +59,9 @@
         "extensionBundleIdentifier": "com.nora.github.extension"
       },
       "repositoryURL": "https://github.com/nora-release/plugins",
-      "releaseTag": "github-v0.12.0",
-      "sha256": "7fefdf990d01cb236334782d6c8b0a7e339ecf656734700d48090fa1eb38eaba",
-      "downloadURL": "https://github.com/nora-release/plugins/releases/download/github-v0.12.0/com.nora.github-0.12.0-macos-universal.zip"
+      "releaseTag": "github-v0.13.0",
+      "sha256": "cdbebd216c5484198b0a0c61a0554b4bb9e42bbda28cc5b275faaf7a1c81f968",
+      "downloadURL": "https://github.com/nora-release/plugins/releases/download/github-v0.13.0/com.nora.github-0.13.0-macos-universal.zip"
     }
   ]
 }

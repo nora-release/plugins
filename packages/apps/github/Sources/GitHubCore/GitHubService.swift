@@ -8,11 +8,9 @@ public final class GitHubService {
     public internal(set) var selectedItem: GitHubValue?
     public internal(set) var detail: GitHubValue?
     public internal(set) var sections: [GitHubSection: GitHubSectionState] = [:]
+    /// The kind of the item whose details are open.
     public internal(set) var kind: GitHubKind = .issues
-    public var repository = ""
     public var query = ""
-    public var sidebarVisible = true
-    public var sidebarWidth: Double = 268
     public internal(set) var repositories: [GitHubValue] = []
     public internal(set) var isLoadingFeed = false
     public internal(set) var isLoadingDetail = false
@@ -38,10 +36,8 @@ public final class GitHubService {
     @ObservationIgnored private var transport: (any GitHubHTTPTransport)?
     @ObservationIgnored var cachedDiff: (String, String)?
     @ObservationIgnored var uncertainComments = Set<String>()
-    private struct FeedContext: Hashable { let kind: GitHubKind; let repository: String }
-    private struct FeedSnapshot { let items: [GitHubValue]; let page: Int; let more: Bool; let notice: String? }
-    @ObservationIgnored private var feedSnapshots: [FeedContext: FeedSnapshot] = [:]
-    @ObservationIgnored private var feedPage = 1
+    /// The next search page of each kind, nil once it has no more.
+    @ObservationIgnored private var nextFeedPages: [GitHubKind: Int] = [:]
     @ObservationIgnored private var epoch = 0
     @ObservationIgnored private var feedRevision = 0
     @ObservationIgnored private var detailRevision = 0
@@ -121,25 +117,17 @@ public final class GitHubService {
             try await session.replace(credentials)
             guard epoch == expectedEpoch else { return }
             closeDetails(); items = []; repositories = []; moreFeed = false
-            user = value; error = nil; managedRepositories = nil; feedSnapshots = [:]
+            user = value; error = nil; managedRepositories = nil; nextFeedPages = [:]
             await refreshFeed()
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
     public func disconnect() async {
         epoch += 1; feedRevision += 1; loginTask?.cancel(); loginTask = nil
-        user = nil; items = []; repositories = []; moreFeed = false; feedNotice = nil; managedRepositories = nil; feedSnapshots = [:]
+        user = nil; items = []; repositories = []; moreFeed = false; feedNotice = nil; managedRepositories = nil; nextFeedPages = [:]
         deviceAuthorization = nil; isConnecting = false; isLoadingFeed = false
         closeDetails()
         do { try await session?.replace(nil) } catch { self.error = error.localizedDescription }
         await present()
-    }
-    public func switchKind(_ value: GitHubKind) async {
-        guard value != kind else { return }
-        kind = value; restoreFeedSnapshot(); closeDetails(); await present(); await refreshFeed()
-    }
-    public func selectRepository(_ value: String) async {
-        guard value.isEmpty || GitHubAPI.isValidRepository(value), value != repository else { return }
-        repository = value; restoreFeedSnapshot(); closeDetails(); await present(); await refreshFeed()
     }
     public func apiForCommands() async throws -> GitHubAPI { try await api() }
     public func refresh() async {
@@ -152,51 +140,61 @@ public final class GitHubService {
         await loadFeed(append: false)
     }
     public func loadMoreFeed() async { guard moreFeed else { return }; await loadFeed(append: true) }
+    /// The open issues and pull requests related to the user, both kinds at once, a page of each
+    /// at a time.
     private func loadFeed(append: Bool) async {
         guard !isLoadingFeed, let user, let session else { return }
-        let revision = feedRevision, current = epoch, requestedKind = kind, requestedRepo = repository
-        let page = append ? feedPage + 1 : 1
+        let revision = feedRevision, current = epoch
+        let pages: [GitHubKind: Int] = append ? nextFeedPages : [.issues: 1, .pullRequests: 1]
+        guard !pages.isEmpty else { return }
         isLoadingFeed = true; error = nil
         defer { if revision == feedRevision { isLoadingFeed = false } }
         do {
             let api = try await session.api()
             let login = user["login"].text
-            var managed: [String] = []
-            if requestedKind == .pullRequests {
-                if let cached = managedRepositories { managed = cached }
-                else {
-                    var next: Int? = 1, result: [String] = [], loadedRepos: [GitHubValue] = []
-                    while let page = next {
-                        let batch = try await api.repositories(page: page)
-                        try Task.checkCancellation()
-                        guard epoch == current, revision == feedRevision else { return }
-                        loadedRepos += batch.items.filter { $0["archived"].bool != true }
-                        result += batch.items.filter { Self.isManagedRepository($0, login: login) }.map { $0["full_name"].text }
-                        next = batch.nextPage
-                    }
-                    managed = Array(Set(result)).sorted()
-                    managedRepositories = managed; repositories = loadedRepos
-                }
+            @Sendable func search(_ kind: GitHubKind, managed: [String]) async throws -> GitHubPage? {
+                guard let page = pages[kind] else { return nil }
+                return try await api.relatedItems(login: login, kind: kind, managedRepositories: managed, page: page)
             }
-            let result = try await api.relatedItems(login: login, kind: requestedKind, repository: requestedRepo, managedRepositories: managed, page: page)
-            guard epoch == current, revision == feedRevision, requestedKind == kind, requestedRepo == repository else { return }
-            items = Self.unique((append ? items : []) + result.items)
-            feedPage = page; moreFeed = result.nextPage != nil
-            feedNotice = result.isTruncated ? GHC("GitHub search returns at most 1,000 items. Select a repository to narrow this list.") : nil
-            feedSnapshots[feedContext] = FeedSnapshot(items: items, page: feedPage, more: moreFeed, notice: feedNotice)
+            // Issues need no list of repositories, so they search while it loads; on an empty board
+            // they show before the pull requests.
+            async let managed = pages[.pullRequests] == nil ? [] : managedRepositoryNames(api: api, login: login, revision: revision, epoch: current)
+            let issues = try await search(.issues, managed: [])
+            guard epoch == current, revision == feedRevision else { return }
+            if items.isEmpty, let issues { items = Self.unique(issues.items) }
+            let pullRequests = try await search(.pullRequests, managed: try await managed)
+            let results: [(GitHubKind, GitHubPage?)] = [(.issues, issues), (.pullRequests, pullRequests)]
+            try Task.checkCancellation()
+            guard epoch == current, revision == feedRevision else { return }
+            var loaded: [GitHubValue] = [], next: [GitHubKind: Int] = [:], truncated = false
+            for case let (kind, result?) in results {
+                loaded += result.items
+                if let following = result.nextPage { next[kind] = following }
+                truncated = truncated || result.isTruncated
+            }
+            items = Self.unique((append ? items : []) + loaded)
+            nextFeedPages = next; moreFeed = !next.isEmpty
+            feedNotice = truncated ? GHC("GitHub search returns at most 1,000 items, so the oldest are left out.") : nil
         } catch is CancellationError {} catch { if revision == feedRevision { self.error = error.localizedDescription } }
     }
-    private var feedContext: FeedContext { FeedContext(kind: kind, repository: repository.lowercased()) }
-    private func restoreFeedSnapshot() {
-        let snapshot = feedSnapshots[feedContext]
-        items = snapshot?.items ?? []; feedPage = snapshot?.page ?? 1; moreFeed = snapshot?.more ?? false; feedNotice = snapshot?.notice
-        error = nil
+    /// The repositories the user maintains outside their own account, whose pull requests count as theirs.
+    private func managedRepositoryNames(api: GitHubAPI, login: String, revision: Int, epoch current: Int) async throws -> [String] {
+        if let managedRepositories { return managedRepositories }
+        var next: Int? = 1, result: [String] = [], loadedRepos: [GitHubValue] = []
+        while let page = next {
+            let batch = try await api.repositories(page: page)
+            try Task.checkCancellation()
+            guard epoch == current, revision == feedRevision else { throw CancellationError() }
+            loadedRepos += batch.items.filter { $0["archived"].bool != true }
+            result += batch.items.filter { Self.isManagedRepository($0, login: login) }.map { $0["full_name"].text }
+            next = batch.nextPage
+        }
+        let managed = Array(Set(result)).sorted()
+        managedRepositories = managed; repositories = loadedRepos
+        return managed
     }
     func removeFeedItem(key: String) {
         items.removeAll { Self.itemKey($0) == key }
-        for (context, snapshot) in feedSnapshots {
-            feedSnapshots[context] = FeedSnapshot(items: snapshot.items.filter { Self.itemKey($0) != key }, page: snapshot.page, more: snapshot.more, notice: snapshot.notice)
-        }
     }
     public nonisolated static func isManagedRepository(_ repo: GitHubValue, login: String) -> Bool {
         guard repo["archived"].bool != true, GitHubAPI.isValidRepository(repo["full_name"].text) else { return false }

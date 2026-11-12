@@ -103,7 +103,7 @@ private final class GitHubPanelRuntime {
         actions.append(NoraPluginPanelAction(id: "refresh", title: GitHubLocalization.text("Refresh"), systemImage: "arrow.clockwise", isEnabled: !model.isLoadingDetail && !model.isLoadingFeed))
         do {
             try await host.present(NoraPluginPanelPresentation(panelID: Self.panelID, title: item?["title"].string,
-                number: item?["number"].int, status: status, sidebarVisible: model.sidebarVisible, sidebarWidth: model.sidebarWidth, actions: actions))
+                number: item?["number"].int, status: status, hasSidebar: false, actions: actions))
         } catch {}
     }
 }

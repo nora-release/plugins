@@ -9,7 +9,6 @@ struct GitHubServiceTests {
         let host = CoreHostFixture()
         let model = GitHubService { method, parameters in try await host.request(method, parameters) }
         await model.restore()
-        await model.switchKind(.pullRequests)
         await model.selectItem(item)
         await model.prepareMerge(.squash)
         #expect(model.mergeProposal?.method == .squash)
@@ -26,7 +25,7 @@ struct GitHubServiceTests {
     func staleHead() async {
         let host = CoreHostFixture()
         let model = GitHubService { method, parameters in try await host.request(method, parameters) }
-        await model.restore(); await model.switchKind(.pullRequests); await model.selectItem(item)
+        await model.restore(); await model.selectItem(item)
         await model.prepareMerge(.merge)
         await host.changeHead()
         await model.confirmMerge()
@@ -38,7 +37,7 @@ struct GitHubServiceTests {
     func disabledMethod() async {
         let host = CoreHostFixture()
         let model = GitHubService { method, parameters in try await host.request(method, parameters) }
-        await model.restore(); await model.switchKind(.pullRequests); await model.selectItem(item)
+        await model.restore(); await model.selectItem(item)
         await model.prepareMerge(.rebase)
         #expect(model.mergeProposal == nil)
         #expect(model.mergeError != nil)
@@ -47,7 +46,7 @@ struct GitHubServiceTests {
     func comment() async {
         let host = CoreHostFixture()
         let model = GitHubService { method, parameters in try await host.request(method, parameters) }
-        await model.restore(); await model.switchKind(.pullRequests); await model.selectItem(item)
+        await model.restore(); await model.selectItem(item)
         await model.postComment("Comment")
         let writes = await host.networkRequests.filter { $0["method"].text == "POST" }
         #expect(writes.count == 1)
@@ -58,7 +57,7 @@ struct GitHubServiceTests {
     func disconnect() async {
         let host = CoreHostFixture()
         let model = GitHubService { method, parameters in try await host.request(method, parameters) }
-        await model.restore(); await model.switchKind(.pullRequests); await model.selectItem(item)
+        await model.restore(); await model.selectItem(item)
         await model.disconnect()
         #expect(model.user == nil && model.detail == nil && model.items.isEmpty)
         #expect(await host.credentials == nil)
@@ -69,21 +68,18 @@ struct GitHubServiceTests {
         let first = GitHubService { method, parameters in try await host.request(method, parameters) }
         let second = GitHubService { method, parameters in try await host.request(method, parameters) }
         await first.restore(); await second.restore()
-        await first.switchKind(.pullRequests); await first.selectItem(item)
-        first.query = "first panel"; first.sidebarVisible = false
-        #expect(first.detail != nil)
+        await first.selectItem(item)
+        first.query = "first panel"
+        #expect(first.detail != nil && first.kind == .pullRequests)
         #expect(second.detail == nil)
-        #expect(second.kind == .issues && second.query.isEmpty && second.sidebarVisible)
-        await second.selectRepository("another/repository")
-        #expect(first.repository.isEmpty)
-        #expect(first.detail != nil)
+        #expect(second.kind == .issues && second.query.isEmpty)
     }
     @Test("Discussion history automatically loads beyond two hundred timeline events")
     func completeTimeline() async {
         let host = CoreHostFixture()
         await host.enableHistory(count: 250)
         let model = GitHubService { method, parameters in try await host.request(method, parameters) }
-        await model.restore(); await model.switchKind(.pullRequests); await model.selectItem(item)
+        await model.restore(); await model.selectItem(item)
         #expect(model.sections[.timeline]?.items.count == 250)
         #expect(model.sections[.timeline]?.nextPage == nil)
         let requests = await host.networkRequests.filter { $0["url"].text.contains("/timeline?") }
@@ -101,5 +97,5 @@ struct GitHubServiceTests {
         #expect(await model.performPanelAction("closeDetails"))
         #expect(model.detail == nil)
     }
-    private var item: GitHubValue { .object(["id": .number(1), "number": .number(1), "title": .string("Change"), "state": .string("open"), "repository": .object(["full_name": .string("org/repo")])]) }
+    private var item: GitHubValue { .object(["id": .number(1), "number": .number(1), "title": .string("Change"), "state": .string("open"), "pull_request": .object([:]), "repository": .object(["full_name": .string("org/repo")])]) }
 }

@@ -3,6 +3,7 @@ import Foundation
 extension GitHubService {
     public func selectItem(_ item: GitHubValue) async {
         closeDetails()
+        kind = item["pull_request"] != .null || item["head"] != .null ? .pullRequests : .issues
         selectedItem = item; detail = item; isLoadingDetail = true
         let revision = currentDetailRevision(), key = Self.itemKey(item)
         await present()

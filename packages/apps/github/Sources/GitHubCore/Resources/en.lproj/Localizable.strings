@@ -51,4 +51,4 @@
 "Merge" = "Merge";
 "Refresh" = "Refresh";
 "Your repository scope is too large for one GitHub search. Select a specific repository." = "Your repository scope is too large for one GitHub search. Select a specific repository.";
-"GitHub search returns at most 1,000 items. Select a repository to narrow this list." = "GitHub search returns at most 1,000 items. Select a repository to narrow this list.";
+"GitHub search returns at most 1,000 items, so the oldest are left out." = "GitHub search returns at most 1,000 items, so the oldest are left out.";

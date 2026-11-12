@@ -51,4 +51,4 @@
 "Merge" = "合并";
 "Refresh" = "刷新";
 "Your repository scope is too large for one GitHub search. Select a specific repository." = "仓库范围过大，无法一次查询。请选择具体仓库。";
-"GitHub search returns at most 1,000 items. Select a repository to narrow this list." = "GitHub 搜索最多返回 1,000 条结果，请选择具体仓库以缩小范围。";
+"GitHub search returns at most 1,000 items, so the oldest are left out." = "GitHub 搜索最多返回 1,000 条结果，更早的没有列出。";

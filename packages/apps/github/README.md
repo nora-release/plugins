@@ -4,8 +4,9 @@ Brings GitHub into Nora: follow pull requests, reviews and checks in a native pa
 
 ## What it can do
 
-- **What needs you**: the GitHub panel lists the issues and pull requests that need your attention.
-- **Pull requests**: read the discussion, reviews and changed files, see commits and CI/CD checks, comment, and merge.
+- **A board of what needs you**: every open issue and pull request that involves you, one column per repository, the most recently active first. Filter to issues or pull requests, or search.
+- **Details beside the board**: open a card to read the discussion, reviews and changed files, see commits and CI/CD checks, comment, and merge, without leaving the board.
+- **Give to Nora**: hand any card to Nora with its discussion, in a new chat.
 - **Agent tools**: the agent can list your repositories, issues and pull requests.
 
 ## Set up

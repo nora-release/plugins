@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "NoraGitHub", defaultLocalization: "en", platforms: [.macOS(.v14)],
+    name: "NoraGitHub", defaultLocalization: "en", platforms: [.macOS(.v15)],
     products: [.executable(name: "PluginHost", targets: ["PluginHost"]), .executable(name: "PluginExtension", targets: ["PluginExtension"])],
     dependencies: [.package(url: "https://github.com/nora-release/plugin-kit.git", exact: "0.23.0"),
         .package(url: "https://github.com/Lakr233/MarkdownView.git", exact: "4.8.2"),

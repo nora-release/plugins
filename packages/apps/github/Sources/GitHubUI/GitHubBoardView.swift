@@ -122,6 +122,7 @@ struct GitHubBoardView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
             }
             .scrollIndicators(.automatic)
+            .dragToPan(.horizontal)
             .accessibilityIdentifier("github.board")
         }
     }
@@ -190,6 +191,7 @@ private struct GitHubBoardColumnView: View {
                 .padding(.bottom, 24).padding(.horizontal, 1).padding(.top, 1)
             }
             .scrollIndicators(.never)
+            .dragToPan(.vertical)
         }
         .frame(width: GitHubBoardStyle.columnWidth)
         .accessibilityElement(children: .contain)

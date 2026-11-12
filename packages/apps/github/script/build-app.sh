@@ -39,7 +39,7 @@ common = {
     'CFBundleVersion': '1',
     'CFBundleName': manifest['name'],
     'CFBundleDisplayName': manifest['name'],
-    'LSMinimumSystemVersion': '14.0',
+    'LSMinimumSystemVersion': '15.0',
 }
 if client_id:
     common['NoraGitHubClientID'] = client_id

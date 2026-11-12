@@ -100,3 +100,32 @@ struct GitHubBoardAccountTests {
         view.subviews.flatMap { [$0] + descendants(of: $0) }
     }
 }
+
+struct GitHubDragToPanTests {
+    private var bounds: GitHubDragToPan.Bounds {
+        var bounds = GitHubDragToPan.Bounds()
+        bounds.offset = CGPoint(x: 100, y: 40)
+        bounds.minimum = .zero
+        bounds.maximum = CGPoint(x: 900, y: 300)
+        return bounds
+    }
+
+    @Test func draggingLeftMovesTheBoardRightAndStopsAtItsEdges() {
+        let origin = CGPoint(x: 100, y: 40)
+        #expect(bounds.target(from: origin, by: CGSize(width: -250, height: 30), along: .horizontal) == CGPoint(x: 350, y: 40))
+        #expect(bounds.target(from: origin, by: CGSize(width: 500, height: 0), along: .horizontal) == CGPoint(x: 0, y: 40))
+        #expect(bounds.target(from: origin, by: CGSize(width: -5000, height: 0), along: .horizontal) == CGPoint(x: 900, y: 40))
+    }
+
+    @Test func draggingUpScrollsAColumnDownWithinItsLength() {
+        let origin = CGPoint(x: 100, y: 40)
+        #expect(bounds.target(from: origin, by: CGSize(width: 80, height: -100), along: .vertical) == CGPoint(x: 100, y: 140))
+        #expect(bounds.target(from: origin, by: CGSize(width: 0, height: 900), along: .vertical) == CGPoint(x: 100, y: 0))
+    }
+
+    @Test func contentNarrowerThanItsViewDoesNotMove() {
+        var narrow = GitHubDragToPan.Bounds()
+        narrow.maximum = .zero
+        #expect(narrow.target(from: .zero, by: CGSize(width: -300, height: -300), along: .horizontal) == .zero)
+    }
+}

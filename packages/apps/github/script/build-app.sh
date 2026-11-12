@@ -70,6 +70,8 @@ for bundle, product, identifier, attributes in (
             shutil.copytree(resource, resources / resource.name)
 shutil.copy2(manifest_path, app / 'Contents/Resources/nora-plugin.json')
 shutil.copytree(root / 'assets', app / 'Contents/Resources/assets')
+# the README Nora's plugin page shows once the plugin is installed
+shutil.copy2(root / 'README.md', app / 'Contents/Resources/README.md')
 (staging / 'sandbox.entitlements').write_bytes(plistlib.dumps({
     'com.apple.security.app-sandbox': True,
     'com.apple.security.network.client': True,

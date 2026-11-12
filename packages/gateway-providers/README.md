@@ -44,7 +44,9 @@ packages/gateway-providers/release.py --tag gateway-providers-2 --publish
 
 Raise a plugin's `version` in its manifest when it changes: Nora offers an
 update when the catalog lists a newer one. A manifest's `description` is
-the line the Plugins page shows.
+the line the Plugins page shows. Each plugin's `README.md` is its page in
+Nora: the package carries it, and before the plugin is installed Nora reads
+it from the folder the catalog's `repository` points to.
 
 ## Plugins with code
 

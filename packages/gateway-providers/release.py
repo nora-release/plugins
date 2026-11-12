@@ -58,6 +58,8 @@ def package(folder: Path, manifest: dict, staging: Path) -> Path:
         for icon in folder.glob("icons/*"):
             (out / "icons").mkdir(exist_ok=True)
             shutil.copy2(icon, out / "icons" / icon.name)
+        # the README Nora's plugin page shows once the plugin is installed
+        shutil.copy2(folder / "README.md", out / "README.md")
     return out
 
 

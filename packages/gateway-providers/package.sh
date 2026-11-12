@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Packages one provider plugin with code as Nora installs it: its manifest
-# and its program at the entry the manifest names.
+# Packages one provider plugin with code as Nora installs it: its manifest,
+# its README, and its program at the entry the manifest names.
 #
 #   packages/gateway-providers/package.sh <plugin> <output folder>
 set -euo pipefail
@@ -15,6 +15,7 @@ cargo build --release --manifest-path "$here/Cargo.toml" -p "nora-gateway-$plugi
 rm -rf "$output"
 mkdir -p "$output/$(dirname "$entry")"
 cp "$manifest" "$output/nora-plugin.json"
+cp "$here/$plugin/README.md" "$output/README.md"
 # a cargo with its own target folder (huacnlee/cargo) builds into the
 # workspace's ./target as well
 cp "$here/target/release/$plugin" "$output/$entry"

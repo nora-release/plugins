@@ -7,6 +7,11 @@ public struct GitHubPanel: View {
     @State private var showsMerge = false
     @State private var commentDrafts: [String: String] = [:]
     @State private var filter = GitHubBoardFilter.all
+    /// The item the drawer shows. The drawer opens and closes with it, animated, ahead of the service:
+    /// the service loads the details while the drawer slides, and forgets them only once it has closed.
+    @State private var drawerItem: GitHubValue?
+    /// The drawer's full details appear once it has slid in; drawing them on its first frame would stall the slide.
+    @State private var drawerReady = false
     @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -18,18 +23,18 @@ public struct GitHubPanel: View {
             else {
                 ZStack(alignment: .trailing) {
                     GitHubBoardView(service: service, filter: $filter, searchFocused: $searchFocused,
-                                    reconnect: { showsConnection = true }, handOff: handOff)
-                    if let item = service.detail ?? service.selectedItem {
+                                    reconnect: { showsConnection = true }, open: open, handOff: handOff)
+                    if let item = drawerItem {
                         GitHubBoardStyle.scrim
                             .ignoresSafeArea()
                             .onTapGesture(perform: closeDetails)
                             .transition(.opacity)
                             .accessibilityHidden(true)
-                        drawer(item)
+                        drawer(service.detail ?? service.selectedItem ?? item)
                             .transition(.move(edge: .trailing))
                     }
                 }
-                .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: service.selectedItem?.itemKey)
+                .onChange(of: service.selectedItem?.itemKey) { _, key in follow(key) }
             }
         }
         .font(.system(size: 13))
@@ -66,17 +71,53 @@ public struct GitHubPanel: View {
     }
 
     private func drawer(_ item: GitHubValue) -> some View {
-        GitHubItemDetailView(service: service, item: item, drafts: $commentDrafts)
-            .id(item.itemKey)
-            .frame(width: GitHubBoardStyle.drawerWidth)
-            .frame(maxHeight: .infinity)
-            .background(GitHubBoardStyle.drawer)
-            .overlay(alignment: .leading) { Rectangle().fill(GitHubBoardStyle.divider).frame(width: 1) }
-            .shadow(color: .black.opacity(0.22), radius: 24, x: -6)
-            .accessibilityIdentifier("github.drawer")
+        Group {
+            if drawerReady {
+                GitHubItemDetailView(service: service, item: item, drafts: $commentDrafts)
+                    .id(item.itemKey)
+                    .transition(.opacity)
+            } else {
+                GitHubDrawerPlaceholder(item: item)
+            }
+        }
+        .frame(width: GitHubBoardStyle.drawerWidth)
+        .frame(maxHeight: .infinity)
+        .background(GitHubBoardStyle.drawer)
+        .overlay(alignment: .leading) { Rectangle().fill(GitHubBoardStyle.divider).frame(width: 1) }
+        .shadow(color: .black.opacity(0.22), radius: 24, x: -6)
+        .accessibilityIdentifier("github.drawer")
+    }
+
+    private var slide: Animation? { reduceMotion ? nil : .smooth(duration: 0.28) }
+
+    /// Slides the drawer in with the card's title at once, then loads and shows its details.
+    private func open(_ item: GitHubValue) {
+        present(item)
+        Task { await service.selectItem(item) }
+    }
+
+    private func present(_ item: GitHubValue) {
+        guard drawerItem?.itemKey != item.itemKey else { return }
+        let opening = drawerItem == nil
+        drawerReady = !opening
+        withAnimation(slide) { drawerItem = item }
+        guard opening else { return }
+        let key = item.itemKey
+        Task {
+            try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 260))
+            guard drawerItem?.itemKey == key else { return }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) { drawerReady = true }
+        }
+    }
+
+    /// Follows details opened or closed elsewhere: Escape, Nora's toolbar, or handing a card to Nora.
+    private func follow(_ key: String?) {
+        if let item = service.selectedItem, key != nil { present(item) }
+        else if key == nil, drawerItem != nil { withAnimation(slide) { drawerItem = nil } }
     }
 
     private func closeDetails() {
+        withAnimation(slide) { drawerItem = nil }
         Task { await service.performPanelAction("closeDetails") }
     }
 
@@ -99,5 +140,22 @@ public struct GitHubPanel: View {
             if let error = service.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
         }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(GitHubPanelStyle.background)
+    }
+}
+
+/// What the drawer shows while it slides in: the card's title and state, then rows to come.
+private struct GitHubDrawerPlaceholder: View {
+    let item: GitHubValue
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(item.title).font(.system(size: 18, weight: .semibold)).lineLimit(3)
+            GitHubStatePill(item: item)
+            GitHubSkeleton(rows: 4, inset: 0).padding(.top, 10)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24).padding(.top, 22)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityElement(children: .combine)
     }
 }

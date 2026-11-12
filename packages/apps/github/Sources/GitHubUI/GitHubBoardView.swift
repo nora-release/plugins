@@ -7,6 +7,7 @@ struct GitHubBoardView: View {
     @Binding var filter: GitHubBoardFilter
     var searchFocused: FocusState<Bool>.Binding
     let reconnect: () -> Void
+    let open: (GitHubValue) -> Void
     let handOff: (GitHubValue) -> Void
 
     private var columns: [GitHubBoardColumn] {
@@ -108,7 +109,7 @@ struct GitHubBoardView: View {
                 HStack(alignment: .top, spacing: 16) {
                     ForEach(columns) { column in
                         GitHubBoardColumnView(column: column, selectedKey: service.selectedItem?.itemKey,
-                                              open: { item in Task { await service.selectItem(item) } },
+                                              open: open,
                                               handOff: handOff)
                     }
                     if service.moreFeed {

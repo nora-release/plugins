@@ -189,6 +189,7 @@ private struct GitHubBoardColumnView: View {
                     ForEach(column.items, id: \.itemKey) { item in
                         GitHubBoardCard(item: item, selected: selectedKey == item.itemKey,
                                         open: { open(item) }, handOff: { handOff(item) })
+                            .equatable()
                     }
                 }
                 .padding(.bottom, 24).padding(.horizontal, 1).padding(.top, 1)

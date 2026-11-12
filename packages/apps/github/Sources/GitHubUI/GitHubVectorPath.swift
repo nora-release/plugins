@@ -13,6 +13,7 @@
 
 import CoreGraphics
 import SwiftUI
+import Synchronization
 
 enum GitHubVectorPath {
     /// Build a `Path` from SVG path data, scaled to fit `rect` while preserving
@@ -22,15 +23,24 @@ enum GitHubVectorPath {
         in rect: CGRect,
         viewBox: CGSize = CGSize(width: 24, height: 24)
     ) -> Path {
-        var builder = Builder()
-        let tokens = tokenize(data)
-        builder.run(tokens)
-
+        let unscaled = parsed(data)
         let scale = min(rect.width / viewBox.width, rect.height / viewBox.height)
         let tx = rect.midX - viewBox.width * scale / 2
         let ty = rect.midY - viewBox.height * scale / 2
         let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale, tx: tx, ty: ty)
-        return builder.path.applying(transform)
+        return unscaled.applying(transform)
+    }
+
+    /// Path data parsed once and kept: icons are drawn on every card each time the board redraws.
+    private static let parsedPaths = Mutex<[String: Path]>([:])
+
+    nonisolated static func parsed(_ data: String) -> Path {
+        if let path = parsedPaths.withLock({ $0[data] }) { return path }
+        var builder = Builder()
+        builder.run(tokenize(data))
+        let path = builder.path
+        parsedPaths.withLock { $0[data] = path }
+        return path
     }
 
     /// Combine multiple SVG path data strings into a single `Path`,

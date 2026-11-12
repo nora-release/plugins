@@ -120,3 +120,10 @@ struct GitHubBoardCard: View {
         .padding(.top, 2)
     }
 }
+
+/// A card redraws only when its item or its highlight changes; selecting another card leaves it alone.
+extension GitHubBoardCard: Equatable {
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.selected == rhs.selected && lhs.item == rhs.item
+    }
+}

@@ -20,7 +20,7 @@ Use the models of your [GitHub Copilot](https://github.com/features/copilot) pla
 
 | | |
 | --- | --- |
-| Plugin | `nora.copilot` 1.0.0 |
+| Plugin | `nora.copilot` |
 | Provider `copilot` | OpenAI Chat Completions at `https://api.githubcopilot.com` |
 | Connects to | `github.com`, `api.github.com`, `api.githubcopilot.com`, `*.githubcopilot.com` |
 | Runs code | Yes, a small program Nora starts for this provider |

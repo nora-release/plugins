@@ -18,7 +18,7 @@ For an account on the international platform (platform.moonshot.ai), install **M
 
 | | |
 | --- | --- |
-| Plugin | `nora.moonshotai-cn` 1.0.0 |
+| Plugin | `nora.moonshotai-cn` |
 | Provider `moonshotai-cn` | OpenAI Chat Completions at `https://api.moonshot.cn/v1` |
 | Connects to | `api.moonshot.cn` |
 | Runs code | No, Nora sends the requests itself |

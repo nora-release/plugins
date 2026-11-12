@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.grok",
   "name": "Grok",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Your SuperGrok or X Premium+ plan's models, signed in with xAI.",
   "runtime": {
     "kind": "process",

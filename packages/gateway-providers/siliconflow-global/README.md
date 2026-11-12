@@ -14,7 +14,7 @@ Nora lists the models from SiliconFlow's own model list, so new models show up w
 
 | | |
 | --- | --- |
-| Plugin | `nora.siliconflow-global` 1.0.0 |
+| Plugin | `nora.siliconflow-global` |
 | Provider `siliconflow-global` | OpenAI Chat Completions at `https://api.siliconflow.com/v1` |
 | Connects to | `api.siliconflow.com` |
 | Runs code | No, Nora sends the requests itself |

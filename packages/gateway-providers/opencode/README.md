@@ -18,7 +18,7 @@ Requests use the Anthropic Messages format, with the key sent as a bearer token.
 
 | | |
 | --- | --- |
-| Plugin | `nora.opencode` 1.0.0 |
+| Plugin | `nora.opencode` |
 | Provider `opencode` | Anthropic Messages at `https://opencode.ai/zen` |
 | Connects to | `opencode.ai` |
 | Runs code | No, Nora sends the requests itself |

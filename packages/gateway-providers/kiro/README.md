@@ -18,7 +18,7 @@ Use [Kiro](https://kiro.dev)'s models in Nora. Sign in with Google, GitHub, AWS 
 
 | | |
 | --- | --- |
-| Plugin | `nora.kiro` 1.0.0 |
+| Plugin | `nora.kiro` |
 | Provider `kiro` | Anthropic Messages at `https://runtime.us-east-1.kiro.dev` |
 | Connects to | `app.kiro.dev`, `prod.us-east-1.auth.desktop.kiro.dev`, `*.kiro.dev`, `*.amazonaws.com` |
 | Listens on | `localhost` (sign-in only) |

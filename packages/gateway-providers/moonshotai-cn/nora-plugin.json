@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.moonshotai-cn",
   "name": "Moonshot AI CN",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Moonshot AI (China) models, with an API key.",
   "runtime": {
     "kind": "none"

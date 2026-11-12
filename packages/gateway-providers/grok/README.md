@@ -18,7 +18,7 @@ Use the models of your SuperGrok or X Premium+ plan in Nora, signed in with your
 
 | | |
 | --- | --- |
-| Plugin | `nora.grok` 1.1.0 |
+| Plugin | `nora.grok` |
 | Provider `grok` | OpenAI Responses at `https://cli-chat-proxy.grok.com/v1` |
 | Connects to | `auth.x.ai`, `accounts.x.ai`, `cli-chat-proxy.grok.com`, `x.ai`, `storage.googleapis.com` |
 | Runs code | Yes, a small program Nora starts for this provider |

@@ -18,7 +18,7 @@ Use [WorkBuddy](https://www.workbuddy.ai) (Tencent) models in Nora. The plugin a
 
 | | |
 | --- | --- |
-| Plugin | `nora.workbuddy` 1.0.0 |
+| Plugin | `nora.workbuddy` |
 | Provider `workbuddy` | OpenAI Chat Completions at `https://copilot.tencent.com/v2` |
 | Provider `workbuddy-ai` | OpenAI Chat Completions at `https://www.workbuddy.ai/v2` |
 | Connects to | `copilot.tencent.com`, `www.workbuddy.ai` |

@@ -98,6 +98,8 @@ jobs:
           python3 script/package-v3.py --app "$plugin_app" --archive "$archive"
           make -C "$GITHUB_WORKSPACE" release-entry MANIFEST="$PWD/$manifest" ARCHIVE="$PWD/$archive" \
             REPOSITORY="https://github.com/$GITHUB_REPOSITORY" TAG="$GITHUB_REF_NAME" OUTPUT="$PWD/dist"
+          # Nora reads the plugin's page from the release before the plugin is installed.
+          cp README.md dist/README.md
       - name: Preserve verified release assets
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
@@ -109,6 +111,7 @@ jobs:
             packages/apps/github/dist/marketplace.json
             packages/apps/github/dist/nora-plugin.json
             packages/apps/github/dist/SHA256SUMS
+            packages/apps/github/dist/README.md
   publish:
     needs: prepare
     runs-on: blacksmith-4vcpu-ubuntu-2404

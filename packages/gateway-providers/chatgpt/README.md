@@ -19,7 +19,7 @@ Use the models of your ChatGPT plan (Plus, Pro, Business, Enterprise or Edu) in 
 
 | | |
 | --- | --- |
-| Plugin | `nora.chatgpt` 1.1.0 |
+| Plugin | `nora.chatgpt` |
 | Provider `chatgpt` | OpenAI Responses at `https://chatgpt.com/backend-api/codex` |
 | Connects to | `chatgpt.com`, `auth.openai.com` |
 | Listens on | `localhost:1455` (sign-in only) |

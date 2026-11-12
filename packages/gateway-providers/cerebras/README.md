@@ -14,7 +14,7 @@ Nora lists the models from Cerebras's own model list, so new models show up with
 
 | | |
 | --- | --- |
-| Plugin | `nora.cerebras` 1.0.0 |
+| Plugin | `nora.cerebras` |
 | Provider `cerebras` | OpenAI Chat Completions at `https://api.cerebras.ai/v1` |
 | Connects to | `api.cerebras.ai` |
 | Runs code | No, Nora sends the requests itself |

@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.moonshotai",
   "name": "Moonshot AI",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Moonshot AI models, with an API key.",
   "runtime": {
     "kind": "none"

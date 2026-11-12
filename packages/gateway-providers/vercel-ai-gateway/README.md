@@ -14,7 +14,7 @@ Nora lists the models from Vercel AI Gateway's own model list, so new models sho
 
 | | |
 | --- | --- |
-| Plugin | `nora.vercel-ai-gateway` 1.0.0 |
+| Plugin | `nora.vercel-ai-gateway` |
 | Provider `vercel-ai-gateway` | OpenAI Chat Completions at `https://ai-gateway.vercel.sh` |
 | Connects to | `ai-gateway.vercel.sh` |
 | Runs code | No, Nora sends the requests itself |

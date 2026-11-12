@@ -4,37 +4,37 @@
     {
       "name": "nora.docs",
       "description": "Read, create, edit, and review Word documents.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "source": "packages/skills/docs"
     },
     {
       "name": "nora.format-converter",
       "description": "Convert documents, images, audio, and video between formats.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "source": "packages/skills/format-converter"
     },
     {
       "name": "nora.linear",
       "description": "Work with Linear through the linear CLI: issues, comments, teams, projects, and labels.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "source": "packages/skills/linear"
     },
     {
       "name": "nora.pdfs",
       "description": "Read, create, and review PDFs.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "source": "packages/skills/pdfs"
     },
     {
       "name": "nora.spreadsheets",
       "description": "Create, edit, analyze, and visualize spreadsheets.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "source": "packages/skills/spreadsheets"
     },
     {
       "name": "nora.ui-designer",
       "description": "Design or restyle user interfaces from DESIGN.md references of well-known visual systems.",
-      "version": "1.2.0",
+      "version": "1.2.1",
       "source": "packages/skills/ui-designer"
     }
   ]

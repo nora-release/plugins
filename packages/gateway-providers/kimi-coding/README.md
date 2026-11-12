@@ -18,7 +18,7 @@ Requests use the Anthropic Messages format, with the key sent as a bearer token 
 
 | | |
 | --- | --- |
-| Plugin | `nora.kimi-coding` 1.0.0 |
+| Plugin | `nora.kimi-coding` |
 | Provider `kimi-coding` | Anthropic Messages at `https://api.kimi.com/coding` |
 | Connects to | `api.kimi.com` |
 | Runs code | No, Nora sends the requests itself |

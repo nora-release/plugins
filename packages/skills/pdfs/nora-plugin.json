@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.pdfs",
   "name": "PDFs",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Read, create, and review PDFs.",
   "icon": "assets/icon.svg",
   "runtime": {

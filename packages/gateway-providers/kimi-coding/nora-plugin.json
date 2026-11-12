@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.kimi-coding",
   "name": "Kimi Coding",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Kimi's coding plan, with its API key.",
   "runtime": {
     "kind": "none"

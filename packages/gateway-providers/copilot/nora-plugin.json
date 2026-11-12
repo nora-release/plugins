@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.copilot",
   "name": "GitHub Copilot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Your GitHub Copilot plan's models, signed in with GitHub.",
   "runtime": {
     "kind": "process",

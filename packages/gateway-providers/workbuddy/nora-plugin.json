@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.workbuddy",
   "name": "WorkBuddy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "WorkBuddy's models, in China or internationally, signed in in the browser.",
   "runtime": {
     "kind": "process",

@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.kiro",
   "name": "Kiro",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Kiro's models, signed in with Google, GitHub or AWS, or with an API key.",
   "runtime": {
     "kind": "process",

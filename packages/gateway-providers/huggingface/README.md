@@ -14,7 +14,7 @@ Nora lists the models from Hugging Face's own model list, so new models show up 
 
 | | |
 | --- | --- |
-| Plugin | `nora.huggingface` 1.0.0 |
+| Plugin | `nora.huggingface` |
 | Provider `huggingface` | OpenAI Chat Completions at `https://router.huggingface.co/v1` |
 | Connects to | `router.huggingface.co` |
 | Runs code | No, Nora sends the requests itself |

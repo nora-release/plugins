@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Packs a signed native plugin application as a package in Nora's format.
 
-The package puts nora-plugin.json and one JSON schema per command beside the
-application. Every declaration is read from the manifest signed inside the
+The package puts nora-plugin.json, the README and one JSON schema per command
+beside the application. Every declaration is read from the manifest signed inside the
 application, so the two cannot disagree.
 """
 
@@ -63,6 +63,10 @@ def main() -> int:
         root = pathlib.Path(staging)
         subprocess.run(["ditto", str(app), str(root / app.name)], check=True)
         (root / "nora-plugin.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        # the README Nora's plugin page shows, beside the manifest as in every package
+        readme = app / "Contents/Resources/README.md"
+        if readme.is_file():
+            shutil.copy2(readme, root / "README.md")
         for path, schema in schemas.items():
             (root / path).parent.mkdir(parents=True, exist_ok=True)
             (root / path).write_text(json.dumps(schema, indent=2) + "\n")

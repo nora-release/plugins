@@ -2,7 +2,7 @@
   "apiVersion": 3,
   "id": "nora.spreadsheets",
   "name": "Spreadsheets",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Create, edit, analyze, and visualize spreadsheets.",
   "icon": "assets/icon.svg",
   "runtime": {

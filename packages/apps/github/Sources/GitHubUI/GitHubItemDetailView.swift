@@ -105,7 +105,8 @@ struct GitHubItemDetailView: View {
     }
     private var discussion: some View {
         GitHubDetailColumns {
-            VStack(alignment: .leading, spacing: 12) {
+            // Lazy: only the entries in view are laid out, again as each section arrives.
+            LazyVStack(alignment: .leading, spacing: 12) {
                 GitHubDiscussionCard(value: item, bodyText: item["body"].text, isDescription: true)
                 ForEach(conversationGroups) { group in
                     if group.isCollection {

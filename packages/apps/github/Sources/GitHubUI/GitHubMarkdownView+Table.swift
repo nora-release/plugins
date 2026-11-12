@@ -43,18 +43,9 @@ struct GitHubMarkdownTableView: View {
     }
 
     private var columnWidths: [CGFloat] {
-        let count = max(table.headers.count, table.rows.map(\.count).max() ?? 0)
+        let preferred = GitHubMarkdownCache.shared.columnWidths(table)
+        let count = preferred.count
         guard count > 0 else { return [] }
-        let preferred = (0 ..< count).map { index -> CGFloat in
-            let header = table.headers.indices.contains(index) ? [table.headers[index]] : []
-            let values = header + table.rows.prefix(24).compactMap { $0.indices.contains(index) ? $0[index] : nil }
-            let font = NSFont.systemFont(ofSize: 13)
-            let width = values.map { value in
-                let text = String(GitHubMarkdownView.attributedText(value).characters.prefix(180))
-                return (text as NSString).size(withAttributes: [.font: font]).width
-            }.max() ?? 0
-            return min(320, max(100, ceil(width) + 28))
-        }
         let total = preferred.reduce(0, +)
         guard viewportWidth > total else { return preferred }
         let extra = (viewportWidth - total) / CGFloat(count)
@@ -93,5 +84,24 @@ private struct GitHubMarkdownTableWidthKey: PreferenceKey {
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
+    }
+}
+
+extension GitHubMarkdownTable {
+    /// Each column's natural width, from the text of its header and first rows: measuring text is slow,
+    /// so the cache keeps the result.
+    var preferredColumnWidths: [CGFloat] {
+        let count = max(headers.count, rows.map(\.count).max() ?? 0)
+        guard count > 0 else { return [] }
+        let font = NSFont.systemFont(ofSize: 13)
+        return (0 ..< count).map { index -> CGFloat in
+            let header = headers.indices.contains(index) ? [headers[index]] : []
+            let values = header + rows.prefix(24).compactMap { $0.indices.contains(index) ? $0[index] : nil }
+            let width = values.map { value in
+                let text = String(GitHubMarkdownView.attributedText(value).characters.prefix(180))
+                return (text as NSString).size(withAttributes: [.font: font]).width
+            }.max() ?? 0
+            return min(320, max(100, ceil(width) + 28))
+        }
     }
 }

@@ -64,6 +64,8 @@ final class GitHubMarkdownCache {
     private var bodyOrder: [Key] = []
     private var inlines: [String: AttributedString] = [:]
     private var inlineOrder: [String] = []
+    private var widths: [GitHubMarkdownTable: [CGFloat]] = [:]
+    private var widthOrder: [GitHubMarkdownTable] = []
 
     func body(_ source: String, html: String) -> Body {
         let key = Key(source: source, html: html)
@@ -71,6 +73,13 @@ final class GitHubMarkdownCache {
         let body = Body(document: GitHubMarkdownDocument.parse(source), rendered: GitHubImageSources.rendered(html))
         Self.keep(body, for: key, in: &bodies, order: &bodyOrder)
         return body
+    }
+
+    func columnWidths(_ table: GitHubMarkdownTable) -> [CGFloat] {
+        if let widths = widths[table] { return widths }
+        let measured = table.preferredColumnWidths
+        Self.keep(measured, for: table, in: &widths, order: &widthOrder)
+        return measured
     }
 
     func inline(_ source: String) -> AttributedString {

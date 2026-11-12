@@ -2,11 +2,11 @@ import Foundation
 import MarkdownParser
 import SwiftSoup
 
-enum GitHubMarkdownAlignment: Equatable {
+enum GitHubMarkdownAlignment: Equatable, Hashable {
     case left, center, right
 }
 
-struct GitHubMarkdownTable: Equatable {
+struct GitHubMarkdownTable: Hashable {
     let headers: [String]
     let rows: [[String]]
     let alignments: [GitHubMarkdownAlignment]

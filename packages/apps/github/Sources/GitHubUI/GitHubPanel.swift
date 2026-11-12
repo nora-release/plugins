@@ -57,7 +57,7 @@ public struct GitHubPanel: View {
         }
         .sheet(isPresented: $showsConnection) { GitHubConnectionView(service: service) }
         .sheet(isPresented: $showsMerge) { GitHubMergeView(service: service) }
-        .environment(\.githubAvatars, service.avatars)
+        .environment(\.githubImages, service.images)
         .environment(\.openURL, OpenURLAction { url in
             Task { try? await service.openURL(url) }
             return .handled

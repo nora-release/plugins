@@ -1,10 +1,14 @@
 import Foundation
 
-/// Avatars, fetched through Nora like every other request: the extension's sandbox has no network of its
-/// own. Each picture is asked for once, and kept.
-public actor GitHubAvatars {
+/// Pictures GitHub serves, fetched through Nora like every other request: the extension's sandbox has no
+/// network of its own. Avatars, images attached to issues and comments, and images from elsewhere that
+/// GitHub proxies; each is asked for once, and kept.
+public actor GitHubImages {
     public static let host = "avatars.githubusercontent.com"
-    private static let maximumBytes = 512 * 1024
+    /// The hosts GitHub serves pictures from, each listed among the plugin's network domains.
+    public static let hosts: Set<String> = [host, "private-user-images.githubusercontent.com",
+                                            "user-images.githubusercontent.com", "camo.githubusercontent.com"]
+    private static let maximumBytes = 4 * 1024 * 1024
     private static let kept = 400
 
     private let request: GitHubHostRequest
@@ -25,7 +29,7 @@ public actor GitHubAvatars {
 
     /// The picture's bytes, or nil when it can't be had.
     public func data(_ url: URL) async -> Data? {
-        guard url.scheme == "https", url.host == Self.host else { return nil }
+        guard url.scheme == "https", let host = url.host, Self.hosts.contains(host) else { return nil }
         if let picture = pictures[url] { return picture }
         if let task = loading[url] { return await task.value }
         let request = request

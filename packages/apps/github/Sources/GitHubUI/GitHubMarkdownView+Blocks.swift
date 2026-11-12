@@ -1,3 +1,4 @@
+import GitHubCore
 import SwiftUI
 
 struct GitHubMarkdownBlockList: View {
@@ -36,15 +37,7 @@ private struct GitHubMarkdownBlockView: View {
             }
             .padding(.top, !isFirst && level <= 2 ? 8 : 0)
         case let .image(source, alt):
-            if let url = URL(string: source), url.scheme?.lowercased() == "https" {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image): image.resizable().scaledToFit().frame(maxHeight: 600)
-                    case .failure: Label(alt.isEmpty ? GHL("Image unavailable") : alt, systemImage: "photo").foregroundStyle(.secondary)
-                    default: RoundedRectangle(cornerRadius: 4).fill(.quaternary).frame(height: 140)
-                    }
-                }.accessibilityLabel(alt)
-            }
+            GitHubMarkdownImage(source: source, alt: alt)
         case let .code(language, text):
             GitHubMarkdownCodeView(language: language, source: text, path: path)
         case let .quote(children):
@@ -190,5 +183,24 @@ private struct GitHubMarkdownDisclosureView: View {
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("github.markdown.disclosure.\(path)")
+    }
+}
+
+/// A picture in a body, fetched from where GitHub serves it.
+private struct GitHubMarkdownImage: View {
+    let source: String
+    let alt: String
+    @Environment(\.githubRenderedImages) private var rendered
+
+    var body: some View {
+        GitHubRemoteImage(url: GitHubImageSources.resolve(source, in: rendered), fit: true) { failed in
+            if failed {
+                Label(alt.isEmpty ? GHL("Image unavailable") : alt, systemImage: "photo").foregroundStyle(.secondary)
+            } else {
+                RoundedRectangle(cornerRadius: 4).fill(.quaternary).frame(height: 140)
+            }
+        }
+        .frame(maxHeight: 600, alignment: .leading)
+        .accessibilityLabel(alt)
     }
 }

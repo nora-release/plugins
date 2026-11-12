@@ -20,6 +20,7 @@ Brings GitHub into Nora: follow pull requests, reviews and checks in a native pa
 | Permission | Why |
 | --- | --- |
 | Network: `api.github.com`, `github.com`, `avatars.githubusercontent.com` | Reads and updates your pull requests, issues and repositories |
+| Network: `private-user-images.githubusercontent.com`, `user-images.githubusercontent.com`, `camo.githubusercontent.com` | Shows the pictures in issues, pull requests and comments, from where GitHub serves them |
 | Credentials | Keeps your GitHub sign-in on this Mac |
 | Open links | Opens a pull request or issue in your browser |
 | Chat | Sends a pull request or issue to a Nora chat |

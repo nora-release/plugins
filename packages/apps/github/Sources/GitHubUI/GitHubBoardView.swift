@@ -235,7 +235,7 @@ struct GitHubRepositoryOwnerAvatar: View {
     let column: GitHubBoardColumn
     var size: CGFloat = 22
 
-    var url: URL? { GitHubAvatars.url(login: column.owner, avatarURL: nil) }
+    var url: URL? { GitHubImages.url(login: column.owner, avatarURL: nil) }
 
     var body: some View {
         GitHubRemoteImage(url: url) {

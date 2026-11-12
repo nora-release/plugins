@@ -1,6 +1,9 @@
 import Foundation
 
 extension GitHubService {
+    /// Asks for each body as Markdown and as GitHub renders it, whose pictures GitHub serves itself.
+    static let renderedBodies = "application/vnd.github.full+json"
+
     public func selectItem(_ item: GitHubValue) async {
         closeDetails()
         kind = item["pull_request"] != .null || item["head"] != .null ? .pullRequests : .issues
@@ -10,7 +13,8 @@ extension GitHubService {
         do {
             let api = try await api(), repo = Self.itemRepository(item)
             guard GitHubAPI.isValidRepository(repo), let number = item["number"].int, number > 0 else { throw GitHubAPIError.invalidResponse }
-            let result = try await api.request(path: "/repos/\(repo)/\(kind == .pullRequests ? "pulls" : "issues")/\(number)").data
+            let result = try await api.request(path: "/repos/\(repo)/\(kind == .pullRequests ? "pulls" : "issues")/\(number)",
+                                               accept: Self.renderedBodies).data
             guard isCurrentDetail(revision, key: key) else { return }
             guard result["number"].int == number, ["open", "closed"].contains(result["state"].text) else { throw GitHubAPIError.invalidResponse }
             let value = item.merging(result).setting("repository", item["repository"].setting("full_name", .string(repo)))
@@ -59,7 +63,8 @@ extension GitHubService {
             }
             if [.checks, .statuses, .workflows].contains(section), !Self.isSHA(sha) { throw GitHubAPIError.invalidResponse }
             if section != .repository { path += (path.contains("?") ? "&" : "?") + "per_page=100&page=\(page)" }
-            var response = try await api.request(path: path)
+            let bodies: Set<GitHubSection> = [.comments, .reviews, .reviewComments, .timeline]
+            var response = try await api.request(path: path, accept: bodies.contains(section) ? Self.renderedBodies : "application/vnd.github+json")
             guard isCurrentDetail(revision, key: key) else { return }
             if section == .repository {
                 guard response.data["full_name"].text.caseInsensitiveCompare(repo) == .orderedSame else { throw GitHubAPIError.invalidResponse }

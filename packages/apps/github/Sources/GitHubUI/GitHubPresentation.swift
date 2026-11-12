@@ -86,7 +86,7 @@ struct GitHubStatePill: View {
 struct GitHubAvatar: View {
     let person: GitHubValue
     var size: CGFloat = 24
-    private var url: URL? { GitHubAvatars.url(login: person.login, avatarURL: person["avatar_url"].string) }
+    private var url: URL? { GitHubImages.url(login: person.login, avatarURL: person["avatar_url"].string) }
     var body: some View {
         GitHubRemoteImage(url: url) {
             ZStack {

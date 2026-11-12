@@ -40,7 +40,7 @@ struct GitHubDiscussionCard: View {
                     if bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text(isDescription ? GHL("No description provided.") : kind == .review ? GHL("Submitted a review without a comment.") : GHL("No comment provided."))
                             .font(.system(size: 12)).foregroundStyle(.secondary)
-                    } else { GitHubMarkdownView(source: bodyText) }
+                    } else { GitHubMarkdownView(source: bodyText, html: value["body_html"].text) }
                     reactions
                 }
                 .padding(14).frame(maxWidth: .infinity, alignment: .leading)

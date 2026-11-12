@@ -33,7 +33,7 @@ struct GitHubBoardTests {
 
     @Test func aColumnShowsItsOwnersPicture() {
         let column = GitHubBoardColumn(repository: "vue-hooks-form/vue-hooks-form", items: [])
-        #expect(GitHubRepositoryOwnerAvatar(column: column).url?.absoluteString == "https://github.com/vue-hooks-form.png?size=64")
+        #expect(GitHubRepositoryOwnerAvatar(column: column).url?.absoluteString == "https://avatars.githubusercontent.com/vue-hooks-form?s=96")
         #expect(GitHubRepositoryOwnerAvatar(column: GitHubBoardColumn(repository: "bad owner/x", items: [])).url == nil)
     }
 

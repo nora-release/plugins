@@ -86,19 +86,12 @@ struct GitHubStatePill: View {
 struct GitHubAvatar: View {
     let person: GitHubValue
     var size: CGFloat = 24
-    private var url: URL? {
-        if let value = person["avatar_url"].string, let url = URL(string: value), url.scheme == "https" { return url }
-        guard !person.login.isEmpty, !person.login.contains(" ") else { return nil }
-        return URL(string: "https://github.com/\(person.login).png?size=64")
-    }
+    private var url: URL? { GitHubAvatars.url(login: person.login, avatarURL: person["avatar_url"].string) }
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if case let .success(image) = phase { image.resizable().scaledToFill() }
-            else {
-                ZStack {
-                    Color.secondary.opacity(0.12)
-                    Text(String(person.login.prefix(1)).uppercased()).font(.system(size: size * 0.45, weight: .medium)).foregroundStyle(.secondary)
-                }
+        GitHubRemoteImage(url: url) {
+            ZStack {
+                Color.secondary.opacity(0.12)
+                Text(String(person.login.prefix(1)).uppercased()).font(.system(size: size * 0.45, weight: .medium)).foregroundStyle(.secondary)
             }
         }
         .frame(width: size, height: size).clipShape(Circle())

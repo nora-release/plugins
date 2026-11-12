@@ -28,6 +28,8 @@ public final class GitHubService {
     public internal(set) var commentNotice: String?
     public internal(set) var isPostingComment = false
     public internal(set) var isMerging = false
+    /// Avatars, fetched through Nora.
+    public private(set) var avatars: GitHubAvatars?
     public var onPresentationChange: (@MainActor () async -> Void)?
     public var onUIAction: (@MainActor (String) -> Bool)?
     @ObservationIgnored private let credentialCoordinator: GitHubCredentialCoordinator
@@ -52,6 +54,7 @@ public final class GitHubService {
     public func configure(request: @escaping GitHubHostRequest) {
         host = request
         isReady = true
+        if avatars == nil { avatars = GitHubAvatars(request: request) }
         guard session == nil else { return }
         let forwarding: GitHubHostRequest = { [weak self] method, parameters in
             guard let self else { throw GitHubAPIError.unauthenticated }

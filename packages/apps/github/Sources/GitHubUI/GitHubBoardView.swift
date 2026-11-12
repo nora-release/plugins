@@ -235,22 +235,15 @@ struct GitHubRepositoryOwnerAvatar: View {
     let column: GitHubBoardColumn
     var size: CGFloat = 22
 
-    var url: URL? {
-        guard !column.owner.isEmpty, column.owner.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) else { return nil }
-        return URL(string: "https://github.com/\(column.owner).png?size=64")
-    }
+    var url: URL? { GitHubAvatars.url(login: column.owner, avatarURL: nil) }
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if case let .success(image) = phase {
-                image.resizable().scaledToFill()
-            } else {
-                Text(String(column.name.first { $0.isLetter || $0.isNumber } ?? "#").uppercased())
-                    .font(.system(size: size * 0.5, weight: .semibold))
-                    .foregroundStyle(Color.black.opacity(0.78))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(GitHubBoardStyle.tint(for: column.repository))
-            }
+        GitHubRemoteImage(url: url) {
+            Text(String(column.name.first { $0.isLetter || $0.isNumber } ?? "#").uppercased())
+                .font(.system(size: size * 0.5, weight: .semibold))
+                .foregroundStyle(Color.black.opacity(0.78))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(GitHubBoardStyle.tint(for: column.repository))
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.27))

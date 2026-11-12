@@ -169,12 +169,7 @@ private struct GitHubBoardColumnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 9) {
-                Text(String(column.name.first { $0.isLetter || $0.isNumber } ?? "#").uppercased())
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.black.opacity(0.78))
-                    .frame(width: 22, height: 22)
-                    .background(GitHubBoardStyle.tint(for: column.repository), in: RoundedRectangle(cornerRadius: 6))
-                    .accessibilityHidden(true)
+                GitHubRepositoryOwnerAvatar(column: column)
                 (Text(column.owner + "/").foregroundStyle(.secondary).fontWeight(.regular) + Text(column.name))
                     .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1).truncationMode(.middle)
@@ -231,5 +226,36 @@ struct GitHubBoardAccount: View {
             .accessibilityIdentifier("github.board.account")
         }
         .frame(height: 30)
+    }
+}
+
+/// The picture of the account that owns a repository, a person or an organization, in a rounded square;
+/// the repository's tinted initial stands in until it loads, or when it can't.
+struct GitHubRepositoryOwnerAvatar: View {
+    let column: GitHubBoardColumn
+    var size: CGFloat = 22
+
+    var url: URL? {
+        guard !column.owner.isEmpty, column.owner.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) else { return nil }
+        return URL(string: "https://github.com/\(column.owner).png?size=64")
+    }
+
+    var body: some View {
+        AsyncImage(url: url) { phase in
+            if case let .success(image) = phase {
+                image.resizable().scaledToFill()
+            } else {
+                Text(String(column.name.first { $0.isLetter || $0.isNumber } ?? "#").uppercased())
+                    .font(.system(size: size * 0.5, weight: .semibold))
+                    .foregroundStyle(Color.black.opacity(0.78))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(GitHubBoardStyle.tint(for: column.repository))
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.27))
+        .overlay(RoundedRectangle(cornerRadius: size * 0.27).strokeBorder(GitHubBoardStyle.cardBorder))
+        .help(column.owner)
+        .accessibilityHidden(true)
     }
 }

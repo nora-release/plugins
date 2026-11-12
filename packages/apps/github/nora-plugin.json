@@ -6,7 +6,7 @@
   "skills": [
     "skills/github"
   ],
-  "version": "0.14.0",
+  "version": "0.14.1",
   "summary": "Connect GitHub to view PR discussions, reviews, CI/CD checks, commits, and changes; comment and merge from native Nora views.",
   "publisher": "Nora",
   "apiVersion": 1,

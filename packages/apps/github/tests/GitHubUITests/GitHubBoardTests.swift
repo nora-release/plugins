@@ -31,6 +31,12 @@ struct GitHubBoardTests {
         #expect(GitHubBoardColumn.columns(items, filter: .pullRequests, query: "sidebar").isEmpty)
     }
 
+    @Test func aColumnShowsItsOwnersPicture() {
+        let column = GitHubBoardColumn(repository: "vue-hooks-form/vue-hooks-form", items: [])
+        #expect(GitHubRepositoryOwnerAvatar(column: column).url?.absoluteString == "https://github.com/vue-hooks-form.png?size=64")
+        #expect(GitHubRepositoryOwnerAvatar(column: GitHubBoardColumn(repository: "bad owner/x", items: [])).url == nil)
+    }
+
     @Test func aCardShowsAtMostThreeLabelsAndCountsTheRest() {
         let labels = ["bug", "ui", "p1", "macos", ""].map { GitHubValue.object(["name": .string($0), "color": .string("f2726f")]) }
         let value = item("acme/web", 1).setting("labels", .array(labels))

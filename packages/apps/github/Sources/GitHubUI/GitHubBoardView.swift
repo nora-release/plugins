@@ -6,6 +6,8 @@ struct GitHubBoardView: View {
     @Bindable var service: GitHubService
     @Binding var filter: GitHubBoardFilter
     var searchFocused: FocusState<Bool>.Binding
+    /// The card whose details are open.
+    var selectedKey: String?
     let reconnect: () -> Void
     let open: (GitHubValue) -> Void
     let handOff: (GitHubValue) -> Void
@@ -108,7 +110,7 @@ struct GitHubBoardView: View {
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 16) {
                     ForEach(columns) { column in
-                        GitHubBoardColumnView(column: column, selectedKey: service.selectedItem?.itemKey,
+                        GitHubBoardColumnView(column: column, selectedKey: selectedKey,
                                               open: open,
                                               handOff: handOff)
                     }

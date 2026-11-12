@@ -38,13 +38,13 @@ public enum GitHubValue: Codable, Hashable, Sendable {
     public var object: [String: GitHubValue] { if case .object(let value) = self { value } else { [:] } }
     public var isNull: Bool { self == .null }
     public var id: String { self["id"].int.map(String.init) ?? self["node_id"].string ?? self["sha"].string ?? "" }
-    public var date: Date? {
-        guard let string else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: string) { return date }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: string)
+    public var date: Date? { string.flatMap(Self.date(from:)) }
+
+    /// A GitHub timestamp, with or without fractional seconds. Parsed with a format style rather than a
+    /// new ISO8601DateFormatter each time: making one loads locale data, and the board sorts on dates.
+    public static func date(from text: String) -> Date? {
+        if let date = try? Date.ISO8601FormatStyle().parse(text) { return date }
+        return try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(text)
     }
     public func setting(_ key: String, _ value: GitHubValue) -> GitHubValue {
         var result = object

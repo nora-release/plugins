@@ -41,16 +41,18 @@ struct GitHubBoardColumn: Identifiable, Equatable {
                 || item.repositoryName.localizedCaseInsensitiveContains(query)
                 || String(item["number"].int ?? 0).contains(query))
         }
-        let grouped = Dictionary(grouping: shown) { $0.repositoryName.lowercased() }
-        return grouped.values.compactMap { group -> Self? in
-            let sorted = group.sorted { updated($0) > updated($1) }
+        // Each date is read once: sorting compares every item many times.
+        let dated = shown.map { (item: $0, updated: updated($0)) }
+        let grouped = Dictionary(grouping: dated) { $0.item.repositoryName.lowercased() }
+        return grouped.values.compactMap { group -> (column: Self, updated: Date)? in
+            let sorted = group.sorted { $0.updated > $1.updated }
             guard let first = sorted.first else { return nil }
-            return Self(repository: first.repositoryName, items: sorted)
+            return (Self(repository: first.item.repositoryName, items: sorted.map(\.item)), first.updated)
         }
         .sorted { left, right in
-            let (a, b) = (updated(left.items[0]), updated(right.items[0]))
-            return a == b ? left.id < right.id : a > b
+            left.updated == right.updated ? left.column.id < right.column.id : left.updated > right.updated
         }
+        .map(\.column)
     }
 
     static func updated(_ item: GitHubValue) -> Date {

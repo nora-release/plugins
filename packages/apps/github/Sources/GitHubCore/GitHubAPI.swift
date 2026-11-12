@@ -167,11 +167,7 @@ public struct GitHubAPI: Sendable {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
             let text = try decoder.singleValueContainer().decode(String.self)
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: text) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            guard let date = formatter.date(from: text) else { throw GitHubAPIError.invalidResponse }
+            guard let date = GitHubValue.date(from: text) else { throw GitHubAPIError.invalidResponse }
             return date
         }
         do { return try decoder.decode(type, from: data) }

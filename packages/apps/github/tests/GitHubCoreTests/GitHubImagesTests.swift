@@ -43,3 +43,12 @@ private actor Counter {
     private(set) var value = 0
     func add() { value += 1 }
 }
+
+struct GitHubDateTests {
+    @Test func gitHubTimestampsParseWithAndWithoutFractions() {
+        #expect(GitHubValue.date(from: "2026-11-12T08:00:00Z") == Date(timeIntervalSince1970: 1_794_470_400))
+        #expect(GitHubValue.date(from: "2026-11-12T08:00:00.500Z") == Date(timeIntervalSince1970: 1_794_470_400.5))
+        #expect(GitHubValue.date(from: "yesterday") == nil)
+        #expect(GitHubValue.string("2026-11-12T08:00:00Z").date != nil)
+    }
+}

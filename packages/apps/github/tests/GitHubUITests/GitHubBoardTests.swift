@@ -129,3 +129,17 @@ struct GitHubDragToPanTests {
         #expect(narrow.target(from: .zero, by: CGSize(width: -300, height: -300), along: .horizontal) == .zero)
     }
 }
+
+@MainActor
+struct GitHubMarkdownCacheTests {
+    @Test func aBodyIsParsedOnceAndKept() {
+        let cache = GitHubMarkdownCache()
+        let html = #"<img src="https://camo.githubusercontent.com/a/68747470733a2f2f612e636f2f622e706e67">"#
+        let first = cache.body("Hello **there**\n\n![b](https://a.co/b.png)", html: html)
+        let second = cache.body("Hello **there**\n\n![b](https://a.co/b.png)", html: html)
+        #expect(first.rendered == second.rendered)
+        #expect(first.rendered.count == 1)
+        #expect(GitHubImageSources.resolve("https://a.co/b.png", in: first.rendered)?.host == "camo.githubusercontent.com")
+        #expect(cache.inline("**bold**") == cache.inline("**bold**"))
+    }
+}

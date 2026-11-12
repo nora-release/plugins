@@ -13,6 +13,8 @@ public struct GitHubPanel: View {
     @State private var drawerItem: GitHubValue?
     /// The drawer's full details appear once it has slid in; drawing them on its first frame would stall the slide.
     @State private var drawerReady = false
+    /// The details being loaded; a closed drawer, or another card, cancels it so it stops using the panel.
+    @State private var detailLoad: Task<Void, Never>?
     @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -103,9 +105,10 @@ public struct GitHubPanel: View {
     private func open(_ item: GitHubValue) {
         let opening = present(item)
         let key = item.itemKey
-        Task {
+        detailLoad?.cancel()
+        detailLoad = Task {
             if opening { try? await Task.sleep(for: slideDuration) }
-            guard drawerItem?.itemKey == key else { return }
+            guard !Task.isCancelled, drawerItem?.itemKey == key else { return }
             await service.selectItem(item)
         }
     }
@@ -130,11 +133,17 @@ public struct GitHubPanel: View {
     /// Follows details opened or closed elsewhere: Escape, Nora's toolbar, or handing a card to Nora.
     private func follow(_ key: String?) {
         if let item = service.selectedItem, key != nil { present(item) }
-        else if key == nil, drawerItem != nil { withAnimation(slide) { drawerItem = nil } }
+        else if key == nil, drawerItem != nil {
+            detailLoad?.cancel()
+            detailLoad = nil
+            withAnimation(slide) { drawerItem = nil }
+        }
     }
 
     /// Slides the drawer out; the service forgets the details once it has gone.
     private func closeDetails() {
+        detailLoad?.cancel()
+        detailLoad = nil
         withAnimation(slide) { drawerItem = nil }
         Task {
             try? await Task.sleep(for: slideDuration)

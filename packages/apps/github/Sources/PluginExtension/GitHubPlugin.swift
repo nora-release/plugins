@@ -51,19 +51,8 @@ final class GitHubPlugin: NSObject, AppExtension {
     private static func invokeCommand(_ request: NoraPluginRequest, model: GitHubService) async throws -> NoraPluginResponse {
         guard request.method == "commands.execute" else { return NoraPluginResponse(error: "Unsupported GitHub plugin request.") }
         let input = try request.parameters(as: CommandInput.self)
-        let page = input.arguments["page"].int ?? 1
-        let repository = input.arguments["repository"].text
-        let stateString = input.arguments["state"].string ?? "open"
-        guard let state = GitHubItemState(rawValue: stateString) else { throw GitHubAPIError.invalidResponse }
-        let api = try await model.apiForCommands()
-        let result: GitHubPage
-        switch input.commandID {
-        case "com.nora.github.listRepositories": result = try await api.repositories(page: page)
-        case "com.nora.github.listIssues": result = try await api.issues(repository: repository, state: state, page: page)
-        case "com.nora.github.listPullRequests": result = try await api.pullRequests(repository: repository, state: state, page: page)
-        default: return NoraPluginResponse(error: "Unsupported GitHub plugin command.")
-        }
-        return try NoraPluginResponse(result: result)
+        let commands = GitHubCommands(api: try await model.apiForCommands())
+        return try NoraPluginResponse(result: await commands.execute(commandID: input.commandID, arguments: input.arguments))
     }
 }
 

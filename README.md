@@ -2,7 +2,7 @@
 
 The official plugins for [Nora](https://nora.elonehoo.me), and the catalogs Nora's Plugins page reads them from.
 
-Want to write your own plugin? Start with the [plugin docs](https://nora.elonehoo.me/docs/plugins/), then see [CONTRIBUTING.md](CONTRIBUTING.md) to add one here.
+This repository holds only Nora's own plugins. To write your own, follow the [plugin docs](https://nora.elonehoo.me/docs/plugins/) and publish it in your own repository; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What's here
 

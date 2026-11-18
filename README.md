@@ -10,7 +10,7 @@ Want to write your own plugin? Start with the [plugin docs](https://nora.eloneho
 | --- | --- | --- |
 | [`packages/skills`](packages/skills) | Skill plugins: [docs](packages/skills/docs), [format-converter](packages/skills/format-converter), [linear](packages/skills/linear), [pdfs](packages/skills/pdfs), [spreadsheets](packages/skills/spreadsheets), [ui-designer](packages/skills/ui-designer) | [`.nora-plugin/marketplace.json`](.nora-plugin/marketplace.json) |
 | [`packages/gateway-providers`](packages/gateway-providers) | Model providers for Nora's gateway: ChatGPT, GitHub Copilot, Grok, Kiro, Kimi and more | [`gateway-providers.json`](gateway-providers.json) |
-| [`packages/apps`](packages/apps) | Native app plugins with their own panels: [GitHub](packages/apps/github) | [`registry.json`](registry.json) → [`marketplace.json`](marketplace.json) |
+| [`packages/apps`](packages/apps) | Native app plugins with their own panels, written in Swift: [GitHub](packages/apps/github) | [`registry.json`](registry.json) → [`marketplace.json`](marketplace.json) |
 | [`packages/environments`](packages/environments) | Experimental; not listed yet. | |
 
 ## Install

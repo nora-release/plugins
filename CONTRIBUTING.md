@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for building for Nora. This guide covers adding a new plugin to the official catalog and changing an existing one.
+Thanks for building for Nora. This guide covers adding skill, provider and app plugins to the official catalog, and changing existing ones.
 
 You do not need to be in this catalog to share a plugin: anyone can install one straight from its own repository with `nora plugins add owner/repo`. Add it here when it is useful to most Nora users and you want it on the Plugins page.
 
@@ -69,9 +69,32 @@ A provider that needs a browser sign-in, request signing or a private API needs 
 
 Add a row for your provider to the table in [`packages/gateway-providers/README.md`](packages/gateway-providers/README.md). Maintainers package provider plugins and update `gateway-providers.json` when they publish a release, so do not edit it by hand.
 
-## App plugins
+## Add an app plugin
 
-App plugins, like GitHub, are signed and notarized native code with their own panels. They are built and released by the maintainers. If you want to propose one, open an issue first.
+App plugins are native Swift code with their own panel in Nora, like [GitHub](packages/apps/github). They can also bring commands for the agent and skills. Contributions are welcome; open an issue first, since an app plugin is more work to review.
+
+1. Create `packages/apps/<name>/` modeled on [`packages/apps/github`](packages/apps/github):
+
+   | File | What it is |
+   | --- | --- |
+   | `Package.swift` | A Swift package with a host product and an extension product. |
+   | `nora-plugin.json` | The manifest: `id`, `version`, `permissions`, `networkDomains`, `panels`, `commands` and `skills`. |
+   | `plugin-release.json` | How the release is assembled: products, principal class and resources. |
+   | `Makefile` | `make install`, `make test`, `make build` and `make package`. |
+   | `README.md` | The plugin's page in Nora. |
+
+2. Build and test it:
+
+   ```sh
+   cd packages/apps/<name>
+   make install test package
+   ```
+
+3. Open a pull request. List every permission and network domain the plugin needs, and why.
+
+You do not need an Apple Developer account. Releases from this catalog are built by CI, ad-hoc signed with the App Sandbox, and trusted by Nora through their checksum in the reviewed catalog. Once your plugin is merged, a maintainer adds its release workflow (like [`release-github-plugin.yml`](.github/workflows/release-github-plugin.yml)) and publishes it by pushing a `<name>-vX.Y.Z` tag.
+
+To ship an app plugin outside this catalog instead, it must be signed with a Developer ID and notarized by Apple, or Nora will not install it.
 
 ## Change an existing plugin
 

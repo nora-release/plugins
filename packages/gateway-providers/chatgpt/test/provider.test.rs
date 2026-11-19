@@ -150,3 +150,58 @@ async fn a_sign_in_started_again_takes_the_port_over() {
         Step::Waiting
     );
 }
+
+#[test]
+fn only_the_codex_images_api_is_drawn_at() {
+    for path in ["/images/generations", "/images/edits"] {
+        let url = format!("{}{path}", codex::BASE);
+        assert_eq!(image_url("POST", &url), Some(url.clone()));
+        assert_eq!(image_url("GET", &url), None);
+    }
+    assert_eq!(
+        image_url("POST", &format!("{}/responses", codex::BASE)),
+        None
+    );
+    assert_eq!(
+        image_url("POST", &format!("{}/images/variations", codex::BASE)),
+        None
+    );
+    assert_eq!(
+        image_url(
+            "POST",
+            "https://example.com/backend-api/codex/images/generations"
+        ),
+        None
+    );
+}
+
+#[tokio::test]
+async fn a_drawing_is_signed_by_the_account_with_codexs_image_ids() {
+    let (plugin, client) = plugin(vec![(200, json!({"data": []}))]);
+    let url = format!("{}/images/generations", codex::BASE);
+    let body = json!({"model": "gpt-image-2", "prompt": "an apple"}).to_string();
+    let headers = BTreeMap::from([
+        (
+            "X-Codex-Imagegen-Request-Id".to_string(),
+            "req-1".to_string(),
+        ),
+        ("x-codex-image-turn-id".to_string(), "turn-1".to_string()),
+        ("cookie".to_string(), "not passed on".to_string()),
+    ]);
+    plugin
+        .post_image(client.as_ref(), &saved(), &url, &headers, body.as_bytes())
+        .await
+        .unwrap();
+    let requests = client.requests.lock().unwrap();
+    let sent = &requests[0];
+    assert_eq!(sent.method, HttpMethod::Post);
+    assert_eq!(sent.url, url);
+    assert_eq!(sent.body.as_deref(), Some(body.as_bytes()));
+    let header = |name: &str| sent.headers.get(name).map(String::as_str);
+    assert_eq!(header("authorization"), Some("Bearer a1"));
+    assert_eq!(header("chatgpt-account-id"), Some("acct-1"));
+    assert_eq!(header("accept"), Some("application/json"));
+    assert_eq!(header("x-codex-imagegen-request-id"), Some("req-1"));
+    assert_eq!(header("x-codex-image-turn-id"), Some("turn-1"));
+    assert_eq!(header("cookie"), None);
+}

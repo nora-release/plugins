@@ -25,6 +25,19 @@ use tokio::sync::Mutex;
 const MAXIMUM_REQUEST_BYTES: usize = 64 * 1024 * 1024;
 /// Where each model's instructions are kept, in the plugin's own folder.
 const PROMPTS_FILE: &str = "codex-instructions.json";
+/// The ids Codex CLI's image tool sends with a drawing, which the gateway
+/// makes for each one.
+const IMAGE_REQUEST_HEADERS: [&str; 2] = ["x-codex-imagegen-request-id", "x-codex-image-turn-id"];
+/// A drawing can take a while; the backend answers only once it is drawn.
+const DRAW_TIMEOUT: Duration = Duration::from_secs(300);
+
+/// The Codex backend's images API, where Codex CLI's image tool draws with
+/// a ChatGPT plan's allowance.
+fn image_url(method: &str, url: &str) -> Option<String> {
+    let path = url.strip_prefix(codex::BASE)?;
+    (method == "POST" && matches!(path, "/images/generations" | "/images/edits"))
+        .then(|| url.to_owned())
+}
 
 pub struct ChatGpt {
     client: Option<Arc<dyn HttpClient>>,
@@ -160,6 +173,88 @@ impl ChatGpt {
         }
         codex::send(client, request, Duration::from_secs(120)).await
     }
+
+    async fn post_image(
+        &self,
+        client: &dyn HttpClient,
+        credentials: &Value,
+        url: &str,
+        headers: &BTreeMap<String, String>,
+        body: &[u8],
+    ) -> PluginResult<provider_support::HttpStreamingResponse> {
+        let mut request =
+            codex::account_request(HttpRequest::new(HttpMethod::Post, url), credentials)
+                .with_header("version", codex::VERSION)
+                .with_header("content-type", "application/json")
+                .with_header("accept", "application/json")
+                .with_body(body.to_vec());
+        for (name, value) in headers {
+            let name = name.to_ascii_lowercase();
+            if IMAGE_REQUEST_HEADERS.contains(&name.as_str()) {
+                request = request.with_header(name, value.clone());
+            }
+        }
+        codex::send(client, request, DRAW_TIMEOUT).await
+    }
+
+    /// Draws at the Codex backend's images API as Codex CLI's image tool
+    /// does: the gateway's body as it came, signed by the account, and the
+    /// JSON answer passed back with the image allowance it tells.
+    async fn draw(
+        &self,
+        client: &dyn HttpClient,
+        mut credentials: Value,
+        url: &str,
+        headers: &BTreeMap<String, String>,
+        body: &[u8],
+        mut output: nora_plugin_runtime_sdk::streams::StreamWriter,
+    ) -> Result<FetchHead, RpcError> {
+        let mut renewed = None;
+        let mut response = self
+            .post_image(client, &credentials, url, headers, body)
+            .await?;
+        if response.status == 401 {
+            credentials = self.renew(client, &credentials).await?;
+            renewed = Some(credentials.clone());
+            response = self
+                .post_image(client, &credentials, url, headers, body)
+                .await?;
+            if response.status == 401 {
+                return Err(auth::signed_out().into());
+            }
+        }
+        let mut head = FetchHead {
+            status: response.status,
+            expires_at: renewed.as_ref().and_then(auth::expires_at),
+            credentials: renewed,
+            ..FetchHead::default()
+        };
+        for (name, value) in &response.headers {
+            let name = name.to_ascii_lowercase();
+            if name == "content-type" || name == "retry-after" || name.starts_with("x-codex-") {
+                head.headers.insert(name, value.clone());
+            }
+        }
+        let mut stream = response.body;
+        tokio::spawn(async move {
+            while let Some(chunk) = stream.next().await {
+                let written = match chunk {
+                    Ok(bytes) => output.write(&bytes).await,
+                    Err(error) => {
+                        let _ = output
+                            .abort(PluginError::transport(error.to_string()).into())
+                            .await;
+                        return;
+                    }
+                };
+                if written.is_err() {
+                    return;
+                }
+            }
+            let _ = output.finish().await;
+        });
+        Ok(head)
+    }
 }
 
 impl Provider for ChatGpt {
@@ -209,14 +304,29 @@ impl Provider for ChatGpt {
     }
 
     async fn fetch(&self, mut request: Fetch) -> Result<FetchHead, RpcError> {
-        if request.method != "POST" || request.url != format!("{}/responses", codex::BASE) {
+        let drawing = image_url(&request.method, &request.url);
+        let responses =
+            request.method == "POST" && request.url == format!("{}/responses", codex::BASE);
+        if drawing.is_none() && !responses {
             return Err(PluginError::invalid(
-                "A ChatGPT account takes Responses requests at the Codex backend.",
+                "A ChatGPT account takes Responses and image requests at the Codex backend.",
             )
             .into());
         }
         let (client, mut credentials) = self.signed_in(&request.question)?;
         let bytes = request.body.read_to_end(MAXIMUM_REQUEST_BYTES).await?;
+        if let Some(url) = drawing {
+            return self
+                .draw(
+                    client.as_ref(),
+                    credentials,
+                    &url,
+                    &request.headers,
+                    &bytes,
+                    request.response,
+                )
+                .await;
+        }
         let mut body: Value = serde_json::from_slice(&bytes)
             .map_err(|_| PluginError::invalid("The request body is not JSON."))?;
         let object = body

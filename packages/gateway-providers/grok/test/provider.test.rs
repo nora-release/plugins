@@ -178,3 +178,95 @@ fn a_request_names_the_plain_model_and_its_window() {
     assert_eq!(header("x-grok-conv-id"), Some("conv-1"));
     assert_eq!(header("x-grok-doom-loop-check"), Some("1024"));
 }
+
+fn at(path: &str) -> String {
+    format!("{}{path}", grok::BASE)
+}
+
+#[test]
+fn image_and_video_requests_go_to_grok_as_they_came() {
+    let body = json!({"model": "grok-imagine-image", "prompt": "an apple", "n": 1}).to_string();
+    for path in [
+        "/images/generations",
+        "/images/edits",
+        "/videos/generations",
+    ] {
+        let outgoing = outgoing_for("POST", &at(path), body.as_bytes()).unwrap();
+        assert_eq!(outgoing.method, HttpMethod::Post);
+        assert_eq!(outgoing.url, at(path));
+        assert_eq!(outgoing.body, body.as_bytes());
+        assert!(outgoing.headers.is_empty());
+    }
+    let status = outgoing_for("GET", &at("/videos/req_123-abc"), &[]).unwrap();
+    assert_eq!(status.method, HttpMethod::Get);
+    assert_eq!(status.url, at("/videos/req_123-abc"));
+    assert!(status.body.is_empty());
+}
+
+#[test]
+fn a_responses_request_is_still_reshaped_for_grok() {
+    let outgoing = outgoing_for(
+        "POST",
+        &at("/responses"),
+        json!({"model": "grok-4.7@500k", "input": "hi"})
+            .to_string()
+            .as_bytes(),
+    )
+    .unwrap();
+    assert_eq!(outgoing.url, at("/responses"));
+    let body: Value = serde_json::from_slice(&outgoing.body).unwrap();
+    assert_eq!(body["model"], "grok-4.7");
+}
+
+#[test]
+fn anything_else_is_turned_away() {
+    for (method, url) in [
+        ("GET", at("/responses")),
+        ("POST", at("/chat/completions")),
+        ("GET", at("/images/generations")),
+        ("GET", at("/videos/generations")),
+        ("GET", at("/videos/../billing")),
+        ("GET", at("/videos/")),
+        ("POST", "https://example.com/v1/images/generations".into()),
+    ] {
+        assert!(outgoing_for(method, &url, b"{}").is_err(), "{method} {url}");
+    }
+}
+
+#[tokio::test]
+async fn a_drawing_is_sent_signed_to_grok_imagine() {
+    let (plugin, client) = plugin(vec![(200, "1.0.80\n".into()), (200, "{}".into())]);
+    let body = json!({"model": "grok-imagine-image", "prompt": "an apple"}).to_string();
+    let outgoing = outgoing_for("POST", &at("/images/generations"), body.as_bytes()).unwrap();
+    plugin
+        .post(client.as_ref(), &signed().credentials.unwrap(), &outgoing)
+        .await
+        .unwrap();
+    let requests = client.requests.lock().unwrap();
+    let sent = &requests[1];
+    assert_eq!(sent.method, HttpMethod::Post);
+    assert_eq!(sent.url, at("/images/generations"));
+    assert_eq!(sent.body.as_deref(), Some(body.as_bytes()));
+    assert_eq!(
+        sent.headers.get("authorization").map(String::as_str),
+        Some("Bearer a1")
+    );
+    assert_eq!(
+        sent.headers.get("content-type").map(String::as_str),
+        Some("application/json")
+    );
+}
+
+#[tokio::test]
+async fn a_video_status_is_asked_without_a_body() {
+    let (plugin, client) = plugin(vec![(200, "1.0.80\n".into()), (200, "{}".into())]);
+    let outgoing = outgoing_for("GET", &at("/videos/req_1"), &[]).unwrap();
+    plugin
+        .post(client.as_ref(), &signed().credentials.unwrap(), &outgoing)
+        .await
+        .unwrap();
+    let requests = client.requests.lock().unwrap();
+    assert_eq!(requests[1].method, HttpMethod::Get);
+    assert!(requests[1].body.is_none());
+    assert!(!requests[1].headers.contains_key("content-type"));
+}

@@ -130,12 +130,15 @@ impl Grok {
     ) -> PluginResult<HttpStreamingResponse> {
         let version = self.version(client).await;
         let mut request = grok::sign(
-            HttpRequest::new(HttpMethod::Post, format!("{}/responses", grok::BASE)),
+            HttpRequest::new(outgoing.method, outgoing.url.clone()),
             xai::text(credentials, "access"),
             &version,
-        )
-        .with_header("content-type", "application/json")
-        .with_body(outgoing.body.clone());
+        );
+        if !outgoing.body.is_empty() {
+            request = request
+                .with_header("content-type", "application/json")
+                .with_body(outgoing.body.clone());
+        }
         for (name, value) in &outgoing.headers {
             request = request.with_header(name.clone(), value.clone());
         }
@@ -143,14 +146,53 @@ impl Grok {
     }
 }
 
-/// A Responses request as it goes to Grok: its body and the headers it
-/// adds to the signed ones.
+/// A request as it goes to Grok: where, its body, and the headers it adds to
+/// the signed ones.
 struct Outgoing {
+    method: HttpMethod,
+    url: String,
     body: Vec<u8>,
     headers: Vec<(String, String)>,
 }
 
+/// What a Grok account answers at Grok Build's backend: Responses, and the
+/// Imagine image and video APIs the gateway draws with. Media requests go as
+/// they came; only Responses requests are reshaped.
+fn outgoing_for(method: &str, url: &str, bytes: &[u8]) -> PluginResult<Outgoing> {
+    let refused =
+        || PluginError::invalid("A Grok account takes Responses, image and video requests.");
+    let path = url.strip_prefix(grok::BASE).ok_or_else(refused)?;
+    match (method, path) {
+        ("POST", "/responses") => Outgoing::of(bytes),
+        ("POST", "/images/generations" | "/images/edits" | "/videos/generations") => {
+            Ok(Outgoing::media(HttpMethod::Post, url, bytes))
+        }
+        ("GET", _) if is_video_status(path) => Ok(Outgoing::media(HttpMethod::Get, url, &[])),
+        _ => Err(refused()),
+    }
+}
+
+/// `/videos/<request id>`, where Grok says how a video is going.
+fn is_video_status(path: &str) -> bool {
+    path.strip_prefix("/videos/").is_some_and(|id| {
+        !id.is_empty()
+            && id != "generations"
+            && id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    })
+}
+
 impl Outgoing {
+    fn media(method: HttpMethod, url: &str, bytes: &[u8]) -> Self {
+        Self {
+            method,
+            url: url.to_owned(),
+            body: bytes.to_vec(),
+            headers: Vec::new(),
+        }
+    }
+
     /// The request shaped for Grok: what it turns away left out, the model
     /// and window the id names, and Grok Build's headers.
     fn of(bytes: &[u8]) -> PluginResult<Self> {
@@ -186,7 +228,12 @@ impl Outgoing {
         }
         let body = serde_json::to_vec(&body)
             .map_err(|_| PluginError::invalid("The request could not be encoded."))?;
-        Ok(Self { body, headers })
+        Ok(Self {
+            method: HttpMethod::Post,
+            url: format!("{}/responses", grok::BASE),
+            body,
+            headers,
+        })
     }
 }
 
@@ -275,13 +322,10 @@ impl Provider for Grok {
     }
 
     async fn fetch(&self, mut request: Fetch) -> Result<FetchHead, RpcError> {
-        if request.method != "POST" || request.url != format!("{}/responses", grok::BASE) {
-            return Err(PluginError::invalid("A Grok account takes Responses requests.").into());
-        }
+        let bytes = request.body.read_to_end(MAXIMUM_REQUEST_BYTES).await?;
+        let outgoing = outgoing_for(&request.method, &request.url, &bytes)?;
         let (client, mut credentials) = self.signed_in(&request.question)?;
         let client = client.as_ref();
-        let bytes = request.body.read_to_end(MAXIMUM_REQUEST_BYTES).await?;
-        let outgoing = Outgoing::of(&bytes)?;
 
         let mut renewed = None;
         if xai::ending(&credentials, RENEW_MARGIN) {
